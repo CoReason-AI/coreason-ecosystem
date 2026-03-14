@@ -12,7 +12,6 @@ authors = [
     { name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" },
 ]
 dependencies = [
-    "loguru>=0.7.2",
     "coreason-manifest",
 ]
 license = { file = "LICENSE" }
