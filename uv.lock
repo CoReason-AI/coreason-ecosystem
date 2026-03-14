@@ -9,6 +9,7 @@ members = [
     "coreason-ecosystem",
     "coreason-inference",
     "coreason-orchestrator",
+    "coreason-workspace",
 ]
 
 [[package]]
@@ -74,7 +75,7 @@ requires-dist = [{ name = "coreason-manifest" }]
 
 [[package]]
 name = "coreason-ecosystem"
-source = { editable = "." }
+source = { editable = "packages/coreason-ecosystem" }
 dependencies = [
     { name = "coreason-manifest" },
 ]
@@ -155,6 +156,33 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "coreason-manifest" }]
+
+[[package]]
+name = "coreason-workspace"
+version = "0.1.0"
+source = { virtual = "." }
+
+[package.dev-dependencies]
+dev = [
+    { name = "deptry" },
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "ruff" },
+    { name = "zensical" },
+]
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "deptry" },
+    { name = "mypy", specifier = ">=1.19.1" },
+    { name = "pre-commit", specifier = ">=4.5.1" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "ruff", specifier = ">=0.14.14" },
+    { name = "zensical" },
+]
 
 [[package]]
 name = "coverage"
