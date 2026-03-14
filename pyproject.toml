@@ -3,7 +3,7 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "coreason_manifest"
+name = "coreason_ecosystem"
 dynamic = ["version"]
 description = "The CoReason AI Swarm Ecosystem"
 readme = "README.md"
@@ -12,7 +12,7 @@ authors = [
     { name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" },
 ]
 dependencies = [
-    "loguru>=0.7.2",
+    "coreason-manifest",
 ]
 license = { file = "LICENSE" }
 classifiers = [
@@ -41,7 +41,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/coreason_manifest"]
+packages = ["src/coreason_ecosystem"]
 
 [tool.hatch.version]
 source = "vcs"
@@ -73,3 +73,9 @@ asyncio_mode = "auto"
 
 [tool.coverage.run]
 omit = ["tests/*"]
+
+[tool.uv.workspace]
+members = [
+    "packages/*",
+    "apps/*"
+]
