@@ -1,1 +1,6 @@
-See AGENTS.md for AI agent rules.
+# Vibe Coding Global Directives
+1. ALWAYS read `AGENTS.md` at the root of the repository before starting a task.
+2. ALWAYS check the local `AGENTS.md` inside the `packages/*` or `apps/*` directory you are modifying. The local rules override global rules for that specific bounded context.
+3. If asked to design a new system feature, ALWAYS cross-reference the proposed design against the L0 constraints in `ECOSYSTEM_ARCHITECTURE.md`.
+4. Use `uv run` for all tooling commands to ensure workspace-level dependency resolution.
+5. PPL 3.0.0 License headers are mandatory on all new files.
