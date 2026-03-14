@@ -1,4 +1,3 @@
-
 name: Release
 
 on:
@@ -22,6 +21,10 @@ jobs:
           enable-cache: true
           python-version: '3.14'
 
+      - name: Install Dependencies
+        run: uv sync --all-extras --dev
+        shell: bash
+
       - name: Build Docs
         run: uv run zensical build
         shell: bash
@@ -31,11 +34,17 @@ jobs:
         with:
           path: "site/"
 
-      - name: Build package
-        run: uv build
+      - name: Extract L0 Ontology Schema
+        run: |
+          mkdir -p artifacts
+          uv run python -c "import json; from coreason_manifest.utils.algebra import get_ontology_schema; json.dump(get_ontology_schema(), open('artifacts/ontology_schema.json', 'w'), indent=2)"
         shell: bash
 
-      - name: Generate SBOM
+      - name: Build packages (Monorepo)
+        run: uv build --all
+        shell: bash
+
+      - name: Generate unified SBOM
         uses: anchore/sbom-action@v0
         with:
           path: ./dist
@@ -48,6 +57,15 @@ jobs:
           inputs: >-
             dist/*.tar.gz
             dist/*.whl
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*
+            artifacts/ontology_schema.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@2f6f737ca5f74c637829c0f5c3acd0e29ea5e8bf

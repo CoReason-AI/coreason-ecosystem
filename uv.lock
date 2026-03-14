@@ -2,6 +2,16 @@ version = 1
 revision = 3
 requires-python = ">=3.14"
 
+[manifest]
+members = [
+    "coreason-actuator",
+    "coreason-cli",
+    "coreason-ecosystem",
+    "coreason-inference",
+    "coreason-orchestrator",
+    "coreason-workspace",
+]
+
 [[package]]
 name = "annotated-types"
 version = "0.7.0"
@@ -42,8 +52,30 @@ wheels = [
 ]
 
 [[package]]
+name = "coreason-actuator"
+version = "0.0.1"
+source = { editable = "packages/coreason-actuator" }
+dependencies = [
+    { name = "coreason-manifest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "coreason-manifest" }]
+
+[[package]]
+name = "coreason-cli"
+version = "0.0.1"
+source = { editable = "apps/coreason-cli" }
+dependencies = [
+    { name = "coreason-manifest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "coreason-manifest" }]
+
+[[package]]
 name = "coreason-ecosystem"
-source = { editable = "." }
+source = { editable = "packages/coreason-ecosystem" }
 dependencies = [
     { name = "coreason-manifest" },
 ]
@@ -92,6 +124,17 @@ dev = [
 ]
 
 [[package]]
+name = "coreason-inference"
+version = "0.0.1"
+source = { editable = "packages/coreason-inference" }
+dependencies = [
+    { name = "coreason-manifest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "coreason-manifest" }]
+
+[[package]]
 name = "coreason-manifest"
 version = "0.26.1"
 source = { registry = "https://pypi.org/simple" }
@@ -101,6 +144,44 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d2/89/6632f8ae5e13fb59049bf5851a8b5357145b07d0651610e7c5a3d250ec1f/coreason_manifest-0.26.1.tar.gz", hash = "sha256:15cce72598fb2b259c2ea1afe23c78b53244151421e243fe34e2a57296eee054", size = 223425, upload-time = "2026-03-14T10:02:50.194Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/17/72/23edf0ae5617a5ea21676bbcc1af86db4759c168ebf9bd4ff00606c5912c/coreason_manifest-0.26.1-py3-none-any.whl", hash = "sha256:4ebd7666221aca25c76ae03ea1fd67224e6e39c149ef84712f5056b4ad0b6dc2", size = 76470, upload-time = "2026-03-14T10:02:48.79Z" },
+]
+
+[[package]]
+name = "coreason-orchestrator"
+version = "0.0.1"
+source = { editable = "packages/coreason-orchestrator" }
+dependencies = [
+    { name = "coreason-manifest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "coreason-manifest" }]
+
+[[package]]
+name = "coreason-workspace"
+version = "0.1.0"
+source = { virtual = "." }
+
+[package.dev-dependencies]
+dev = [
+    { name = "deptry" },
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "ruff" },
+    { name = "zensical" },
+]
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "deptry" },
+    { name = "mypy", specifier = ">=1.19.1" },
+    { name = "pre-commit", specifier = ">=4.5.1" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "ruff", specifier = ">=0.14.14" },
+    { name = "zensical" },
 ]
 
 [[package]]

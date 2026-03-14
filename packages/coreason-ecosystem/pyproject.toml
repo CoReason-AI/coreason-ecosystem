@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "coreason_ecosystem"
+dynamic = ["version"]
+description = "The CoReason AI Swarm Ecosystem"
+readme = "README.md"
+requires-python = ">=3.14"
+authors = [
+    { name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" },
+]
+dependencies = [
+    "coreason-manifest",
+]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: Other/Proprietary License",
+    "Operating System :: OS Independent",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.14.14",
+    "pre-commit>=4.5.1",
+    "pytest-cov>=7.0.0",
+    "zensical",
+    "mypy>=1.19.1",
+    "pytest-asyncio",
+    "pytest-benchmark",
+    "deptry",
+    "deepdiff",
+    "hypothesis",
+    "syrupy",
+    "mkdocstrings-python",
+    "types-pyyaml>=6.0.12.20250915",
+    "tzdata>=2025.3",
+    "pytest-xdist>=3.6.1"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = []
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+root = "../.."
+
+[project.urls]
+Homepage = "https://github.com/CoReason-AI/coreason_manifest"
+Repository = "https://github.com/CoReason-AI/coreason_manifest"
+Documentation = "https://github.com/CoReason-AI/coreason_manifest"
