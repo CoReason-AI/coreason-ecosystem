@@ -1,7 +1,7 @@
 [project]
-site_name = "coreason-manifest"
-site_url = "https://CoReason-AI.github.io/coreason_manifest/"
-repo_url = "https://github.com/CoReason-AI/coreason_manifest"
+site_name = "coreason-ecosystem"
+site_url = "https://CoReason-AI.github.io/coreason_ecosystem/"
+repo_url = "https://github.com/CoReason-AI/coreason_ecosystem"
 docs_dir = "docs"
 site_dir = "site"
 

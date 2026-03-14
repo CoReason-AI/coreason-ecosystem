@@ -3,22 +3,28 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "coreason_manifest"
+name = "coreason_ecosystem"
 dynamic = ["version"]
-description = "The CoReason AI Swarm Ecosystem"
+description = "The CoReason AI Swarm Ecosystem Integration Wrapper and Execution Plane"
 readme = "README.md"
 requires-python = ">=3.14"
 authors = [
     { name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" },
 ]
 dependencies = [
+    "coreason-manifest",
+    "click>=8.1.7",
     "loguru>=0.7.2",
 ]
+
 license = { file = "LICENSE" }
 classifiers = [
     "License :: Other/Proprietary License",
     "Operating System :: OS Independent",
 ]
+
+[project.scripts]
+coreason = "coreason_ecosystem.cli:main"
 
 [dependency-groups]
 dev = [
@@ -41,15 +47,15 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/coreason_manifest"]
+packages = ["src/coreason_ecosystem"]
 
 [tool.hatch.version]
 source = "vcs"
 
 [project.urls]
-Homepage = "https://github.com/CoReason-AI/coreason_manifest"
-Repository = "https://github.com/CoReason-AI/coreason_manifest"
-Documentation = "https://github.com/CoReason-AI/coreason_manifest"
+Homepage = "https://github.com/CoReason-AI/coreason_ecosystem"
+Repository = "https://github.com/CoReason-AI/coreason_ecosystem"
+Documentation = "https://github.com/CoReason-AI/coreason_ecosystem"
 
 [tool.ruff]
 line-length = 120
@@ -67,7 +73,7 @@ warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
-addopts = "-n auto --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=100"
+addopts = "-n auto --cov=coreason_ecosystem --cov-report=term-missing --cov-report=html --cov-fail-under=100"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 

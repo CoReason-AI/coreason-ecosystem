@@ -6,11 +6,11 @@
 # For details, see the LICENSE file.
 # Commercial use beyond a 30-day trial requires a separate license.
 #
-# Source Code: https://github.com/CoReason-AI/coreason_manifest
+# Source Code: https://github.com/CoReason-AI/coreason_ecosystem
 
 from pathlib import Path
 
-from coreason_manifest.utils.logger import logger
+from coreason_ecosystem.utils.logger import logger
 
 
 def test_logger_initialization() -> None:

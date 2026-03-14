@@ -45,4 +45,4 @@ COPY --from=builder /wheels /wheels
 # Install the application wheel
 RUN uv pip install --no-cache /wheels/*.whl
 
-CMD ["python", "-m", "coreason_manifest.main"]
+CMD ["coreason"]
