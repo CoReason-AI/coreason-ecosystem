@@ -46,6 +46,9 @@ packages = []
 [tool.hatch.version]
 source = "vcs"
 
+[tool.hatch.version.raw-options]
+root = "../.."
+
 [project.urls]
 Homepage = "https://github.com/CoReason-AI/coreason_manifest"
 Repository = "https://github.com/CoReason-AI/coreason_manifest"
