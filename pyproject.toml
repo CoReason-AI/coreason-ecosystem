@@ -1,0 +1,26 @@
+[project]
+name = "coreason-workspace"
+version = "0.1.0"
+requires-python = ">=3.14"
+description = "The CoReason AI Swarm Ecosystem - Global Workspace"
+authors = [{ name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" }]
+license = { file = "LICENSE" }
+
+[tool.uv.workspace]
+members = [
+    "packages/*",
+    "apps/*"
+]
+
+[tool.uv]
+resolution = "highest"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.14.14",
+    "mypy>=1.19.1",
+    "pre-commit>=4.5.1",
+    "deptry",
+    "zensical"
+]
