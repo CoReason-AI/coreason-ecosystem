@@ -6,10 +6,16 @@
 # For details, see the LICENSE file.
 # Commercial use beyond a 30-day trial requires a separate license.
 #
-# Source Code: https://github.com/CoReason-AI/coreason_manifest
+# Source Code: https://github.com/CoReason-AI/coreason_ecosystem
 
-from coreason_manifest.main import hello_world
+"""
+The CoReason AI Swarm Ecosystem Integration Wrapper and Execution Plane
+"""
 
+__version__ = "0.1.0"
+__author__ = "Gowtham A Rao"
+__email__ = "gowtham.rao@coreason.ai"
 
-def test_hello_world() -> None:
-    assert hello_world() == "Hello World!"
+from .cli import main
+
+__all__ = ["main"]
