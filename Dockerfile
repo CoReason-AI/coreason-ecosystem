@@ -10,7 +10,8 @@ WORKDIR /app
 # Copy the project files
 COPY pyproject.toml .
 COPY uv.lock .
-COPY src/ ./src/
+COPY packages/ ./packages/
+COPY apps/ ./apps/
 COPY README.md .
 COPY LICENSE .
 
