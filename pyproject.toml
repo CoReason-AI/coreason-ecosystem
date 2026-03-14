@@ -41,7 +41,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/coreason_ecosystem"]
+packages = []
 
 [tool.hatch.version]
 source = "vcs"
@@ -70,6 +70,7 @@ plugins = ["pydantic.mypy"]
 addopts = "-n auto --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=100"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+pythonpath = "src"
 
 [tool.coverage.run]
 omit = ["tests/*"]

@@ -2,6 +2,15 @@ version = 1
 revision = 3
 requires-python = ">=3.14"
 
+[manifest]
+members = [
+    "coreason-actuator",
+    "coreason-cli",
+    "coreason-ecosystem",
+    "coreason-inference",
+    "coreason-orchestrator",
+]
+
 [[package]]
 name = "annotated-types"
 version = "0.7.0"
@@ -40,6 +49,28 @@ sdist = { url = "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6", size = 25335, upload-time = "2022-10-25T02:36:20.889Z" },
 ]
+
+[[package]]
+name = "coreason-actuator"
+version = "0.0.1"
+source = { editable = "packages/coreason-actuator" }
+dependencies = [
+    { name = "coreason-manifest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "coreason-manifest" }]
+
+[[package]]
+name = "coreason-cli"
+version = "0.0.1"
+source = { editable = "apps/coreason-cli" }
+dependencies = [
+    { name = "coreason-manifest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "coreason-manifest" }]
 
 [[package]]
 name = "coreason-ecosystem"
@@ -92,6 +123,17 @@ dev = [
 ]
 
 [[package]]
+name = "coreason-inference"
+version = "0.0.1"
+source = { editable = "packages/coreason-inference" }
+dependencies = [
+    { name = "coreason-manifest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "coreason-manifest" }]
+
+[[package]]
 name = "coreason-manifest"
 version = "0.26.1"
 source = { registry = "https://pypi.org/simple" }
@@ -102,6 +144,17 @@ sdist = { url = "https://files.pythonhosted.org/packages/d2/89/6632f8ae5e13fb590
 wheels = [
     { url = "https://files.pythonhosted.org/packages/17/72/23edf0ae5617a5ea21676bbcc1af86db4759c168ebf9bd4ff00606c5912c/coreason_manifest-0.26.1-py3-none-any.whl", hash = "sha256:4ebd7666221aca25c76ae03ea1fd67224e6e39c149ef84712f5056b4ad0b6dc2", size = 76470, upload-time = "2026-03-14T10:02:48.79Z" },
 ]
+
+[[package]]
+name = "coreason-orchestrator"
+version = "0.0.1"
+source = { editable = "packages/coreason-orchestrator" }
+dependencies = [
+    { name = "coreason-manifest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "coreason-manifest" }]
 
 [[package]]
 name = "coverage"
