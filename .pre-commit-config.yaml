@@ -34,7 +34,7 @@ repos:
     hooks:
       - id: deptry
         name: deptry
-        entry: uv run deptry packages/ apps/
+        entry: uv run deptry src/
         language: system
         pass_filenames: false
         always_run: true

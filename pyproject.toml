@@ -1,51 +1,48 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
 [project]
-name = "coreason-workspace"
-version = "0.1.0"
+name = "coreason_ecosystem"
+dynamic = ["version"]
+description = "The CoReason AI Swarm Ecosystem Integration Wrapper"
+readme = "README.md"
 requires-python = ">=3.14"
-description = "The CoReason AI Swarm Ecosystem - Global Workspace"
-authors = [{ name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" }]
-license = { file = "LICENSE" }
+authors = [
+    { name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" },
+]
+# NOTE: These are the pip-installable boundaries of the ecosystem.
 dependencies = [
-    "click>=8.3.1",
+    "coreason_manifest",
+    # "coreason_orchestrator", # Uncomment when published
+    # "coreason_inference",    # Uncomment when published
+    # "coreason_actuator",     # Uncomment when published
+    "click>=8.1.7",
+    "loguru>=0.7.2",
+]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: Other/Proprietary License",
+    "Operating System :: OS Independent",
 ]
 
-[tool.uv.workspace]
-members = [
-    "packages/*",
-    "apps/*"
-]
-
-[tool.uv]
-resolution = "highest"
+[project.scripts]
+coreason = "coreason_ecosystem.cli:main"
 
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
     "ruff>=0.14.14",
-    "mypy>=1.19.1",
     "pre-commit>=4.5.1",
-    "deptry",
-    "zensical",
+    "mypy>=1.19.1",
     "pytest-cov>=7.0.0",
-    "pytest-xdist>=3.8.0",
-    "pytest-asyncio>=1.3.0",
 ]
 
-[tool.ruff]
-line-length = 120
-target-version = "py314"
+[tool.hatch.build.targets.wheel]
+packages = ["src/coreason_ecosystem"]
 
-[tool.ruff.lint]
-select = ["E", "F", "B", "I", "UP", "SIM", "RUF", "ARG", "C4", "PT", "TCH", "FA", "PIE", "RET", "PERF", "FURB", "LOG", "N", "A", "S"]
-ignore = ["S101", "TC001", "TC002", "TC003", "UP037"]
+[tool.hatch.version]
+source = "vcs"
 
-[tool.mypy]
-python_version = "3.14"
-strict = true
-disallow_untyped_defs = true
-warn_unused_ignores = true
-plugins = ["pydantic.mypy"]
-
-[tool.pytest.ini_options]
-addopts = "-n auto --cov-report=term-missing --cov-report=html"
-asyncio_mode = "auto"
+[tool.deptry.per_rule_ignores]
+DEP002 = ["coreason_manifest", "loguru"]
