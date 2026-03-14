@@ -5,6 +5,9 @@ requires-python = ">=3.14"
 description = "The CoReason AI Swarm Ecosystem - Global Workspace"
 authors = [{ name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" }]
 license = { file = "LICENSE" }
+dependencies = [
+    "click>=8.3.1",
+]
 
 [tool.uv.workspace]
 members = [
