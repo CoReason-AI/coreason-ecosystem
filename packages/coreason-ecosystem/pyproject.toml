@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "coreason_ecosystem"
 dynamic = ["version"]
 description = "The CoReason AI Swarm Ecosystem"
-readme = "../../README.md"
+readme = "README.md"
 requires-python = ">=3.14"
 authors = [
     { name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" },
@@ -14,7 +14,7 @@ authors = [
 dependencies = [
     "coreason-manifest",
 ]
-license = { file = "../../LICENSE" }
+license = { file = "LICENSE" }
 classifiers = [
     "License :: Other/Proprietary License",
     "Operating System :: OS Independent",
@@ -53,4 +53,3 @@ root = "../.."
 Homepage = "https://github.com/CoReason-AI/coreason_manifest"
 Repository = "https://github.com/CoReason-AI/coreason_manifest"
 Documentation = "https://github.com/CoReason-AI/coreason_manifest"
-
