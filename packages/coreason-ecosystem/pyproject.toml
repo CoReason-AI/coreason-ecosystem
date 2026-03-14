@@ -75,8 +75,3 @@ pythonpath = "src"
 [tool.coverage.run]
 omit = ["tests/*"]
 
-[tool.uv.workspace]
-members = [
-    "packages/*",
-    "apps/*"
-]
