@@ -18,7 +18,7 @@ COPY LICENSE .
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev --frozen
 
-# Ensure project build step is included
+# Build the execution plane wheel
 RUN uv build --wheel --out-dir /wheels
 
 
@@ -35,14 +35,13 @@ USER appuser
 # Add user's local bin to PATH
 ENV PATH="/home/appuser/app/.venv/bin:/home/appuser/.local/bin:${PATH}"
 
-# Set the working directory
 WORKDIR /home/appuser/app
-COPY --from=builder --chown=appuser:appuser /app/.venv ./.venv
 
-# Copy the wheel from the builder stage
+# Copy ONLY the wheel from builder
 COPY --from=builder /wheels /wheels
 
-# Install the application wheel
-RUN uv pip install --no-cache /wheels/*.whl
+# Create a fresh, empty production venv and install the wheel
+RUN uv venv /home/appuser/app/.venv && \
+    uv pip install --no-cache /wheels/*.whl
 
 CMD ["coreason"]
