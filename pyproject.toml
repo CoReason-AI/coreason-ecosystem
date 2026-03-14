@@ -52,6 +52,9 @@ packages = ["src/coreason_ecosystem"]
 [tool.hatch.version]
 source = "vcs"
 
+[tool.deptry]
+ignore = ["DEP002"]
+
 [project.urls]
 Homepage = "https://github.com/CoReason-AI/coreason_ecosystem"
 Repository = "https://github.com/CoReason-AI/coreason_ecosystem"
@@ -71,6 +74,10 @@ strict = true
 disallow_untyped_defs = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "click.*"
+disallow_untyped_decorators = false
 
 [tool.pytest.ini_options]
 addopts = "-n auto --cov=coreason_ecosystem --cov-report=term-missing --cov-report=html --cov-fail-under=100"
