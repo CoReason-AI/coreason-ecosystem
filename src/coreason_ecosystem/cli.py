@@ -16,7 +16,21 @@ app = typer.Typer(help="CoReason Meta-Orchestrator Control Plane")
 # from cli.py, 'console' is defined above first.
 from coreason_ecosystem.orchestration.build import execute_build  # noqa: E402
 from coreason_ecosystem.orchestration.doctor import execute_doctor  # noqa: E402
+from coreason_ecosystem.orchestration.init import execute_init  # noqa: E402
 from coreason_ecosystem.orchestration.up import execute_up  # noqa: E402
+
+
+@app.command(name="init", help="Autonomically generate a mathematically verified Swarm workspace.")
+def init(
+    project_name: str = typer.Argument(...),
+    topology: str = typer.Option("base", help="Target topology (base, medallion, rag)"),
+) -> None:
+    """Autonomically generate a mathematically verified Swarm workspace."""
+    with console.status("[bold green]Synthesizing Ontological Boundaries...") as status:
+        asyncio.run(execute_init(project_name, topology))
+        status.update("[bold green]Wiring Sensory Cortex...")
+        status.update("[bold green]Initializing Immunological Hooks...")
+    console.print(f"[bold blue]Workspace '{project_name}' mathematically sealed and ready.[/bold blue]")
 
 
 @app.command(name="build")

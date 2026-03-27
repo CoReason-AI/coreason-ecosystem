@@ -20,6 +20,16 @@ def test_cli_main_entry() -> None:
     assert "CoReason Meta-Orchestrator Control Plane" in result.stdout
 
 
+@patch("coreason_ecosystem.cli.execute_init")
+def test_init_command(mock_execute_init: Any) -> None:
+    """Test the init command execution logic."""
+    mock_execute_init.return_value = None
+    result = runner.invoke(app, ["init", "my_new_swarm", "--topology", "medallion"])
+    assert result.exit_code == 0
+    assert "Workspace 'my_new_swarm' mathematically sealed and ready." in result.stdout
+    mock_execute_init.assert_called_once_with("my_new_swarm", "medallion")
+
+
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
 @patch("coreason_ecosystem.orchestration.build.Path.read_bytes")
 @patch("coreason_ecosystem.orchestration.build.Path.open")
