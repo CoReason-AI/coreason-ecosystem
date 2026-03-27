@@ -3,6 +3,7 @@
 
 import asyncio
 import subprocess
+from pathlib import Path
 
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -17,12 +18,21 @@ async def is_port_bound(port: int) -> bool:
         writer.close()
         await writer.wait_closed()
         return True
-    except (ConnectionRefusedError, TimeoutError, OSError):
+    except ConnectionRefusedError, TimeoutError, OSError:
         return False
 
 
 async def execute_up() -> None:
     """Implement Idempotent DAG Resolution for the Swarm infrastructure."""
+
+    # Resolve the compose file path dynamically
+    compose_path = Path.cwd() / "infrastructure" / "local" / "compose.yaml"
+    if not compose_path.exists():
+        # Fallback to resolving relative to the project root assuming the file is deeply nested during execution
+        compose_path = Path(__file__).parent.parent.parent.parent / "infrastructure" / "local" / "compose.yaml"
+
+    compose_path_str = str(compose_path.resolve())
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -40,11 +50,13 @@ async def execute_up() -> None:
         else:
             progress.update(
                 task_postgres,
-                description="[cyan]Igniting Ledger (Postgres: 5432)...[/cyan]",
+                description="[cyan]Binding Epistemic Ledger...[/cyan]",
             )
             proc = await asyncio.create_subprocess_exec(
                 "docker",
                 "compose",
+                "-f",
+                compose_path_str,
                 "up",
                 "-d",
                 "postgres",
@@ -69,11 +81,13 @@ async def execute_up() -> None:
         else:
             progress.update(
                 task_temporal,
-                description="[cyan]Igniting Orchestrator (Temporal: 7233)...[/cyan]",
+                description="[cyan]Igniting Thermodynamic Mesh...[/cyan]",
             )
             proc = await asyncio.create_subprocess_exec(
                 "docker",
                 "compose",
+                "-f",
+                compose_path_str,
                 "up",
                 "-d",
                 "temporal",
@@ -98,17 +112,56 @@ async def execute_up() -> None:
         else:
             progress.update(
                 task_daemon,
-                description="[cyan]Igniting Physics Engine (Daemon: 8000)...[/cyan]",
+                description="[cyan]Igniting Thermodynamic Mesh...[/cyan]",
             )
             proc = await asyncio.create_subprocess_exec(
+                "docker",
+                "compose",
+                "-f",
+                compose_path_str,
+                "up",
+                "-d",
                 "coreason-runtime",
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
-            # Assuming it daemonizes or we want to leave it running in detached.
-            # In a real setup, we might wait for health endpoint
+            await proc.communicate()
             progress.update(
                 task_daemon,
                 description="[green]✓ Physics Engine ACTIVE (Daemon: 8000)[/green]",
+                completed=True,
+            )
+
+        # Node 4: Observability Sidecars (Prometheus & Grafana)
+        task_observability = progress.add_task(
+            "[yellow]Checking Observability Sidecars (Grafana: 3000)...[/yellow]", total=None
+        )
+        if await is_port_bound(3000):
+            progress.update(
+                task_observability,
+                description="[green]✓ Observability ACTIVE (Grafana: 3000)[/green]",
+                completed=True,
+            )
+        else:
+            progress.update(
+                task_observability,
+                description="[cyan]Booting Observability Sidecars...[/cyan]",
+            )
+            proc = await asyncio.create_subprocess_exec(
+                "docker",
+                "compose",
+                "-f",
+                compose_path_str,
+                "up",
+                "-d",
+                "prometheus",
+                "grafana",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            await proc.communicate()
+            progress.update(
+                task_observability,
+                description="[green]✓ Observability ACTIVE (Grafana: 3000)[/green]",
                 completed=True,
             )

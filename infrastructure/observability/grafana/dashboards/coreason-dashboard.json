@@ -1,0 +1,42 @@
+{
+  "title": "Epistemic Dashboard",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Extism Sandbox Latency (Δt)",
+      "id": 1,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "rate(extism_sandbox_latency_seconds_sum[1m]) / rate(extism_sandbox_latency_seconds_count[1m])",
+          "legendFormat": "Average Latency"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "Peak Memory Allocation (M_peak) per Capability Hash",
+      "id": 2,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "max(extism_sandbox_memory_peak_bytes) by (capability_hash)",
+          "legendFormat": "{{capability_hash}}"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 36,
+  "timezone": "browser",
+  "refresh": "5s"
+}
