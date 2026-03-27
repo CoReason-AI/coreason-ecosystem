@@ -40,9 +40,11 @@ async def execute_sync() -> None:
         if not compose_path.exists():
             compose_path = project_path / "infrastructure" / "local" / "compose.yaml"
 
+        import shutil
+        docker_bin = shutil.which("docker") or "docker"
         subprocess.run(
             [
-                "docker",
+                docker_bin,
                 "compose",
                 "-f",
                 str(compose_path.resolve()),

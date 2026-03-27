@@ -17,8 +17,9 @@ async def calculate_epistemic_root(project_path: Path) -> str:
         h_ontology = hashlib.sha256(b"").hexdigest()
 
     # Component 2 (H_env)
+    import sys
     result = subprocess.run(
-        ["pip", "show", "coreason-manifest", "coreason-runtime"],
+        [sys.executable, "-m", "pip", "show", "coreason-manifest", "coreason-runtime"],
         capture_output=True,
         text=True,
         check=False,

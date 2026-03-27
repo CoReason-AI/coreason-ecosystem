@@ -4,8 +4,7 @@
 import asyncio
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, patch
-import json
+from unittest.mock import patch
 
 from coreason_ecosystem.orchestration.registry import calculate_epistemic_root, read_registry_lock, write_registry_lock
 

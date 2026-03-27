@@ -1,13 +1,12 @@
 # Copyright (c) 2026 CoReason, Inc.
 # Licensed under the Prosperity Public License 3.0
 
-import asyncio
+import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 from typer.testing import CliRunner
-import json
 
 from coreason_ecosystem.cli import app
 
