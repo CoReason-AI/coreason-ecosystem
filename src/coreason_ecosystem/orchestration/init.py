@@ -17,7 +17,14 @@ async def execute_init(project_name: str, topology: str = "base") -> None:
     (project_path / "src" / "intents").mkdir(parents=True, exist_ok=True)
 
     # 2. Dependency Locking
-    pyproject_toml_content = """[build-system]
+    import importlib.metadata
+
+    try:
+        manifest_version = importlib.metadata.version("coreason-manifest")
+    except importlib.metadata.PackageNotFoundError:
+        manifest_version = "0.1.0"  # Fallback
+
+    pyproject_toml_content = f"""[build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
@@ -26,13 +33,11 @@ name = "{project_name}"
 version = "0.1.0"
 description = "Autopoietically generated CoReason Swarm Workspace"
 dependencies = [
-    "coreason-runtime",
-    "coreason-manifest"
+    "coreason-runtime=={manifest_version}",
+    "coreason-manifest=={manifest_version}"
 ]
 """
-    (project_path / "pyproject.toml").write_text(
-        pyproject_toml_content.replace("{project_name}", project_name)
-    )
+    (project_path / "pyproject.toml").write_text(pyproject_toml_content)
 
     # 3. Ontological Seed
     schema = {

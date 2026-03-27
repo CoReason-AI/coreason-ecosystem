@@ -1,14 +1,19 @@
 name: Release
 
 on:
+  release:
+    types: [published]
   push:
     tags:
-      - 'v*.*.*'
+      - "v*"
 
 permissions:
   contents: write
   id-token: write
   pages: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   release:
@@ -18,8 +23,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
-          enable-cache: true
-          python-version: '3.14'
+          enable-cache: false
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+          allow-prereleases: true
 
       - name: Build Docs
         run: uv run zensical build
@@ -34,12 +45,18 @@ jobs:
         run: uv build
         shell: bash
 
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
           path: ./dist
           format: spdx-json
-          output-file: dist/sbom.spdx.json
+          output-file: sbom.spdx.json
+          upload-release-assets: false
 
       - name: Sign artifacts with Sigstore
         uses: sigstore/gh-action-sigstore-python@v3.0.0
@@ -47,9 +64,6 @@ jobs:
           inputs: >-
             dist/*.tar.gz
             dist/*.whl
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
 
   deploy-pages:
     needs: release

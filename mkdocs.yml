@@ -1,0 +1,26 @@
+site_name: CoReason Ecosystem
+
+theme:
+  name: material
+  palette:
+    primary: black
+    accent: deep purple
+
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Home: index.md
+  - Architecture:
+      - The Manifesto: manifesto.md
+      - Lexical Architecture: lexical_architecture.md
+      - Ecosystem Blueprint: engineering_blueprint.md
+  - Operator Manuals:
+      - Workspace Genesis & Ignition: guides/ignition.md
+      - Capability Crystallization: guides/crystallization.md
+      - The Visual Cortex & Oracle Loop: guides/oracle_loop.md
+      - Maintenance & Autopoietic Healing: guides/healing.md

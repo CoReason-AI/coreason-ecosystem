@@ -19,12 +19,17 @@ async def calculate_epistemic_root(project_path: Path) -> str:
     import importlib.metadata
 
     env_str = ""
-    for pkg in ["coreason-manifest", "coreason-runtime"]:
-        try:
-            version = importlib.metadata.version(pkg)
-            env_str += f"{pkg}=={version}\n"
-        except importlib.metadata.PackageNotFoundError:
-            env_str += f"{pkg}==unknown\n"
+
+    # 1. Get the local manifest version (which the CLI has access to)
+    try:
+        manifest_version = importlib.metadata.version("coreason-manifest")
+        env_str += f"coreason-manifest=={manifest_version}\n"
+    except importlib.metadata.PackageNotFoundError:
+        manifest_version = "unknown"
+        env_str += f"coreason-manifest=={manifest_version}\n"
+
+    # 2. The Runtime version must strictly mirror the manifest version in a locked ecosystem
+    env_str += f"coreason-runtime=={manifest_version}\n"
 
     h_env = hashlib.sha256(env_str.encode("utf-8")).hexdigest()
 

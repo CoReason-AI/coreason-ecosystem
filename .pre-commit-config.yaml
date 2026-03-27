@@ -5,6 +5,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        args: [--unsafe]
       - id: check-toml
       - id: check-json
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -17,7 +18,7 @@ repos:
     rev: v1.18.2
     hooks:
       - id: mypy
-        additional_dependencies: ["pydantic>=2.0", "pytest", "types-PyYAML", "click-types", "typer", "rich", "httpx", "loguru"]
+        additional_dependencies: ["pydantic>=2.0", "pytest", "types-PyYAML", "click-types", "typer", "rich", "httpx", "loguru", "filelock"]
         args: [--config-file, pyproject.toml]
   - repo: https://github.com/AleksaC/hadolint-py
     rev: v2.14.0

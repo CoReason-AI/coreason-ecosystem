@@ -3,6 +3,7 @@
 
 import asyncio
 import json
+import runpy
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -20,6 +21,13 @@ def test_cli_main_entry() -> None:
     assert "CoReason Meta-Orchestrator Control Plane" in result.stdout
 
 
+def test_main_module_execution() -> None:
+    """Test that the __main__ module starts the CLI application."""
+    with patch("coreason_ecosystem.cli.app") as mock_app:
+        runpy.run_module("coreason_ecosystem.__main__", run_name="__main__")
+        mock_app.assert_called_once_with(prog_name="coreason")
+
+
 @patch("coreason_ecosystem.cli.execute_init")
 def test_init_command(mock_execute_init: Any) -> None:
     """Test the init command execution logic."""
@@ -33,8 +41,12 @@ def test_init_command(mock_execute_init: Any) -> None:
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
 @patch("coreason_ecosystem.orchestration.build.Path.read_bytes")
 @patch("coreason_ecosystem.orchestration.build.Path.open")
-def test_build_command(mock_open: Any, mock_read_bytes: Any, mock_exists: Any) -> None:
+@patch("coreason_ecosystem.orchestration.build.subprocess.run")
+def test_build_command(
+    mock_run: Any, mock_open: Any, mock_read_bytes: Any, mock_exists: Any
+) -> None:
     """Test the build command execution logic."""
+    mock_run.return_value.returncode = 0
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"print('hello')"
 
@@ -53,10 +65,12 @@ def test_build_command(mock_open: Any, mock_read_bytes: Any, mock_exists: Any) -
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
 @patch("coreason_ecosystem.orchestration.build.Path.read_bytes")
 @patch("coreason_ecosystem.orchestration.build.Path.open")
+@patch("coreason_ecosystem.orchestration.build.subprocess.run")
 def test_build_command_no_json(
-    mock_open: Any, mock_read_bytes: Any, mock_exists: Any
+    mock_run: Any, mock_open: Any, mock_read_bytes: Any, mock_exists: Any
 ) -> None:
     """Test the build command execution logic when JSON is invalid."""
+    mock_run.return_value.returncode = 0
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"print('hello')"
 
@@ -79,6 +93,46 @@ def test_build_command_file_not_found(mock_exists: Any) -> None:
     assert result.exit_code == 0
     assert "Error:" in result.stdout
     assert "does not exist" in result.stdout
+
+
+@patch("coreason_ecosystem.orchestration.build.Path.exists")
+@patch("coreason_ecosystem.orchestration.build.Path.open")
+@patch("coreason_ecosystem.orchestration.build.subprocess.run")
+def test_build_command_compiler_not_found(
+    mock_run: Any, mock_open: Any, mock_exists: Any
+) -> None:
+    """Test the build command when componentize-py is not installed."""
+    mock_exists.return_value = True
+    mock_run.side_effect = FileNotFoundError()
+
+    import io
+
+    mock_open.return_value.__enter__.return_value = io.StringIO("{}")
+
+    result = runner.invoke(app, ["build", "dummy_script.py"])
+    assert result.exit_code == 1
+    assert "Fatal Error: 'componentize-py' compiler not found" in result.stdout
+
+
+@patch("coreason_ecosystem.orchestration.build.Path.exists")
+@patch("coreason_ecosystem.orchestration.build.Path.open")
+@patch("coreason_ecosystem.orchestration.build.subprocess.run")
+def test_build_command_compile_error(
+    mock_run: Any, mock_open: Any, mock_exists: Any
+) -> None:
+    """Test the build command when compilation fails."""
+    mock_exists.return_value = True
+    mock_run.return_value.returncode = 1
+    mock_run.return_value.stderr = b"syntax error"
+
+    import io
+
+    mock_open.return_value.__enter__.return_value = io.StringIO("{}")
+
+    result = runner.invoke(app, ["build", "dummy_script.py"])
+    assert result.exit_code == 1
+    assert "Error compiling" in result.stdout
+    assert "syntax error" in result.stdout
 
 
 @patch(

@@ -96,3 +96,20 @@ async def test_execute_init_rag_topology(
     cap_dir = temp_project_dir / "src" / "capabilities"
     assert (cap_dir / "embed_document.py").is_file()
     assert (cap_dir / "retrieve_context.py").is_file()
+
+
+@pytest.mark.asyncio
+@patch("coreason_ecosystem.orchestration.init.subprocess.run")
+@patch("importlib.metadata.version")
+async def test_execute_init_package_not_found(
+    mock_version: MagicMock, mock_run: MagicMock, temp_project_dir: Path
+) -> None:
+    import importlib.metadata
+
+    mock_version.side_effect = importlib.metadata.PackageNotFoundError
+    await execute_init(str(temp_project_dir), topology="base")
+
+    assert (temp_project_dir / "pyproject.toml").is_file()
+    toml_content = (temp_project_dir / "pyproject.toml").read_text()
+    assert "coreason-runtime==0.1.0" in toml_content
+    assert "coreason-manifest==0.1.0" in toml_content

@@ -20,14 +20,14 @@ The CoReason ecosystem (`coreason-manifest`, `coreason-runtime`, `coreason-vscod
 
 !!! warning "The Problem"
     Legacy AI agents operate as ephemeral processes. If an agent is executing a 50-step data transformation pipeline and experiences a network timeout on step 49, the internal memory of the agent is destroyed. The system must restart from zero.
-    
-    More critically, if the AI makes a semantic error on step 12 that the text loop fails to catch, the error compounds. By step 40, the AI is executing decisions based on an entirely false historical context. In probability theory, this is a compounding error within a Markov Decision Process. 
+
+    More critically, if the AI makes a semantic error on step 12 that the text loop fails to catch, the error compounds. By step 40, the AI is executing decisions based on an entirely false historical context. In probability theory, this is a compounding error within a Markov Decision Process.
 
     Researchers mathematically proved that without external state persistence, an AI agent's probability of successfully completing a long-horizon task approaches zero exponentially with every unverified step.
 
 !!! quote "The Real Research on Semantic Entropy"
     The concept of measuring AI uncertainty to stop it from guessing (hallucinating) is real and was formalized in a massive breakthrough published in *Nature*.
-    
+
     * **The Real Paper:** Farquhar, S., Atherton, C., Sodhani, S. et al. (2024). *"Detecting hallucinations in large language models using semantic entropy."*
     * **Journal:** *Nature* 630, 625–630.
     * **DOI:** [10.1038/s41586-024-07421-0](https://doi.org/10.1038/s41586-024-07421-0)
@@ -35,21 +35,21 @@ The CoReason ecosystem (`coreason-manifest`, `coreason-runtime`, `coreason-vscod
 
 !!! quote "The Real Research on Constrained Decoding (Why Prompts Fail)"
     The claim that "prompting an LLM to follow data shapes fails... the only mathematical fix is to separate the data shape rules" is the exact thesis behind modern structured generation libraries like *Outlines* and *JSONformer*.
-    
+
     * **The Real Paper:** Willard, B. T., & Louf, R. (2023). *"Efficient Guided Generation for Large Language Models."*
     * **ArXiv ID:** [arXiv:2307.09702](https://arxiv.org/abs/2307.09702)
     * **What it proves:** This is the foundational paper for the `outlines` library. It proves that asking an LLM to output valid JSON via prompting is fundamentally flawed. The authors mathematically prove that you must convert a JSON Schema (like your Pydantic models in `coreason-manifest`) into a **Finite State Machine (FSM)**. The FSM physically alters the LLM's probability matrix at the token level, mathematically guaranteeing that the output perfectly matches the schema structure.
 
 !!! quote "State Space Collapse in Autonomous Agents"
     The concept that agents crash in long-horizon tasks due to compounding errors and memory loss is actively researched under the umbrella of Markov Decision Processes in LLMs.
-    
+
     * **The Real Paper:** Kinniment, M., et al. (2024). *"Evaluating Language-Model Agents on Realistic Autonomous Tasks."*
     * **Related Major Paper:** Yao, S., et al. (2023). *"ReAct: Synergizing Reasoning and Acting in Language Models."* [arXiv:2210.03629](https://arxiv.org/abs/2210.03629)
     * **What it proves:** While ReAct started the "wrapper" trend, subsequent evaluations of it proved that without strict external state persistence (like your Temporal database), an agent's success rate decays rapidly as the step count increases.
 
 !!! success "The CoReason Solution"
     We discard the text-wrapper entirely. Instead, `coreason-runtime` is anchored to a deterministic time engine (Temporal).
-    
+
     Every time an agent processes data, executes a tool, or yields an intent, the exact memory state of the system is immutably written to a PostgreSQL database (the Epistemic Ledger). If the host server loses power, the agent does not guess what happened upon reboot; it reads the mathematical proof of what already occurred and resumes at the exact millisecond of interruption. The `coreason-ecosystem` CLI provisions this strict physical database topology on your machine with a single command (`coreason up`).
 
 ---
@@ -58,7 +58,7 @@ The CoReason ecosystem (`coreason-manifest`, `coreason-runtime`, `coreason-vscod
 
 !!! warning "The Problem"
     Software engineering requires rigid data structures. If a Python function expects an integer labeled `user_id`, a runtime exception will occur if it receives a string labeled `Id`.
-    
+
     Early autonomous systems relied on "prompt engineering" to enforce these rules (e.g., instructing the model to *"Always output JSON and ensure the ID is a number"*). However, LLMs are probabilistic text predictors, not rigid memory controllers. Over an extended context window, the model's adherence to the prompt degrades. The data shape decays, outputting `patient_id` instead of `user_id`, which immediately crashes the execution script. We define this structural decay as **Semantic Entropy**.
 
 !!! quote "The Research"
@@ -66,7 +66,7 @@ The CoReason ecosystem (`coreason-manifest`, `coreason-runtime`, `coreason-vscod
 
 !!! success "The CoReason Solution"
     This decoupling is the sole mandate of `coreason-manifest`. It acts as the absolute ontological boundary.
-    
+
     Before the AI is permitted to interface with the codebase, the `coreason-ecosystem` hypervisor compiles the schemas from `coreason-manifest` and locks them into a cryptographic hash (the `registry.lock`). The AI is physically blocked from generating payloads that do not perfectly map to the expected code shape. If the AI attempts to hallucinate an invalid data field, `coreason-runtime` rejects the action at the physical network boundary. Data shape never decays because the rules are enforced by hard Python validation boundaries, not by polite text instructions.
 
 ---
@@ -75,7 +75,7 @@ The CoReason ecosystem (`coreason-manifest`, `coreason-runtime`, `coreason-vscod
 
 !!! warning "The Problem"
     When a standard AI agent encounters high uncertainty, it enters a failure loop. It will rapidly execute the same search capability dozens of times, parsing identical outputs, and burning through host memory and network bandwidth. It lacks a mechanism to calculate its own uncertainty.
-    
+
     In systems engineering, every execution carries a strict thermodynamic cost: execution latency ($\Delta t$) and peak memory allocation ($M_{peak}$). Allowing an AI to loop infinitely on a dead-end pathway is a massive expenditure of physical energy and compute capital. We define this as a **Thermodynamic Runaway**.
 
 !!! quote "The Research"
@@ -83,9 +83,9 @@ The CoReason ecosystem (`coreason-manifest`, `coreason-runtime`, `coreason-vscod
 
 !!! success "The CoReason Solution"
     The CoReason manifold treats AI tool execution as a measurable physical event.
-    
+
     First, `coreason-runtime` compiles all Python capabilities into WebAssembly (WASM) sandboxes. This enforces a hard $cgroups$ cap on memory usage; an agent physically cannot induce a host-level Out-Of-Memory (OOM) crash.
-    
+
     Second, we engineered the **Epistemic Yield Signal**. If the agent calculates that it is confused, it does not iterate. It autonomicly pauses its execution thread, saves its memory state, and broadcasts a high-frequency red alert directly to the operator's IDE (`coreason-vscode`). The human operator views the exact schema the AI failed to resolve, inputs the ground-truth data, and that data is injected as an absolute fact directly into the frozen thread. The AI wakes up, accepts the human's injection, and finishes the execution without wasting a single cycle of redundant compute.
 
 ## 2. The Tripartite Cybernetic Manifold (The Philosophy)
@@ -162,7 +162,7 @@ The `coreason-manifest` repository serves as the absolute ontological boundary f
 
 !!! info "The Engineering"
     We utilize Pydantic to define rigid data structures in Python, which are subsequently compiled into universal JSON Schemas. If the manifest dictates that a "Customer Profile" must contain a 9-digit alphanumeric ID and a valid email format, this constraint is absolute.
-    
+
     Before the agent's output is permitted to interact with the broader system, the runtime physically validates the payload against the active JSON Schema. If the agent hallucinates a schema key or omits a required character, the payload is immediately dropped at the network layer. The agent is forced to autonomously correct the structure or yield execution.
 
 !!! quote "The Research"
@@ -173,6 +173,9 @@ The `coreason-manifest` repository serves as the absolute ontological boundary f
 ### 3.2 The Execution Substrate (`coreason-runtime`)
 
 If the manifest is the blueprint, `coreason-runtime` is the heavy machinery. It is the background daemon responsible for orchestrating the AI, executing capabilities, and managing network input/output.
+
+!!! info "The Hollow vs. Kinetic Boundary"
+    The Tripartite Manifold strictly separates definition from execution. While `coreason-manifest` is mathematically bound as a **Hollow Data Plane** (zero runtime side-effects, no network sockets), `coreason-runtime` acts as the exclusive **Kinetic Execution Engine**. The runtime is the only component in the Swarm legally authorized to initiate network requests, write to the filesystem, or mutate state.
 
 Because we operate under a Zero-Trust assumption regarding the agent's generated logic, this runtime is engineered with two unyielding safety mechanisms:
 
@@ -193,9 +196,9 @@ The `coreason-vscode` pillar operates as the visual projection matrix for the en
 
 !!! info "The Engineering"
     The runtime daemon and the VS Code extension are bound by a unidirectional, high-frequency telemetry mesh utilizing Server-Sent Events (SSE).
-    
+
     When the runtime calculates that the agent's uncertainty exceeds the safety threshold, it suspends the execution thread. Instantly, an interrupt signal traverses the SSE mesh to the IDE. The operator's screen highlights the exact execution node that failed and renders a deterministic input form matching the missing JSON schema.
-    
+
     The operator inputs the correct value, and upon submission, that exact payload is injected directly into the suspended WASM thread. The engine unpauses, and the execution seamlessly resumes.
 
 !!! quote "The Research"
@@ -211,11 +214,11 @@ The `coreason-ecosystem` is the autopoietic hypervisor. It is the command-line c
 
 !!! info "The Engineering"
     When the operator executes `coreason up` in the terminal, the hypervisor orchestrates three foundational steps:
-    
+
     1. **Topological Bounding:** It provisions the Docker infrastructure, utilizing Linux `cgroups v2` to enforce hard, physical limits on the runtime's hardware access.
     2. **Capability Crystallization:** It performs Ahead-Of-Time (AOT) compilation, transforming the human-readable Python capabilities into the secure WebAssembly binaries required by the runtime.
     3. **The Epistemic Registry:** It extracts the active version of the manifest, the daemon, and the cryptographic hashes of every compiled WASM tool, synthesizing them into a single, unified Merkle Root. It writes this master hash to a file named `registry.lock`.
-    
+
     When the runtime daemon initializes, it verifies its own internal state against this `registry.lock`. If a single byte in the rulebook has drifted from the compiled binaries, the hash validation fails. The runtime will violently refuse to bind to the network, instructing the operator to execute `coreason sync` to rebuild the entire topology into mathematical harmony.
 
 !!! quote "The Research"
@@ -238,9 +241,9 @@ The `coreason-ecosystem` hypervisor enforces three strict physical security peri
 
 !!! info "The Engineering"
     The CoReason architecture strictly separates the *reasoning* from the *execution*. The agent is never permitted to write its own tools. Instead, human engineers author capabilities in standard Python, and the `coreason-ecosystem` permanently seals them before the agent is ever activated.
-    
+
     When the operator executes `coreason build` in the terminal, the system utilizes Ahead-of-Time (AOT) compilation to translate the human-written Python into an isolated WebAssembly (WASM) binary.
-    
+
     Once compiled, the hypervisor calculates a unique SHA-256 cryptographic hash for that specific binary. We define this hash as the **Epistemic Seal**. This seal is recorded in the master registry. When the agent requests a capability, the runtime engine recalculates the hash of the binary before execution. If even a single byte of code has drifted—due to human tampering, a file system glitch, or an attempted AI code-injection—the hashes will fail to match. The engine will instantly abort the execution.
 
 !!! quote "The Research"
@@ -255,11 +258,11 @@ The `coreason-ecosystem` hypervisor enforces three strict physical security peri
 
 !!! info "The Engineering"
     The `coreason-ecosystem` does not merely deploy software; it provisions a physical cage at the operating system level utilizing Linux `cgroups v2`.
-    
+
     During the `coreason up` ignition sequence, the hypervisor draws a hard, mathematical boundary around the `coreason-runtime` daemon. It issues a strict directive to the host kernel: *"This execution engine is allocated a maximum of 4.0 Gigabytes of RAM and exactly 2.0 CPU cores. Any allocation request exceeding this boundary must be denied."*
-    
+
     If the agent enters a runaway state and attempts to consume infinite compute power, the host operating system simply throttles the container. The agent's execution slows down, but the host machine remains entirely stable.
-    
+
     Furthermore, the hypervisor provisions a "Zero-Trust" internal network mesh. The PostgreSQL Epistemic Ledger is physically isolated from the public internet. Data can only mutate by passing through the strictly monitored, rate-limited WASM engine.
 
 !!! quote "The Research"
@@ -271,19 +274,19 @@ The `coreason-ecosystem` hypervisor enforces three strict physical security peri
 
 !!! warning "The Problem"
     A distributed architecture is only as secure as its network boundaries. The CoReason manifold spans across the operator's code editor (`coreason-vscode`), the background orchestration engine (`coreason-runtime`), and the definitional rulebook (`coreason-manifest`).
-    
+
     If an operator updates the rulebook to require a "User ID" as a string rather than an integer, but fails to restart the background engine, the visual interface and the execution engine will possess conflicting definitions of reality. The moment the agent attempts an execution, the system will catastrophically fail due to state desynchronization.
 
 !!! info "The Engineering"
     To eliminate this vulnerability, the ecosystem enforces **Continuous State Attestation**. The system must mathematically prove its own integrity on every single network request.
-    
+
     The `coreason-ecosystem` extracts the individual hashes of the active rulebook, the engine version, and all compiled WASM tools, combining them into a master cryptographic fingerprint known as a Merkle Root. This is stored in the `.coreason/registry.lock` file.
-    
+
     Every time the visual code editor (`coreason-vscode`) transmits a payload to the execution engine, it embeds this master fingerprint into a hidden network header (`X-Epistemic-Root`). Before the engine parses the payload, it calculates its own internal reality and compares the hashes.
-    
+
     * If the hashes perfectly match, the engine executes the transition.
     * If the hashes differ, the engine violently rejects the payload, returning a `409 Conflict` error to the operator's screen indicating an "Epistemic Mismatch."
-    
+
     To resolve this, the operator executes `coreason sync`. The hypervisor autopoietically regenerates the rulebook, recompiles the WebAssembly binaries, recalculates the master hash, and reboots the engine—forcing all disparate pillars back into perfect mathematical alignment.
 
 !!! quote "The Research"

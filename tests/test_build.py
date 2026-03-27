@@ -18,7 +18,9 @@ runner = CliRunner()
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.Path.is_dir")
 @patch("coreason_ecosystem.orchestration.build.Path.rglob")
+@patch("coreason_ecosystem.orchestration.build.subprocess.run")
 def test_build_command_dir(
+    mock_run: Any,
     mock_rglob: Any,
     mock_is_dir: Any,
     mock_open: Any,
@@ -30,6 +32,7 @@ def test_build_command_dir(
     mock_read_bytes.return_value = b"print('hello')"
     mock_is_dir.return_value = True
     mock_rglob.return_value = [Path("test1.py"), Path("test2.py")]
+    mock_run.return_value.returncode = 0
 
     import io
 

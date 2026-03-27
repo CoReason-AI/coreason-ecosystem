@@ -3,7 +3,11 @@
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
+
+import typer
+from filelock import FileLock
 
 from rich.panel import Panel
 
@@ -43,34 +47,64 @@ async def execute_build(target_path: str) -> None:
 
     # Load existing ledger
     ledger_path = coreason_dir / "capability_ledger.json"
-    ledger_data = {}
-    if ledger_path.exists():
-        try:
-            with ledger_path.open("r", encoding="utf-8") as f:
-                ledger_data = json.load(f)
-        except json.JSONDecodeError:
-            ledger_data = {}
+    lock_path = coreason_dir / "capability_ledger.json.lock"
 
-    for file_path in files_to_build:
-        # 1. Simulate an AOT compilation or bundling of the target Python file
-        # For now, simply read the file's bytes.
-        content = file_path.read_bytes()
+    with FileLock(lock_path, timeout=10):
+        ledger_data = {}
+        if ledger_path.exists():
+            try:
+                with ledger_path.open("r", encoding="utf-8") as f:
+                    ledger_data = json.load(f)
+            except json.JSONDecodeError:
+                ledger_data = {}
 
-        # 2. Calculate the cryptographic SHA-256 hash of the file/bundle
-        file_hash = hashlib.sha256(content).hexdigest()
+        for file_path in files_to_build:
+            wasm_out_path = file_path.with_suffix(".wasm")
 
-        # 3. Store the hash using target path as key
-        ledger_data[str(file_path.resolve())] = file_hash
+            try:
+                compile_proc = subprocess.run(
+                    [
+                        "componentize-py",
+                        "-d",
+                        "coreason-bindings",
+                        "-w",
+                        "extism",
+                        str(file_path),
+                        "-o",
+                        str(wasm_out_path),
+                    ],
+                    capture_output=True,
+                )
+            except FileNotFoundError:
+                console.print(
+                    "[bold red]✗ Fatal Error: 'componentize-py' compiler not found.[/bold red]"
+                )
+                console.print(
+                    "Please install the WASM toolchain: [cyan]uv pip install componentize-py[/cyan]"
+                )
+                raise typer.Exit(1)
 
-        # Output the calculated Epistemic Seal (hash) to the terminal
-        panel = Panel(
-            f"[green]Capability Crystallized:[/green]\n[cyan]{file_path.resolve()}[/cyan]\n\n"
-            f"[bold]Epistemic Seal (SHA-256):[/bold]\n[yellow]{file_hash}[/yellow]",
-            title="[bold blue]Build Complete[/bold blue]",
-            expand=False,
-        )
-        console.print(panel)
+            if compile_proc.returncode != 0:
+                console.print(f"[bold red]Error compiling {file_path}:[/bold red]")
+                console.print(compile_proc.stderr.decode("utf-8", errors="replace"))
+                raise typer.Exit(1)
 
-    # 4. Register the hash into .coreason/capability_ledger.json
-    with ledger_path.open("w", encoding="utf-8") as f:
-        json.dump(ledger_data, f, indent=4)
+            # 2. Calculate the cryptographic SHA-256 hash of the compiled file
+            content = wasm_out_path.read_bytes()
+
+            # 3. Store the hash using target path as key
+            file_hash = hashlib.sha256(content).hexdigest()
+            ledger_data[str(file_path.resolve())] = file_hash
+
+            # Output the calculated Epistemic Seal (hash) to the terminal
+            panel = Panel(
+                f"[green]Capability Crystallized:[/green]\n[cyan]{file_path.resolve()}[/cyan]\n\n"
+                f"[bold]Epistemic Seal (SHA-256):[/bold]\n[yellow]{file_hash}[/yellow]",
+                title="[bold blue]Build Complete[/bold blue]",
+                expand=False,
+            )
+            console.print(panel)
+
+        # 4. Register the hash into .coreason/capability_ledger.json
+        with ledger_path.open("w", encoding="utf-8") as f:
+            json.dump(ledger_data, f, indent=4)

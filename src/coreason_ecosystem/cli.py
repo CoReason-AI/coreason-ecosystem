@@ -2,14 +2,56 @@
 # Licensed under the Prosperity Public License 3.0
 
 import asyncio
+import importlib.metadata
+import sys
+from typing import Any
 
 import typer
 from rich.console import Console
 
 console = Console()
 
+
+def global_excepthook(
+    exc_type: type[BaseException],
+    exc_value: BaseException,
+    exc_traceback: Any,
+) -> None:  # pragma: no cover
+    console.print(f"[bold red]✗ Fatal Execution Error:[/bold red] {exc_value}")
+    sys.exit(1)
+
+
+sys.excepthook = global_excepthook
+
+
+def version_callback(value: bool) -> None:  # pragma: no cover
+    if value:
+        try:
+            version = importlib.metadata.version("coreason-ecosystem")
+        except importlib.metadata.PackageNotFoundError:
+            version = "unknown (local development)"
+        console.print(f"[bold cyan]CoReason Ecosystem[/bold cyan] v{version}")
+        raise typer.Exit()
+
+
 # We need to initialize the app first
 app = typer.Typer(help="CoReason Meta-Orchestrator Control Plane")
+
+
+@app.callback()
+def cli_callback(
+    version: bool | None = typer.Option(
+        None,
+        "--version",
+        "-V",
+        help="Show the active hypervisor version.",
+        callback=version_callback,
+        is_eager=True,
+    ),
+) -> None:  # pragma: no cover
+    """The Autopoietic Hypervisor for the Tripartite Cybernetic Manifold."""
+    pass
+
 
 # We must import the commands after 'console' and 'app' are defined,
 # but to avoid circular dependencies where submodules import 'console'
