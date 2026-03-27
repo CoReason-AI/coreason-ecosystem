@@ -1,7 +1,6 @@
 # Copyright (c) 2026 CoReason, Inc.
 # Licensed under the Prosperity Public License 3.0
 
-import asyncio
 import hashlib
 from pathlib import Path
 

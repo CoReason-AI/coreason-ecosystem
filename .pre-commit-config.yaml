@@ -17,7 +17,8 @@ repos:
     rev: v1.18.2
     hooks:
       - id: mypy
-        additional_dependencies: ["pydantic>=2.0", "pytest", "types-PyYAML", "click-types"]
+        additional_dependencies: ["pydantic>=2.0", "pytest", "types-PyYAML", "click-types", "typer", "rich", "httpx", "loguru"]
+        args: [--config-file, pyproject.toml]
   - repo: https://github.com/AleksaC/hadolint-py
     rev: v2.14.0
     hooks:

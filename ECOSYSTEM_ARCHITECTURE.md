@@ -23,14 +23,14 @@ The ecosystem is divided into four strictly isolated cybernetic modules, each re
 
 ### Pillar I: The Infrastructure Bootstrapper (`ecosystem.deploy`)
 To achieve an autopoietic (self-maintaining) state, the Swarm's underlying infrastructure must be declaratively managed.
-* **The Physics:** Parses declarative topology files (e.g., `topology.yaml`) to orchestrate containerized infrastructure across virtualized nodes (e.g., Proxmox). 
+* **The Physics:** Parses declarative topology files (e.g., `topology.yaml`) to orchestrate containerized infrastructure across virtualized nodes (e.g., Proxmox).
 * **State Engines:** Automatically provisions Temporal clusters (for workflow orchestration), Redis nodes (for SSE telemetry brokering), and scales `coreason-runtime` daemon replicas.
 * **Cryptographic Environment Sealing:** Before boot, the module cross-checks the active `coreason-runtime` binary versions against the `coreason-manifest` hash, ensuring the Swarm cannot boot into a mathematically fractured state.
 
 ### Pillar II: The Epistemic Supply Chain (`ecosystem.registry`)
 WebAssembly (`.wasm`) capabilities must be treated as untrusted physical matter until mathematically verified.
 * **The Physics:** Manages the compilation, signing, and distribution of Extism plugins written in Rust or Python.
-* **Cryptographic Provenance:** When a new capability is published (`registry push`), the ecosystem compiles the AST, extracts its memory bounds, and signs it with a strict SHA-256 hash. 
+* **Cryptographic Provenance:** When a new capability is published (`registry push`), the ecosystem compiles the AST, extracts its memory bounds, and signs it with a strict SHA-256 hash.
 * **Dynamic Resolution:** The `coreason-runtime` daemons query this registry to pull verified tools dynamically, ensuring the Swarm only executes mathematically proven code.
 
 ### Pillar III: Zero-Waste Documentation (`ecosystem.docs`)

@@ -5,7 +5,7 @@ Licensed under the Prosperity Public License 3.0.
 
 # 🛑 COREASON ECOSYSTEM: AGENTIC DIRECTIVES 🛑
 
-**System/Role Definition:** You are an Expert Enterprise Systems Architect. You are operating within `coreason-ecosystem`, the **Governance Layer** of the CoReason Tripartite Cybernetic Manifold. 
+**System/Role Definition:** You are an Expert Enterprise Systems Architect. You are operating within `coreason-ecosystem`, the **Governance Layer** of the CoReason Tripartite Cybernetic Manifold.
 
 Your mandate is Macro-Orchestration. You do not build Swarm intelligence; you deploy, monitor, and document the infrastructure that houses it.
 

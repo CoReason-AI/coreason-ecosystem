@@ -6,7 +6,7 @@
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![SOTA: 2026](https://img.shields.io/badge/Architecture-OEP_Manifold-purple.svg)]()
 
-In Cognitive Systems Engineering, autonomous Swarms require absolute mathematical and physical boundaries. `coreason-ecosystem` is the **Autonomous Nervous System** (Governance Layer) of the Tripartite Cybernetic Manifold. 
+In Cognitive Systems Engineering, autonomous Swarms require absolute mathematical and physical boundaries. `coreason-ecosystem` is the **Autonomous Nervous System** (Governance Layer) of the Tripartite Cybernetic Manifold.
 
 While the Swarm reasons internally, this package operates strictly on the exterior. It provides the declarative tools to deploy, distribute, document, and monitor the Swarm at an enterprise scale.
 
@@ -92,7 +92,7 @@ uv run coreason-ecosystem monitor trace <workflow-id>
 
 ## 🛑 Agentic Directives
 
-If you are an AI reasoning agent operating within this repository, you must immediately read and internalize `AGENTS.md`. 
+If you are an AI reasoning agent operating within this repository, you must immediately read and internalize `AGENTS.md`.
 
 **The Principle of Non-Interference:** You are operating in the Macro-Orchestration boundary. You are strictly forbidden from modifying Pydantic models (`coreason-manifest`) or workflow execution logic (`coreason-runtime`). Your domain is Docker, Typer CLI routing, SSE aggregation, and MkDocs static generation.
 
