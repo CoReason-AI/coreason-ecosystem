@@ -1,11 +1,11 @@
 # Copyright (c) 2026 CoReason, Inc.
 # Licensed under the Prosperity Public License 3.0
 
-import asyncio
 import json
 import shutil
+from collections.abc import Generator
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -13,7 +13,7 @@ from coreason_ecosystem.orchestration.init import execute_init
 
 
 @pytest.fixture
-def temp_project_dir(tmp_path: Path) -> Path:
+def temp_project_dir(tmp_path: Path) -> Generator[Path]:
     project_name = "test_swarm_workspace"
     path = tmp_path / project_name
     yield path
@@ -23,7 +23,7 @@ def temp_project_dir(tmp_path: Path) -> Path:
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.orchestration.init.subprocess.run")
-async def test_execute_init_base_topology(mock_run: patch, temp_project_dir: Path) -> None:
+async def test_execute_init_base_topology(mock_run: MagicMock, temp_project_dir: Path) -> None:
     await execute_init(str(temp_project_dir), topology="base")
 
     # Verify directories
@@ -64,7 +64,8 @@ async def test_execute_init_base_topology(mock_run: patch, temp_project_dir: Pat
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.orchestration.init.subprocess.run")
-async def test_execute_init_medallion_topology(mock_run: patch, temp_project_dir: Path) -> None:
+async def test_execute_init_medallion_topology(mock_run: MagicMock, temp_project_dir: Path) -> None:
+    _ = mock_run
     await execute_init(str(temp_project_dir), topology="medallion")
     cap_dir = temp_project_dir / "src" / "capabilities"
     assert (cap_dir / "bronze_ingest.py").is_file()
@@ -74,7 +75,8 @@ async def test_execute_init_medallion_topology(mock_run: patch, temp_project_dir
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.orchestration.init.subprocess.run")
-async def test_execute_init_rag_topology(mock_run: patch, temp_project_dir: Path) -> None:
+async def test_execute_init_rag_topology(mock_run: MagicMock, temp_project_dir: Path) -> None:
+    _ = mock_run
     await execute_init(str(temp_project_dir), topology="rag")
     cap_dir = temp_project_dir / "src" / "capabilities"
     assert (cap_dir / "embed_document.py").is_file()
