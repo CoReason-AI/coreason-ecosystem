@@ -9,6 +9,7 @@ import httpx
 from rich.table import Table
 
 from coreason_ecosystem.cli import console
+from coreason_ecosystem.orchestration.registry import read_registry_lock
 
 
 async def execute_doctor() -> None:
@@ -39,7 +40,9 @@ async def execute_doctor() -> None:
         try:
             # Check telemetry endpoint without blocking indefinitely.
             # We assume it streams, so getting a 200 on connect proves it's alive.
-            async with client.stream("GET", "http://localhost:8000/api/v1/telemetry/stream", timeout=1.0) as resp:
+            async with client.stream(
+                "GET", "http://localhost:8000/api/v1/telemetry/stream", timeout=1.0
+            ) as resp:
                 if resp.status_code == 200:
                     status_b = "[green]✓ STREAMING[/green]"
                     latency_b = "Connected"
@@ -66,5 +69,34 @@ async def execute_doctor() -> None:
         latency_c = "N/A"
 
     table.add_row("Ontology Schema", status_c, latency_c)
+
+    # Probe D: Epistemic Isomorphism
+    local_root = read_registry_lock(Path.cwd())
+    if local_root is None:
+        local_root = "UNSEALED"
+
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.get(
+                "http://localhost:8000/api/v1/epistemic/verify",
+                headers={"X-Epistemic-Root": local_root},
+                timeout=2.0,
+            )
+            if resp.status_code == 200:
+                status_d = "[green]✓ ALIGNED[/green]"
+                latency_d = (
+                    local_root[:16] + "..." if len(local_root) > 16 else local_root
+                )
+            elif resp.status_code == 409:
+                status_d = "[red]✗ DRIFT DETECTED[/red]"
+                latency_d = "Run 'coreason sync'"
+            else:
+                status_d = f"[yellow]⚠ HTTP {resp.status_code}[/yellow]"
+                latency_d = "Check Daemon"
+        except httpx.RequestError, httpx.TimeoutException:
+            status_d = "[yellow]⚠ UNREACHABLE[/yellow]"
+            latency_d = "Check Daemon"
+
+    table.add_row("Epistemic Isomorphism", status_d, latency_d)
 
     console.print(table)

@@ -23,7 +23,9 @@ def temp_project_dir(tmp_path: Path) -> Generator[Path]:
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.orchestration.init.subprocess.run")
-async def test_execute_init_base_topology(mock_run: MagicMock, temp_project_dir: Path) -> None:
+async def test_execute_init_base_topology(
+    mock_run: MagicMock, temp_project_dir: Path
+) -> None:
     await execute_init(str(temp_project_dir), topology="base")
 
     # Verify directories
@@ -37,7 +39,9 @@ async def test_execute_init_base_topology(mock_run: MagicMock, temp_project_dir:
     assert "coreason-runtime" in (temp_project_dir / "pyproject.toml").read_text()
 
     assert (temp_project_dir / "coreason_ontology.schema.json").is_file()
-    schema = json.loads((temp_project_dir / "coreason_ontology.schema.json").read_text())
+    schema = json.loads(
+        (temp_project_dir / "coreason_ontology.schema.json").read_text()
+    )
     assert schema["title"] == "Swarm Ontology"
 
     # Verify Base topology capabilities
@@ -52,19 +56,28 @@ async def test_execute_init_base_topology(mock_run: MagicMock, temp_project_dir:
 
     assert (vscode_dir / "tasks.json").is_file()
     tasks = json.loads((vscode_dir / "tasks.json").read_text())
-    assert any("Crystallize Capabilities" in task.get("label", "") for task in tasks["tasks"])
+    assert any(
+        "Crystallize Capabilities" in task.get("label", "") for task in tasks["tasks"]
+    )
 
     # Verify Immunological Hooks
     assert (temp_project_dir / ".pre-commit-config.yaml").is_file()
-    assert "epistemic-seal-check" in (temp_project_dir / ".pre-commit-config.yaml").read_text()
+    assert (
+        "epistemic-seal-check"
+        in (temp_project_dir / ".pre-commit-config.yaml").read_text()
+    )
 
     # Verify git init call
-    mock_run.assert_called_once_with(["git", "init"], cwd=str(temp_project_dir), check=False)
+    mock_run.assert_called_once_with(
+        ["git", "init"], cwd=str(temp_project_dir), check=False
+    )
 
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.orchestration.init.subprocess.run")
-async def test_execute_init_medallion_topology(mock_run: MagicMock, temp_project_dir: Path) -> None:
+async def test_execute_init_medallion_topology(
+    mock_run: MagicMock, temp_project_dir: Path
+) -> None:
     _ = mock_run
     await execute_init(str(temp_project_dir), topology="medallion")
     cap_dir = temp_project_dir / "src" / "capabilities"
@@ -75,7 +88,9 @@ async def test_execute_init_medallion_topology(mock_run: MagicMock, temp_project
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.orchestration.init.subprocess.run")
-async def test_execute_init_rag_topology(mock_run: MagicMock, temp_project_dir: Path) -> None:
+async def test_execute_init_rag_topology(
+    mock_run: MagicMock, temp_project_dir: Path
+) -> None:
     _ = mock_run
     await execute_init(str(temp_project_dir), topology="rag")
     cap_dir = temp_project_dir / "src" / "capabilities"
