@@ -1,0 +1,59 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - swarm-mesh
+
+  temporal:
+    image: temporalio/auto-setup
+    depends_on:
+      - postgres
+    networks:
+      - swarm-mesh
+
+  coreason-runtime:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '4G'
+    volumes:
+      - ./latent_memory.lance:/app/latent_memory.lance
+      - ./epistemic_ledger.lance:/app/epistemic_ledger.lance
+    ports:
+      - "8000:8000"
+    networks:
+      - swarm-mesh
+      - sensory-gateway
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - swarm-mesh
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - swarm-mesh
+
+networks:
+  swarm-mesh:
+    internal: true
+  sensory-gateway:
+
+volumes:
+  pg_data:
