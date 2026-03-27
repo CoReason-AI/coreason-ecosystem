@@ -5,6 +5,7 @@ import asyncio
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
+import importlib.metadata
 
 from coreason_ecosystem.orchestration.registry import (
     calculate_epistemic_root,
@@ -13,15 +14,15 @@ from coreason_ecosystem.orchestration.registry import (
 )
 
 
+@patch("importlib.metadata.version")
 @patch("coreason_ecosystem.orchestration.registry.Path.exists")
 @patch("coreason_ecosystem.orchestration.registry.Path.read_bytes")
-@patch("coreason_ecosystem.orchestration.registry.subprocess.run")
 def test_calculate_epistemic_root(
-    mock_sub_run: Any, mock_read_bytes: Any, mock_exists: Any
+    mock_read_bytes: Any, mock_exists: Any, mock_version: Any
 ) -> None:
     mock_exists.return_value = True
     mock_read_bytes.side_effect = [b'{"title": "ontology"}', b'{"cap": "hash"}']
-    mock_sub_run.return_value.stdout = "version 1.0"
+    mock_version.return_value = "1.0"
 
     root = asyncio.run(calculate_epistemic_root(Path("/tmp")))
     assert root is not None
@@ -29,13 +30,13 @@ def test_calculate_epistemic_root(
     assert len(root) == 64
 
 
+@patch("importlib.metadata.version")
 @patch("coreason_ecosystem.orchestration.registry.Path.exists")
-@patch("coreason_ecosystem.orchestration.registry.subprocess.run")
 def test_calculate_epistemic_root_missing_files(
-    mock_sub_run: Any, mock_exists: Any
+    mock_exists: Any, mock_version: Any
 ) -> None:
     mock_exists.return_value = False
-    mock_sub_run.return_value.stdout = "version 1.0"
+    mock_version.side_effect = importlib.metadata.PackageNotFoundError()
 
     root = asyncio.run(calculate_epistemic_root(Path("/tmp")))
     assert root is not None

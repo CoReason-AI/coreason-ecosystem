@@ -2,7 +2,6 @@
 # Licensed under the Prosperity Public License 3.0
 
 import hashlib
-import subprocess
 from pathlib import Path
 
 
@@ -17,15 +16,17 @@ async def calculate_epistemic_root(project_path: Path) -> str:
         h_ontology = hashlib.sha256(b"").hexdigest()
 
     # Component 2 (H_env)
-    import sys
+    import importlib.metadata
 
-    result = subprocess.run(
-        [sys.executable, "-m", "pip", "show", "coreason-manifest", "coreason-runtime"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    h_env = hashlib.sha256(result.stdout.encode("utf-8")).hexdigest()
+    env_str = ""
+    for pkg in ["coreason-manifest", "coreason-runtime"]:
+        try:
+            version = importlib.metadata.version(pkg)
+            env_str += f"{pkg}=={version}\n"
+        except importlib.metadata.PackageNotFoundError:
+            env_str += f"{pkg}==unknown\n"
+
+    h_env = hashlib.sha256(env_str.encode("utf-8")).hexdigest()
 
     # Component 3 (H_capabilities)
     ledger_path = project_path / ".coreason" / "capability_ledger.json"
