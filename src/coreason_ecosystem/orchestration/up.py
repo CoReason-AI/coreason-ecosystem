@@ -18,7 +18,7 @@ async def is_port_bound(port: int) -> bool:
         writer.close()
         await writer.wait_closed()
         return True
-    except (ConnectionRefusedError, TimeoutError, OSError):
+    except ConnectionRefusedError, TimeoutError, OSError:
         return False
 
 
@@ -133,7 +133,9 @@ async def execute_up() -> None:
             )
 
         # Node 4: Observability Sidecars (Prometheus & Grafana)
-        task_observability = progress.add_task("[yellow]Checking Observability Sidecars (Grafana: 3000)...[/yellow]", total=None)
+        task_observability = progress.add_task(
+            "[yellow]Checking Observability Sidecars (Grafana: 3000)...[/yellow]", total=None
+        )
         if await is_port_bound(3000):
             progress.update(
                 task_observability,

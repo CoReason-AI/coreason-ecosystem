@@ -12,13 +12,14 @@ Strict compliance:
   - Limit resource allocations conforming to Thermodynamic boundaries.
 """
 
-import pulumi
+import pulumi  # type: ignore
 
 # Note: The exact provider setup is deferred to full implementation,
 # but the structure requires the definition of a Proxmox target and
 # bootstrapping a WG tunnel.
 
-def provision_proxmox_node():
+
+def provision_proxmox_node() -> None:
     """
     1. Provisioning of a Proxmox LXC/VM.
 
@@ -28,9 +29,9 @@ def provision_proxmox_node():
     persisted dual-memory capabilities across reboots.
     """
     # vm = proxmox.VirtualMachine(...)
-    pass
 
-def bootstrap_wireguard_interface():
+
+def bootstrap_wireguard_interface() -> None:
     """
     2. Bootstrap configuration of a WireGuard interface (`wg0`).
 
@@ -39,7 +40,7 @@ def bootstrap_wireguard_interface():
     execution commands, and epistemic signaling remain encrypted.
     """
     # wg = wireguard.Interface(...)
-    pass
+
 
 # Entrypoint Execution
 # node = provision_proxmox_node()
