@@ -2,12 +2,14 @@
 # Licensed under the Prosperity Public License 3.0
 
 import asyncio
+import os
 import subprocess
 from pathlib import Path
 
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from coreason_ecosystem.cli import console
+from coreason_ecosystem.orchestration.registry import calculate_epistemic_root, write_registry_lock
 
 
 async def is_port_bound(port: int) -> bool:
@@ -114,6 +116,15 @@ async def execute_up() -> None:
                 task_daemon,
                 description="[cyan]Igniting Thermodynamic Mesh...[/cyan]",
             )
+
+            # The Cryptographic Handshake
+            project_path = Path.cwd()
+            root_hash = await calculate_epistemic_root(project_path)
+            write_registry_lock(project_path, root_hash)
+
+            env = os.environ.copy()
+            env["EPISTEMIC_MERKLE_ROOT"] = root_hash
+
             proc = await asyncio.create_subprocess_exec(
                 "docker",
                 "compose",
@@ -124,6 +135,7 @@ async def execute_up() -> None:
                 "coreason-runtime",
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                env=env,
             )
             await proc.communicate()
             progress.update(

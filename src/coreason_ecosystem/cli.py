@@ -17,6 +17,7 @@ app = typer.Typer(help="CoReason Meta-Orchestrator Control Plane")
 from coreason_ecosystem.orchestration.build import execute_build  # noqa: E402
 from coreason_ecosystem.orchestration.doctor import execute_doctor  # noqa: E402
 from coreason_ecosystem.orchestration.init import execute_init  # noqa: E402
+from coreason_ecosystem.orchestration.sync import execute_sync  # noqa: E402
 from coreason_ecosystem.orchestration.up import execute_up  # noqa: E402
 
 
@@ -49,6 +50,12 @@ def up() -> None:
 def doctor() -> None:
     """Prove Ontological Isomorphism across the Tripartite Manifold."""
     asyncio.run(execute_doctor())
+
+
+@app.command(name="sync", help="Autonomically heal Ontological Drift by synchronizing schemas, recompiling capabilities, and restarting the daemon.")
+def sync() -> None:
+    """Autonomically heal Ontological Drift."""
+    asyncio.run(execute_sync())
 
 
 def main() -> None:  # pragma: no cover
