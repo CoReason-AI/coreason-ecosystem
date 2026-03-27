@@ -9,14 +9,19 @@ from pathlib import Path
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from coreason_ecosystem.cli import console
-from coreason_ecosystem.orchestration.registry import calculate_epistemic_root, write_registry_lock
+from coreason_ecosystem.orchestration.registry import (
+    calculate_epistemic_root,
+    write_registry_lock,
+)
 
 
 async def is_port_bound(port: int) -> bool:
     """Check if a specific TCP port is currently bound."""
     # We can perform a non-blocking check by using a quick socket connect.
     try:
-        _reader, writer = await asyncio.wait_for(asyncio.open_connection("127.0.0.1", port), timeout=0.1)
+        _reader, writer = await asyncio.wait_for(
+            asyncio.open_connection("127.0.0.1", port), timeout=0.1
+        )
         writer.close()
         await writer.wait_closed()
         return True
@@ -31,7 +36,12 @@ async def execute_up() -> None:
     compose_path = Path.cwd() / "infrastructure" / "local" / "compose.yaml"
     if not compose_path.exists():
         # Fallback to resolving relative to the project root assuming the file is deeply nested during execution
-        compose_path = Path(__file__).parent.parent.parent.parent / "infrastructure" / "local" / "compose.yaml"
+        compose_path = (
+            Path(__file__).parent.parent.parent.parent
+            / "infrastructure"
+            / "local"
+            / "compose.yaml"
+        )
 
     compose_path_str = str(compose_path.resolve())
 
@@ -42,7 +52,9 @@ async def execute_up() -> None:
         transient=False,
     ) as progress:
         # Node 1: Epistemic Ledger (Postgres)
-        task_postgres = progress.add_task("[yellow]Checking Ledger (Postgres: 5432)...[/yellow]", total=None)
+        task_postgres = progress.add_task(
+            "[yellow]Checking Ledger (Postgres: 5432)...[/yellow]", total=None
+        )
         if await is_port_bound(5432):
             progress.update(
                 task_postgres,
@@ -73,7 +85,9 @@ async def execute_up() -> None:
             )
 
         # Node 2: Orchestration Fabric (Temporal)
-        task_temporal = progress.add_task("[yellow]Checking Orchestrator (Temporal: 7233)...[/yellow]", total=None)
+        task_temporal = progress.add_task(
+            "[yellow]Checking Orchestrator (Temporal: 7233)...[/yellow]", total=None
+        )
         if await is_port_bound(7233):
             progress.update(
                 task_temporal,
@@ -104,7 +118,9 @@ async def execute_up() -> None:
             )
 
         # Node 3: Physics Engine (Daemon)
-        task_daemon = progress.add_task("[yellow]Checking Physics Engine (Daemon: 8000)...[/yellow]", total=None)
+        task_daemon = progress.add_task(
+            "[yellow]Checking Physics Engine (Daemon: 8000)...[/yellow]", total=None
+        )
         if await is_port_bound(8000):
             progress.update(
                 task_daemon,
@@ -146,7 +162,8 @@ async def execute_up() -> None:
 
         # Node 4: Observability Sidecars (Prometheus & Grafana)
         task_observability = progress.add_task(
-            "[yellow]Checking Observability Sidecars (Grafana: 3000)...[/yellow]", total=None
+            "[yellow]Checking Observability Sidecars (Grafana: 3000)...[/yellow]",
+            total=None,
         )
         if await is_port_bound(3000):
             progress.update(

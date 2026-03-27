@@ -30,10 +30,15 @@ dependencies = [
     "coreason-manifest"
 ]
 """
-    (project_path / "pyproject.toml").write_text(pyproject_toml_content.replace("{project_name}", project_name))
+    (project_path / "pyproject.toml").write_text(
+        pyproject_toml_content.replace("{project_name}", project_name)
+    )
 
     # 3. Ontological Seed
-    schema = {"$schema": "https://json-schema.org/draft/2020-12/schema", "title": "Swarm Ontology"}
+    schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Swarm Ontology",
+    }
     with (project_path / "coreason_ontology.schema.json").open("w") as f:
         json.dump(schema, f, indent=4)
 
@@ -69,14 +74,22 @@ if __name__ == "__main__":
     vscode_dir = project_path / ".vscode"
     vscode_dir.mkdir(parents=True, exist_ok=True)
 
-    settings = {"coreason.isEpistemicWorkspace": True, "coreason.telemetry.meshPort": 8000, "editor.formatOnSave": True}
+    settings = {
+        "coreason.isEpistemicWorkspace": True,
+        "coreason.telemetry.meshPort": 8000,
+        "editor.formatOnSave": True,
+    }
     with (vscode_dir / "settings.json").open("w") as f:
         json.dump(settings, f, indent=4)
 
     tasks = {
         "version": "2.0.0",
         "tasks": [
-            {"label": "Crystallize Capabilities", "command": "coreason build", "type": "shell"},
+            {
+                "label": "Crystallize Capabilities",
+                "command": "coreason build",
+                "type": "shell",
+            },
             {"label": "Ignite Swarm", "command": "coreason up", "type": "shell"},
         ],
     }

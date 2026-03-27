@@ -16,7 +16,9 @@ async def execute_build(target_path: str) -> None:
     """
     target = Path(target_path)
     if not target.exists():
-        console.print(f"[bold red]Error:[/bold red] Target path {target_path} does not exist.")
+        console.print(
+            f"[bold red]Error:[/bold red] Target path {target_path} does not exist."
+        )
         return
 
     # Determine files to process
@@ -30,7 +32,9 @@ async def execute_build(target_path: str) -> None:
         files_to_build = [target]
 
     if not files_to_build:
-        console.print(f"[yellow]Warning:[/yellow] No capabilities found to build in {target_path}.")
+        console.print(
+            f"[yellow]Warning:[/yellow] No capabilities found to build in {target_path}."
+        )
         return
 
     # Ensure the .coreason directory exists in the user's current working directory

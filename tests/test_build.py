@@ -18,7 +18,13 @@ runner = CliRunner()
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.Path.is_dir")
 @patch("coreason_ecosystem.orchestration.build.Path.rglob")
-def test_build_command_dir(mock_rglob: Any, mock_is_dir: Any, mock_open: Any, mock_read_bytes: Any, mock_exists: Any) -> None:
+def test_build_command_dir(
+    mock_rglob: Any,
+    mock_is_dir: Any,
+    mock_open: Any,
+    mock_read_bytes: Any,
+    mock_exists: Any,
+) -> None:
     """Test the build command execution logic."""
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"print('hello')"
@@ -36,10 +42,13 @@ def test_build_command_dir(mock_rglob: Any, mock_is_dir: Any, mock_open: Any, mo
     assert result.exit_code == 0
     assert "Capability Crystallized" in result.stdout
 
+
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
 @patch("coreason_ecosystem.orchestration.build.Path.is_dir")
 @patch("coreason_ecosystem.orchestration.build.Path.rglob")
-def test_build_command_dir_no_files(mock_rglob: Any, mock_is_dir: Any, mock_exists: Any) -> None:
+def test_build_command_dir_no_files(
+    mock_rglob: Any, mock_is_dir: Any, mock_exists: Any
+) -> None:
     """Test the build command execution logic."""
     mock_exists.return_value = True
     mock_is_dir.return_value = True
@@ -48,6 +57,8 @@ def test_build_command_dir_no_files(mock_rglob: Any, mock_is_dir: Any, mock_exis
     result = runner.invoke(app, ["build", "dummy_dir"])
     assert result.exit_code == 0
     assert "Warning" in result.stdout
+
+
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
 @patch("coreason_ecosystem.orchestration.build.Path.is_dir")
 def test_build_command_dir_no_cap_dir(mock_is_dir: Any, mock_exists: Any) -> None:

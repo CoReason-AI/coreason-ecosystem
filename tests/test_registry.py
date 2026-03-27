@@ -6,13 +6,19 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-from coreason_ecosystem.orchestration.registry import calculate_epistemic_root, read_registry_lock, write_registry_lock
+from coreason_ecosystem.orchestration.registry import (
+    calculate_epistemic_root,
+    read_registry_lock,
+    write_registry_lock,
+)
 
 
 @patch("coreason_ecosystem.orchestration.registry.Path.exists")
 @patch("coreason_ecosystem.orchestration.registry.Path.read_bytes")
 @patch("coreason_ecosystem.orchestration.registry.subprocess.run")
-def test_calculate_epistemic_root(mock_sub_run: Any, mock_read_bytes: Any, mock_exists: Any) -> None:
+def test_calculate_epistemic_root(
+    mock_sub_run: Any, mock_read_bytes: Any, mock_exists: Any
+) -> None:
     mock_exists.return_value = True
     mock_read_bytes.side_effect = [b'{"title": "ontology"}', b'{"cap": "hash"}']
     mock_sub_run.return_value.stdout = "version 1.0"
@@ -22,9 +28,12 @@ def test_calculate_epistemic_root(mock_sub_run: Any, mock_read_bytes: Any, mock_
     assert isinstance(root, str)
     assert len(root) == 64
 
+
 @patch("coreason_ecosystem.orchestration.registry.Path.exists")
 @patch("coreason_ecosystem.orchestration.registry.subprocess.run")
-def test_calculate_epistemic_root_missing_files(mock_sub_run: Any, mock_exists: Any) -> None:
+def test_calculate_epistemic_root_missing_files(
+    mock_sub_run: Any, mock_exists: Any
+) -> None:
     mock_exists.return_value = False
     mock_sub_run.return_value.stdout = "version 1.0"
 
@@ -32,6 +41,7 @@ def test_calculate_epistemic_root_missing_files(mock_sub_run: Any, mock_exists: 
     assert root is not None
     assert isinstance(root, str)
     assert len(root) == 64
+
 
 @patch("coreason_ecosystem.orchestration.registry.Path.write_text")
 @patch("coreason_ecosystem.orchestration.registry.Path.mkdir")
@@ -47,6 +57,7 @@ def test_read_registry_lock(mock_read_text: Any, mock_exists: Any) -> None:
     mock_exists.return_value = True
     mock_read_text.return_value = "deadbeef"
     assert read_registry_lock(Path("/tmp")) == "deadbeef"
+
 
 @patch("coreason_ecosystem.orchestration.registry.Path.exists")
 def test_read_registry_lock_missing(mock_exists: Any) -> None:

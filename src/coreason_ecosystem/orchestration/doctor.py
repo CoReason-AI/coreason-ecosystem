@@ -29,7 +29,7 @@ async def execute_doctor() -> None:
             else:
                 status_a = f"[red]✗ ERROR {resp.status_code}[/red]"
                 latency_a = "N/A"
-        except (httpx.RequestError, httpx.TimeoutException):
+        except httpx.RequestError, httpx.TimeoutException:
             status_a = "[red]✗ OFFLINE[/red]"
             latency_a = "N/A"
 
@@ -40,14 +40,16 @@ async def execute_doctor() -> None:
         try:
             # Check telemetry endpoint without blocking indefinitely.
             # We assume it streams, so getting a 200 on connect proves it's alive.
-            async with client.stream("GET", "http://localhost:8000/api/v1/telemetry/stream", timeout=1.0) as resp:
+            async with client.stream(
+                "GET", "http://localhost:8000/api/v1/telemetry/stream", timeout=1.0
+            ) as resp:
                 if resp.status_code == 200:
                     status_b = "[green]✓ STREAMING[/green]"
                     latency_b = "Connected"
                 else:
                     status_b = f"[red]✗ ERROR {resp.status_code}[/red]"
                     latency_b = "N/A"
-        except (httpx.RequestError, httpx.TimeoutException):
+        except httpx.RequestError, httpx.TimeoutException:
             status_b = "[red]✗ TIMEOUT/OFFLINE[/red]"
             latency_b = "N/A"
 
@@ -82,14 +84,16 @@ async def execute_doctor() -> None:
             )
             if resp.status_code == 200:
                 status_d = "[green]✓ ALIGNED[/green]"
-                latency_d = local_root[:16] + "..." if len(local_root) > 16 else local_root
+                latency_d = (
+                    local_root[:16] + "..." if len(local_root) > 16 else local_root
+                )
             elif resp.status_code == 409:
                 status_d = "[red]✗ DRIFT DETECTED[/red]"
                 latency_d = "Run 'coreason sync'"
             else:
                 status_d = f"[yellow]⚠ HTTP {resp.status_code}[/yellow]"
                 latency_d = "Check Daemon"
-        except (httpx.RequestError, httpx.TimeoutException):
+        except httpx.RequestError, httpx.TimeoutException:
             status_d = "[yellow]⚠ UNREACHABLE[/yellow]"
             latency_d = "Check Daemon"
 

@@ -18,6 +18,7 @@ async def calculate_epistemic_root(project_path: Path) -> str:
 
     # Component 2 (H_env)
     import sys
+
     result = subprocess.run(
         [sys.executable, "-m", "pip", "show", "coreason-manifest", "coreason-runtime"],
         capture_output=True,
