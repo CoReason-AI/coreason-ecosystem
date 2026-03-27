@@ -1,0 +1,57 @@
+# Copyright (c) 2026 CoReason, Inc.
+# Licensed under the Prosperity Public License 3.0
+
+import hashlib
+import json
+import os
+from pathlib import Path
+
+from rich.panel import Panel
+
+from coreason_ecosystem.cli import console
+
+
+async def execute_build(target_path: str) -> None:
+    """
+    Compile human-readable Python capabilities into WASM boundaries and calculate their Epistemic Seals.
+    """
+    target = Path(target_path)
+    if not target.exists():
+        console.print(f"[bold red]Error:[/bold red] Target path {target_path} does not exist.")
+        return
+
+    # 1. Simulate an AOT compilation or bundling of the target Python file
+    # For now, simply read the file's bytes.
+    content = target.read_bytes()
+
+    # 2. Calculate the cryptographic SHA-256 hash of the file/bundle
+    file_hash = hashlib.sha256(content).hexdigest()
+
+    # 3. Ensure the .coreason directory exists in the user's current working directory
+    coreason_dir = Path.cwd() / ".coreason"
+    coreason_dir.mkdir(parents=True, exist_ok=True)
+
+    # 4. Register the hash into .coreason/capability_ledger.json (append or update)
+    ledger_path = coreason_dir / "capability_ledger.json"
+    ledger_data = {}
+    if ledger_path.exists():
+        try:
+            with ledger_path.open("r", encoding="utf-8") as f:
+                ledger_data = json.load(f)
+        except json.JSONDecodeError:
+            ledger_data = {}
+
+    # Store the hash using target path as key
+    ledger_data[str(target.resolve())] = file_hash
+
+    with ledger_path.open("w", encoding="utf-8") as f:
+        json.dump(ledger_data, f, indent=4)
+
+    # Output the calculated Epistemic Seal (hash) to the terminal
+    panel = Panel(
+        f"[green]Capability Crystallized:[/green]\n[cyan]{target.resolve()}[/cyan]\n\n"
+        f"[bold]Epistemic Seal (SHA-256):[/bold]\n[yellow]{file_hash}[/yellow]",
+        title="[bold blue]Build Complete[/bold blue]",
+        expand=False,
+    )
+    console.print(panel)
