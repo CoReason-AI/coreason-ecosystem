@@ -69,11 +69,13 @@ def test_build_command_file_not_found(mock_exists: Any) -> None:
     assert "does not exist" in result.stdout
 
 
+@patch("coreason_ecosystem.orchestration.up.Path.exists")
 @patch("coreason_ecosystem.orchestration.up.asyncio.create_subprocess_exec")
 @patch("coreason_ecosystem.orchestration.up.is_port_bound")
-def test_up_command(mock_is_port_bound: Any, mock_exec: Any) -> None:
+def test_up_command(mock_is_port_bound: Any, mock_exec: Any, mock_exists: Any) -> None:
     """Test the up command execution logic."""
-    mock_is_port_bound.side_effect = [False, False, False]
+    mock_exists.return_value = False
+    mock_is_port_bound.side_effect = [False, False, False, False]
 
     mock_proc = AsyncMock()
     mock_proc.communicate.return_value = (b"", b"")
@@ -81,14 +83,14 @@ def test_up_command(mock_is_port_bound: Any, mock_exec: Any) -> None:
 
     result = runner.invoke(app, ["up"])
     assert result.exit_code == 0
-    assert mock_exec.call_count == 3  # postgres, temporal, daemon
+    assert mock_exec.call_count == 4  # postgres, temporal, coreason-runtime, observability
 
 
 @patch("coreason_ecosystem.orchestration.up.asyncio.create_subprocess_exec")
 @patch("coreason_ecosystem.orchestration.up.is_port_bound")
 def test_up_command_all_bound(mock_is_port_bound: Any, mock_exec: Any) -> None:
     """Test the up command execution logic when all bound."""
-    mock_is_port_bound.side_effect = [True, True, True]
+    mock_is_port_bound.side_effect = [True, True, True, True]
 
     result = runner.invoke(app, ["up"])
     assert result.exit_code == 0
