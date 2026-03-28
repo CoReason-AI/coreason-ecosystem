@@ -20,11 +20,15 @@ boot_payload_b64 = config.require("boot_payload_b64")
 
 boot_payload = base64.b64decode(boot_payload_b64).decode("utf-8")
 
-# Embed the decoded Bash script payload into the dynamic curl command
+# Securely pass the complex bash script via environment variables and use data-urlencode
 create_cmd = local.Command(
     "vast-create",
-    create=f"curl -X POST https://console.vast.ai/api/v0/asks/{machine_id}/ -d 'client_id=auto' -d 'ssh_key={ssh_pub_key}' -d 'onstart={boot_payload}'",
+    create=f"curl -X POST https://console.vast.ai/api/v0/asks/{machine_id}/ -d 'client_id=auto' --data-urlencode \"ssh_key=$SSH_KEY\" --data-urlencode \"onstart=$ONSTART_PAYLOAD\"",
     delete=f"curl -X DELETE https://console.vast.ai/api/v0/instances/{machine_id}/",
+    environment={
+        "ONSTART_PAYLOAD": boot_payload,
+        "SSH_KEY": ssh_pub_key
+    }
 )
 
 pulumi.export("ssh_ip", create_cmd.stdout)
