@@ -1,6 +1,7 @@
 # Copyright (c) 2026 CoReason, Inc.
 # Licensed under the Prosperity Public License 3.0
 
+import importlib.metadata
 import json
 import subprocess
 from pathlib import Path
@@ -17,8 +18,6 @@ async def execute_init(project_name: str, topology: str = "base") -> None:
     (project_path / "src" / "intents").mkdir(parents=True, exist_ok=True)
 
     # 2. Dependency Locking
-    import importlib.metadata
-
     try:
         manifest_version = importlib.metadata.version("coreason-manifest")
     except importlib.metadata.PackageNotFoundError:
