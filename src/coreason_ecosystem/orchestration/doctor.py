@@ -29,7 +29,7 @@ async def execute_doctor() -> None:
             else:
                 status_a = f"[red]✗ ERROR {resp.status_code}[/red]"
                 latency_a = "N/A"
-        except httpx.RequestError, httpx.TimeoutException:
+        except (httpx.RequestError, httpx.TimeoutException):
             status_a = "[red]✗ OFFLINE[/red]"
             latency_a = "N/A"
 
@@ -48,7 +48,7 @@ async def execute_doctor() -> None:
                 else:
                     status_b = f"[red]✗ ERROR {resp.status_code}[/red]"
                     latency_b = "N/A"
-        except httpx.RequestError, httpx.TimeoutException:
+        except (httpx.RequestError, httpx.TimeoutException):
             status_b = "[red]✗ TIMEOUT/OFFLINE[/red]"
             latency_b = "N/A"
 
@@ -91,7 +91,7 @@ async def execute_doctor() -> None:
             else:
                 status_d = f"[yellow]⚠ HTTP {resp.status_code}[/yellow]"
                 latency_d = "Check Daemon"
-        except httpx.RequestError, httpx.TimeoutException:
+        except (httpx.RequestError, httpx.TimeoutException):
             status_d = "[yellow]⚠ UNREACHABLE[/yellow]"
             latency_d = "Check Daemon"
 
