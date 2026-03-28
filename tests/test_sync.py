@@ -12,7 +12,10 @@ runner = CliRunner()
 
 
 @patch("coreason_ecosystem.orchestration.sync.Path.exists")
-@patch("coreason_ecosystem.orchestration.sync.subprocess.run")
+@patch(
+    "coreason_ecosystem.orchestration.sync.asyncio.create_subprocess_exec",
+    new_callable=AsyncMock,
+)
 @patch("coreason_ecosystem.orchestration.sync.write_registry_lock")
 @patch(
     "coreason_ecosystem.orchestration.sync.calculate_epistemic_root",
@@ -25,7 +28,7 @@ def test_sync_command(
     mock_execute_build: Any,
     mock_calc_root: Any,
     mock_write_lock: Any,
-    mock_sub_run: Any,
+    mock_sub_exec: Any,
     mock_exists: Any,
 ) -> None:
     """Test the sync command execution logic."""
@@ -36,17 +39,25 @@ def test_sync_command(
     mock_calc_root.return_value = "deadbeef"
     mock_exists.return_value = True
 
+    # Mock the returned process
+    mock_process = AsyncMock()
+    mock_sub_exec.return_value = mock_process
+
     result = runner.invoke(app, ["sync"])
     assert result.exit_code == 0
     assert "Autopoietic Healing Complete" in result.stdout
     mock_execute_build.assert_called_once()
     mock_calc_root.assert_called_once()
     mock_write_lock.assert_called_once()
-    mock_sub_run.assert_called_once()
+    mock_sub_exec.assert_called_once()
+    mock_process.wait.assert_called_once()
 
 
 @patch("coreason_ecosystem.orchestration.sync.Path.exists")
-@patch("coreason_ecosystem.orchestration.sync.subprocess.run")
+@patch(
+    "coreason_ecosystem.orchestration.sync.asyncio.create_subprocess_exec",
+    new_callable=AsyncMock,
+)
 @patch("coreason_ecosystem.orchestration.sync.write_registry_lock")
 @patch(
     "coreason_ecosystem.orchestration.sync.calculate_epistemic_root",
@@ -59,7 +70,7 @@ def test_sync_command_compose_fallback(
     mock_execute_build: Any,
     mock_calc_root: Any,
     mock_write_lock: Any,
-    mock_sub_run: Any,
+    mock_sub_exec: Any,
     mock_exists: Any,
 ) -> None:
     """Test the sync command execution logic."""
@@ -70,7 +81,12 @@ def test_sync_command_compose_fallback(
     mock_calc_root.return_value = "deadbeef"
     mock_exists.return_value = False
 
+    # Mock the returned process
+    mock_process = AsyncMock()
+    mock_sub_exec.return_value = mock_process
+
     result = runner.invoke(app, ["sync"])
     assert result.exit_code == 0
     assert "Autopoietic Healing Complete" in result.stdout
-    mock_sub_run.assert_called_once()
+    mock_sub_exec.assert_called_once()
+    mock_process.wait.assert_called_once()

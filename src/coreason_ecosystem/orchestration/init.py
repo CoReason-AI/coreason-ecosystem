@@ -2,14 +2,23 @@
 # Licensed under the Prosperity Public License 3.0
 
 import importlib.metadata
+import asyncio
 import json
-import subprocess
 from pathlib import Path
 
 
 async def execute_init(project_name: str, topology: str = "base") -> None:
     """Synthesize a mathematically verified Swarm workspace."""
-    project_path = Path(project_name)
+    if "/" in project_name or "\\" in project_name:
+        raise ValueError("Project name cannot contain path separators")
+
+    project_path = Path(project_name).resolve()
+    cwd = Path.cwd().resolve()
+    if not project_path.is_relative_to(cwd) or project_path == cwd:
+        raise ValueError(
+            "Project path must be a subdirectory of the current working directory"
+        )
+
     project_path.mkdir(parents=True, exist_ok=True)
 
     # 1. Directory Genesis
@@ -112,4 +121,5 @@ if __name__ == "__main__":
 """
     (project_path / ".pre-commit-config.yaml").write_text(pre_commit_config)
 
-    subprocess.run(["git", "init"], cwd=str(project_path), check=False)  # noqa: S607
+    process = await asyncio.create_subprocess_exec("git", "init", cwd=str(project_path))
+    await process.communicate()
