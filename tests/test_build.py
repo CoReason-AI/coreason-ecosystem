@@ -75,6 +75,16 @@ def test_build_command_dir_no_files(
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
+def test_build_command_target_not_exists(mock_exists: Any) -> None:
+    """Test the build command execution logic when target does not exist."""
+    mock_exists.return_value = False
+
+    result = runner.invoke(app, ["build", "nonexistent_dir"])
+    assert result.exit_code == 0
+    assert "does not exist" in result.stdout
+
+
+@patch("coreason_ecosystem.orchestration.build.Path.exists")
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.Path.mkdir")
 @patch("coreason_ecosystem.orchestration.build.FileLock")
