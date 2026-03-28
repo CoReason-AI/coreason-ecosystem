@@ -8,7 +8,16 @@ from pathlib import Path
 
 async def execute_init(project_name: str, topology: str = "base") -> None:
     """Synthesize a mathematically verified Swarm workspace."""
-    project_path = Path(project_name)
+    if "/" in project_name or "\\" in project_name:
+        raise ValueError("Project name cannot contain path separators")
+
+    project_path = Path(project_name).resolve()
+    cwd = Path.cwd().resolve()
+    if not project_path.is_relative_to(cwd) or project_path == cwd:
+        raise ValueError(
+            "Project path must be a subdirectory of the current working directory"
+        )
+
     project_path.mkdir(parents=True, exist_ok=True)
 
     # 1. Directory Genesis
