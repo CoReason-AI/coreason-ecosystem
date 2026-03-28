@@ -4,7 +4,7 @@
 import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from typer.testing import CliRunner
 
@@ -18,7 +18,7 @@ runner = CliRunner()
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.Path.is_dir")
 @patch("coreason_ecosystem.orchestration.build.Path.rglob")
-@patch("coreason_ecosystem.orchestration.build.subprocess.run")
+@patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_command_dir(
     mock_run: Any,
     mock_rglob: Any,
@@ -32,7 +32,10 @@ def test_build_command_dir(
     mock_read_bytes.return_value = b"print('hello')"
     mock_is_dir.return_value = True
     mock_rglob.return_value = [Path("test1.py"), Path("test2.py")]
-    mock_run.return_value.returncode = 0
+    mock_proc = AsyncMock()
+    mock_proc.returncode = 0
+    mock_proc.communicate.return_value = (b"", b"")
+    mock_run.return_value = mock_proc
 
     import io
 
