@@ -24,6 +24,9 @@ dependencies = [
     "opentelemetry-api>=1.20.0",
     "opentelemetry-sdk>=1.20.0",
     "opentelemetry-exporter-otlp-proto-http>=1.20.0",
+    "pulumi>=3.149.0",
+    "pulumi-aws>=6.66.0",
+    "pulumi-command>=1.0.1",
 ]
 
 license = { file = "LICENSE" }
@@ -86,6 +89,9 @@ disallow_incomplete_defs = true
 check_untyped_defs = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
+exclude = [
+    "infrastructure/.*",
+]
 
 [[tool.mypy.overrides]]
 module = "click.*"
@@ -105,6 +111,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "pydantic_settings.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pulumi.*"
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
