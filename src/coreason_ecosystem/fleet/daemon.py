@@ -60,21 +60,21 @@ class AutonomicFleetManager:
                             )
                 elif derivative == 0:
                     # Scale Down Logic
-                    orphaned = await self.driver.reconcile_state()
-                    if orphaned:
-                        stack_to_destroy = orphaned[0]
-                        # Extract provider context from state (mocking lookup for vast vs aws logic)
-                        # We try both since reconcile returns just stack names
-                        try:
-                            await self.driver.destroy_node(stack_to_destroy, "aws")
-                        except Exception as e:
-                            logger.debug(f"Not an AWS stack or destroy failed: {e}")
-                            try:
-                                await self.driver.destroy_node(stack_to_destroy, "vast")
-                            except Exception as e:
-                                logger.error(
-                                    f"Failed to destroy stack {stack_to_destroy}: {e}"
-                                )
+                    active_stacks = await self.driver.reconcile_state()
+                    if active_stacks:
+                        target = active_stacks[0]
+                        stack_to_destroy = target["stack_name"]
+                        provider = target["provider"]
+
+                        logger.info(
+                            f"Scale to zero triggered. Destroying {stack_to_destroy} on {provider}..."
+                        )
+                        # Pass the dynamically resolved provider to the actuator
+                        await self.driver.destroy_node(stack_to_destroy, provider)  # type: ignore[arg-type]
+                    else:
+                        logger.debug(
+                            "Queue empty, but no active compute nodes to destroy."
+                        )
 
             except asyncio.CancelledError:
                 self._running = False

@@ -19,8 +19,17 @@ from coreason_ecosystem.fleet.pulumi_actuator import (
 
 
 @pytest.fixture
-def driver() -> PulumiFleetDriver:
-    return PulumiFleetDriver(Path("/tmp/templates"))
+def tmp_templates_dir(tmp_path: Path) -> Path:
+    aws_dir = tmp_path / "aws_spot"
+    vast_dir = tmp_path / "vast_ai"
+    aws_dir.mkdir(parents=True, exist_ok=True)
+    vast_dir.mkdir(parents=True, exist_ok=True)
+    return tmp_path
+
+
+@pytest.fixture
+def driver(tmp_templates_dir: Path) -> PulumiFleetDriver:
+    return PulumiFleetDriver(tmp_templates_dir)
 
 
 @pytest.mark.asyncio
@@ -86,27 +95,29 @@ async def test_destroy_node(mock_auto: MagicMock, driver: PulumiFleetDriver) -> 
 
 
 @pytest.mark.asyncio
-@patch("coreason_ecosystem.fleet.pulumi_actuator.auto")
-async def test_reconcile_state(mock_auto: MagicMock, driver: PulumiFleetDriver) -> None:
+async def test_reconcile_state(
+    driver: PulumiFleetDriver, tmp_templates_dir: Path
+) -> None:
     mock_workspace = MagicMock()
-    mock_auto.LocalWorkspace.return_value = mock_workspace
+    mock_stack1 = MagicMock()
+    mock_stack1.name = "fleet-worker-abc"
+    mock_stack2 = MagicMock()
+    mock_stack2.name = "other-stack"
 
-    # 1. Stacks from AWS
-    # 2. Stacks from Vast
-    stack1 = MagicMock()
-    stack1.name = "fleet-worker-1"
-    stack2 = MagicMock()
-    stack2.name = "other-stack"
-    stack3 = MagicMock()
-    stack3.name = "fleet-worker-2"
+    mock_workspace.list_stacks.return_value = [mock_stack1, mock_stack2]
 
-    mock_workspace.list_stacks.side_effect = [[stack1, stack2], [stack3]]
+    with patch(
+        "coreason_ecosystem.fleet.pulumi_actuator.auto.LocalWorkspace",
+        return_value=mock_workspace,
+    ):
+        active_stacks = await driver.reconcile_state()
 
-    orphans = await driver.reconcile_state()
-
-    assert orphans == ["fleet-worker-1", "fleet-worker-2"]
-    assert mock_auto.LocalWorkspace.call_count == 2
-    assert mock_workspace.list_stacks.call_count == 2
+        # 1 matching stack from aws_spot, 1 from vast_ai
+        assert len(active_stacks) == 2
+        assert active_stacks[0]["stack_name"] == "fleet-worker-abc"
+        assert active_stacks[0]["provider"] in ["aws", "vast"]
+        assert active_stacks[1]["stack_name"] == "fleet-worker-abc"
+        assert active_stacks[1]["provider"] in ["aws", "vast"]
 
 
 @pytest.mark.asyncio

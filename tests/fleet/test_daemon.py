@@ -77,7 +77,9 @@ async def test_daemon_start_scale_down(manager: AutonomicFleetManager) -> None:
     setattr(
         manager.driver,
         "reconcile_state",
-        AsyncMock(return_value=["fleet-worker-orphan"]),
+        AsyncMock(
+            return_value=[{"stack_name": "fleet-worker-orphan", "provider": "aws"}]
+        ),
     )
     setattr(manager.driver, "destroy_node", AsyncMock())
 
@@ -92,7 +94,7 @@ async def test_daemon_start_scale_down(manager: AutonomicFleetManager) -> None:
 
 
 @pytest.mark.asyncio
-async def test_daemon_start_scale_down_fallback_to_vast(
+async def test_daemon_start_scale_down_queue_empty_nothing_to_destroy(
     manager: AutonomicFleetManager,
 ) -> None:
     setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=0.0))
@@ -100,51 +102,15 @@ async def test_daemon_start_scale_down_fallback_to_vast(
     setattr(
         manager.driver,
         "reconcile_state",
-        AsyncMock(return_value=["fleet-worker-orphan"]),
+        AsyncMock(return_value=[]),
     )
 
-    # Simulate AWS destroy failing (e.g., because it's a vast stack)
-    setattr(
-        manager.driver,
-        "destroy_node",
-        AsyncMock(side_effect=[Exception("Not AWS"), None]),
-    )
+    setattr(manager.driver, "destroy_node", AsyncMock())
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
         await manager.start()
 
-    assert getattr(manager.driver, "destroy_node").call_count == 2
-    getattr(manager.driver, "destroy_node").assert_any_call(
-        "fleet-worker-orphan", "aws"
-    )
-    getattr(manager.driver, "destroy_node").assert_any_call(
-        "fleet-worker-orphan", "vast"
-    )
-
-
-@pytest.mark.asyncio
-async def test_daemon_start_scale_down_fallback_to_vast_fails(
-    manager: AutonomicFleetManager,
-) -> None:
-    setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=0.0))
-
-    setattr(
-        manager.driver,
-        "reconcile_state",
-        AsyncMock(return_value=["fleet-worker-orphan"]),
-    )
-
-    # Simulate both AWS and Vast destroy failing
-    setattr(
-        manager.driver,
-        "destroy_node",
-        AsyncMock(side_effect=Exception("Destroy failed everywhere")),
-    )
-
-    with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
-        await manager.start()
-
-    assert getattr(manager.driver, "destroy_node").call_count == 2
+    getattr(manager.driver, "destroy_node").assert_not_called()
 
 
 @pytest.mark.asyncio

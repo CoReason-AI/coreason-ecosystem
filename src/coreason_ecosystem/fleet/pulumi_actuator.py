@@ -8,6 +8,7 @@
 #
 # This license allows you to use and share this software for noncommercial purposes for free and to try this software for commercial purposes for thirty days.
 
+import asyncio
 import uuid
 from pathlib import Path
 from typing import Literal
@@ -81,24 +82,28 @@ class PulumiFleetDriver:
         stack.workspace.remove_stack(stack_name)
         logger.info(f"Stack {stack_name} destroyed and removed.")
 
-    async def reconcile_state(self) -> list[str]:
-        orphaned_stacks = []
-        for provider in ["aws", "vast"]:
-            provider_dir = self.templates_dir / (
-                "aws_spot" if provider == "aws" else "vast_ai"
-            )
-            try:
-                workspace = auto.LocalWorkspace(work_dir=str(provider_dir))
-                stacks = workspace.list_stacks()
-                for stack in stacks:
-                    if stack.name.startswith("fleet-worker-"):
-                        orphaned_stacks.append(stack.name)
+    async def reconcile_state(self) -> list[dict[str, str]]:
+        def _reconcile() -> list[dict[str, str]]:
+            active_stacks: list[dict[str, str]] = []
+            for provider_dir in self.templates_dir.iterdir():
+                if provider_dir.is_dir():
+                    # Infer the provider from the directory name
+                    provider = "aws" if "aws" in provider_dir.name else "vast"
+                    try:
+                        workspace = auto.LocalWorkspace(work_dir=str(provider_dir))
+                        stacks = workspace.list_stacks()
+                        for stack in stacks:
+                            if stack.name.startswith("fleet-worker-"):
+                                active_stacks.append(
+                                    {"stack_name": stack.name, "provider": provider}
+                                )
+                                logger.warning(
+                                    f"Orphaned stack found: {stack.name} in {provider}"
+                                )
+                    except Exception as e:
                         logger.warning(
-                            f"Orphaned stack found: {stack.name} in {provider}"
+                            f"Failed to read Pulumi workspace in {provider_dir}: {e}"
                         )
-            except Exception as e:
-                logger.warning(
-                    f"Failed to read Pulumi workspace in {provider_dir}: {e}"
-                )
+            return active_stacks
 
-        return orphaned_stacks
+        return await asyncio.to_thread(_reconcile)
