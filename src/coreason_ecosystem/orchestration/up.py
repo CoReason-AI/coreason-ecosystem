@@ -25,7 +25,7 @@ async def is_port_bound(port: int) -> bool:
         writer.close()
         await writer.wait_closed()
         return True
-    except ConnectionRefusedError, TimeoutError, OSError:
+    except (ConnectionRefusedError, TimeoutError, OSError):
         return False
 
 

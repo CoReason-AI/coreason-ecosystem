@@ -83,6 +83,7 @@ def test_build_command_dir_no_files(
 @patch("coreason_ecosystem.orchestration.build.Path.is_dir")
 @patch("coreason_ecosystem.orchestration.build.Path.rglob")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
+@patch("coreason_ecosystem.orchestration.build.subprocess.run")
 @patch("coreason_ecosystem.orchestration.build.FileLock")
 def test_build_command_json_decode_error(
     mock_filelock: Any,
@@ -102,6 +103,7 @@ def test_build_command_json_decode_error(
     mock_proc.returncode = 0
     mock_proc.communicate.return_value = (b"", b"")
     mock_run.return_value = mock_proc
+    mock_run.return_value.returncode = 0
 
     import io
 
