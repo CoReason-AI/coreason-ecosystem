@@ -12,7 +12,7 @@ Strict compliance:
   - Limit resource allocations conforming to Thermodynamic boundaries.
 """
 
-import pulumi  # type: ignore
+import pulumi
 
 # Note: The exact provider setup is deferred to full implementation,
 # but the structure requires the definition of a Proxmox target and

@@ -110,6 +110,18 @@ ignore_missing_imports = true
 module = "pydantic_settings.*"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "pulumi.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pulumi_aws.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pulumi_command.*"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 addopts = "-n auto --cov=coreason_ecosystem --cov-report=term-missing --cov-report=html --cov-fail-under=100"
 testpaths = ["tests"]
