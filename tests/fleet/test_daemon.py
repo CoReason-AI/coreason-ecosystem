@@ -36,116 +36,166 @@ def manager(templates_path: Path) -> AutonomicFleetManager:
 @pytest.mark.asyncio
 async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
     # We want to break the infinite loop after 1 iteration, so we make sleep throw CancelledError
-    manager.monitor.get_queue_derivative = AsyncMock(return_value=1.5)
+    setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=1.5))
 
     profile = HardwareProfile(
         min_vram_gb=16.0, provider_whitelist=["aws"], accelerator_type="ampere"
     )
-    manager.monitor.get_active_task_hardware_profile = AsyncMock(return_value=profile)
+    setattr(
+        manager.monitor,
+        "get_active_task_hardware_profile",
+        AsyncMock(return_value=profile),
+    )
 
     bid = ComputeNodeTarget(
         provider="aws", instance_id="p3.2xlarge", hourly_cost=3.0, vram_gb=16.0
     )
-    manager.oracle.calculate_optimal_bid = AsyncMock(return_value=bid)
+    setattr(manager.oracle, "calculate_optimal_bid", AsyncMock(return_value=bid))
 
-    manager.driver.provision_node = AsyncMock(
-        return_value={"stack_name": "fleet-worker-test"}
+    setattr(
+        manager.driver,
+        "provision_node",
+        AsyncMock(return_value={"stack_name": "fleet-worker-test"}),
     )
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
         await manager.start()
 
-    manager.monitor.get_queue_derivative.assert_awaited_once()
-    manager.monitor.get_active_task_hardware_profile.assert_awaited_once()
-    manager.oracle.calculate_optimal_bid.assert_awaited_once_with(profile, 5.0)
-    manager.driver.provision_node.assert_awaited_once_with(bid)
+    getattr(manager.monitor, "get_queue_derivative").assert_awaited_once()
+    getattr(manager.monitor, "get_active_task_hardware_profile").assert_awaited_once()
+    getattr(manager.oracle, "calculate_optimal_bid").assert_awaited_once_with(
+        profile, 5.0
+    )
+    getattr(manager.driver, "provision_node").assert_awaited_once_with(bid)
     assert manager._running is False
 
 
 @pytest.mark.asyncio
 async def test_daemon_start_scale_down(manager: AutonomicFleetManager) -> None:
-    manager.monitor.get_queue_derivative = AsyncMock(return_value=0.0)
+    setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=0.0))
 
-    manager.driver.reconcile_state = AsyncMock(return_value=["fleet-worker-orphan"])
-    manager.driver.destroy_node = AsyncMock()
+    setattr(
+        manager.driver,
+        "reconcile_state",
+        AsyncMock(return_value=["fleet-worker-orphan"]),
+    )
+    setattr(manager.driver, "destroy_node", AsyncMock())
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
         await manager.start()
 
-    manager.monitor.get_queue_derivative.assert_awaited_once()
-    manager.driver.reconcile_state.assert_awaited_once()
-    manager.driver.destroy_node.assert_awaited_once_with("fleet-worker-orphan", "aws")
+    getattr(manager.monitor, "get_queue_derivative").assert_awaited_once()
+    getattr(manager.driver, "reconcile_state").assert_awaited_once()
+    getattr(manager.driver, "destroy_node").assert_awaited_once_with(
+        "fleet-worker-orphan", "aws"
+    )
 
 
 @pytest.mark.asyncio
 async def test_daemon_start_scale_down_fallback_to_vast(
     manager: AutonomicFleetManager,
 ) -> None:
-    manager.monitor.get_queue_derivative = AsyncMock(return_value=0.0)
+    setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=0.0))
 
-    manager.driver.reconcile_state = AsyncMock(return_value=["fleet-worker-orphan"])
+    setattr(
+        manager.driver,
+        "reconcile_state",
+        AsyncMock(return_value=["fleet-worker-orphan"]),
+    )
 
     # Simulate AWS destroy failing (e.g., because it's a vast stack)
-    manager.driver.destroy_node = AsyncMock(side_effect=[Exception("Not AWS"), None])
+    setattr(
+        manager.driver,
+        "destroy_node",
+        AsyncMock(side_effect=[Exception("Not AWS"), None]),
+    )
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
         await manager.start()
 
-    assert manager.driver.destroy_node.call_count == 2
-    manager.driver.destroy_node.assert_any_call("fleet-worker-orphan", "aws")
-    manager.driver.destroy_node.assert_any_call("fleet-worker-orphan", "vast")
+    assert getattr(manager.driver, "destroy_node").call_count == 2
+    getattr(manager.driver, "destroy_node").assert_any_call(
+        "fleet-worker-orphan", "aws"
+    )
+    getattr(manager.driver, "destroy_node").assert_any_call(
+        "fleet-worker-orphan", "vast"
+    )
 
 
 @pytest.mark.asyncio
-async def test_daemon_start_scale_down_fallback_to_vast_fails(manager: AutonomicFleetManager) -> None:
-    manager.monitor.get_queue_derivative = AsyncMock(return_value=0.0)
+async def test_daemon_start_scale_down_fallback_to_vast_fails(
+    manager: AutonomicFleetManager,
+) -> None:
+    setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=0.0))
 
-    manager.driver.reconcile_state = AsyncMock(return_value=["fleet-worker-orphan"])
+    setattr(
+        manager.driver,
+        "reconcile_state",
+        AsyncMock(return_value=["fleet-worker-orphan"]),
+    )
 
     # Simulate both AWS and Vast destroy failing
-    manager.driver.destroy_node = AsyncMock(side_effect=Exception("Destroy failed everywhere"))
+    setattr(
+        manager.driver,
+        "destroy_node",
+        AsyncMock(side_effect=Exception("Destroy failed everywhere")),
+    )
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
         await manager.start()
 
-    assert manager.driver.destroy_node.call_count == 2
+    assert getattr(manager.driver, "destroy_node").call_count == 2
 
 
 @pytest.mark.asyncio
-async def test_daemon_start_cancelled_error_main_loop(manager: AutonomicFleetManager) -> None:
-    manager.monitor.get_queue_derivative = AsyncMock(side_effect=asyncio.CancelledError("Shutdown requested"))
+async def test_daemon_start_cancelled_error_main_loop(
+    manager: AutonomicFleetManager,
+) -> None:
+    setattr(
+        manager.monitor,
+        "get_queue_derivative",
+        AsyncMock(side_effect=asyncio.CancelledError("Shutdown requested")),
+    )
 
     await manager.start()
 
-    manager.monitor.get_queue_derivative.assert_awaited_once()
+    getattr(manager.monitor, "get_queue_derivative").assert_awaited_once()
     assert manager._running is False
 
 
 @pytest.mark.asyncio
 async def test_daemon_start_general_exception(manager: AutonomicFleetManager) -> None:
-    manager.monitor.get_queue_derivative = AsyncMock(side_effect=Exception("API down"))
+    setattr(
+        manager.monitor,
+        "get_queue_derivative",
+        AsyncMock(side_effect=Exception("API down")),
+    )
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
         await manager.start()
 
-    manager.monitor.get_queue_derivative.assert_awaited_once()
+    getattr(manager.monitor, "get_queue_derivative").assert_awaited_once()
     # The loop should catch the exception and sleep (which raises CancelledError, exiting loop)
     assert manager._running is False
 
 
 @pytest.mark.asyncio
 async def test_daemon_start_no_bid_found(manager: AutonomicFleetManager) -> None:
-    manager.monitor.get_queue_derivative = AsyncMock(return_value=1.5)
+    setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=1.5))
 
     profile = HardwareProfile(
         min_vram_gb=16.0, provider_whitelist=["aws"], accelerator_type="ampere"
     )
-    manager.monitor.get_active_task_hardware_profile = AsyncMock(return_value=profile)
+    setattr(
+        manager.monitor,
+        "get_active_task_hardware_profile",
+        AsyncMock(return_value=profile),
+    )
 
-    manager.oracle.calculate_optimal_bid = AsyncMock(return_value=None)
-    manager.driver.provision_node = AsyncMock()
+    setattr(manager.oracle, "calculate_optimal_bid", AsyncMock(return_value=None))
+    setattr(manager.driver, "provision_node", AsyncMock())
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
         await manager.start()
 
-    manager.driver.provision_node.assert_not_called()
+    getattr(manager.driver, "provision_node").assert_not_called()

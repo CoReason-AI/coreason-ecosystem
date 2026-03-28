@@ -89,6 +89,9 @@ disallow_incomplete_defs = true
 check_untyped_defs = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
+exclude = [
+    "infrastructure/.*",
+]
 
 [[tool.mypy.overrides]]
 module = "click.*"
@@ -108,6 +111,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "pydantic_settings.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pulumi.*"
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

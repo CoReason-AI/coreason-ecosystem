@@ -25,7 +25,9 @@ def driver() -> PulumiFleetDriver:
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.fleet.pulumi_actuator.auto")
-async def test_provision_node_aws(mock_auto: MagicMock, driver: PulumiFleetDriver) -> None:
+async def test_provision_node_aws(
+    mock_auto: MagicMock, driver: PulumiFleetDriver
+) -> None:
     target = ComputeNodeTarget(
         provider="aws", instance_id="t3.micro", hourly_cost=0.01, vram_gb=0.0
     )
@@ -50,7 +52,9 @@ async def test_provision_node_aws(mock_auto: MagicMock, driver: PulumiFleetDrive
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.fleet.pulumi_actuator.auto")
-async def test_provision_node_vast(mock_auto: MagicMock, driver: PulumiFleetDriver) -> None:
+async def test_provision_node_vast(
+    mock_auto: MagicMock, driver: PulumiFleetDriver
+) -> None:
     target = ComputeNodeTarget(
         provider="vast", instance_id="12345", hourly_cost=0.40, vram_gb=24.0
     )
@@ -107,7 +111,9 @@ async def test_reconcile_state(mock_auto: MagicMock, driver: PulumiFleetDriver) 
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.fleet.pulumi_actuator.auto")
-async def test_reconcile_state_exception(mock_auto: MagicMock, driver: PulumiFleetDriver) -> None:
+async def test_reconcile_state_exception(
+    mock_auto: MagicMock, driver: PulumiFleetDriver
+) -> None:
     # Trigger exception reading workspace
     mock_auto.LocalWorkspace.side_effect = Exception("Workspace fail")
 
