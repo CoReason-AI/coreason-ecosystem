@@ -17,6 +17,14 @@ def global_excepthook(
     exc_value: BaseException,
     exc_traceback: Any,
 ) -> None:  # pragma: no cover
+    from coreason_ecosystem.utils.logger import logger
+
+    # 1. Log the critical error to the mesh (JSON + OTLP)
+    logger.opt(exception=(exc_type, exc_value, exc_traceback)).critical(
+        f"Fatal Execution Error: {exc_value}"
+    )
+
+    # 2. Print to the operator's terminal
     console.print(f"[bold red]✗ Fatal Execution Error:[/bold red] {exc_value}")
     sys.exit(1)
 
@@ -72,8 +80,20 @@ def init(
     topology: str = typer.Option("base", help="Target topology (base, medallion, rag)"),
 ) -> None:
     """Autonomically generate a mathematically verified Swarm workspace."""
+    from coreason_ecosystem.utils.telemetry import (
+        start_otlp_background_worker,
+        stop_otlp_background_worker,
+    )
+
+    async def _run() -> None:
+        start_otlp_background_worker()
+        try:
+            await execute_init(project_name, topology)
+        finally:
+            await stop_otlp_background_worker()
+
     with console.status("[bold green]Synthesizing Ontological Boundaries...") as status:
-        asyncio.run(execute_init(project_name, topology))
+        asyncio.run(_run())
         status.update("[bold green]Wiring Sensory Cortex...")
         status.update("[bold green]Initializing Immunological Hooks...")
     console.print(
@@ -88,19 +108,55 @@ def build(
     ),
 ) -> None:
     """Compile human-readable Python capabilities into WASM boundaries and calculate their Epistemic Seals."""
-    asyncio.run(execute_build(target_path))
+    from coreason_ecosystem.utils.telemetry import (
+        start_otlp_background_worker,
+        stop_otlp_background_worker,
+    )
+
+    async def _run() -> None:
+        start_otlp_background_worker()
+        try:
+            await execute_build(target_path)
+        finally:
+            await stop_otlp_background_worker()
+
+    asyncio.run(_run())
 
 
 @app.command(name="up")
 def up() -> None:
     """Implement Idempotent DAG Resolution for the Swarm infrastructure."""
-    asyncio.run(execute_up())
+    from coreason_ecosystem.utils.telemetry import (
+        start_otlp_background_worker,
+        stop_otlp_background_worker,
+    )
+
+    async def _run() -> None:
+        start_otlp_background_worker()
+        try:
+            await execute_up()
+        finally:
+            await stop_otlp_background_worker()
+
+    asyncio.run(_run())
 
 
 @app.command(name="doctor")
 def doctor() -> None:
     """Prove Ontological Isomorphism across the Tripartite Manifold."""
-    asyncio.run(execute_doctor())
+    from coreason_ecosystem.utils.telemetry import (
+        start_otlp_background_worker,
+        stop_otlp_background_worker,
+    )
+
+    async def _run() -> None:
+        start_otlp_background_worker()
+        try:
+            await execute_doctor()
+        finally:
+            await stop_otlp_background_worker()
+
+    asyncio.run(_run())
 
 
 @app.command(
@@ -109,7 +165,19 @@ def doctor() -> None:
 )
 def sync() -> None:
     """Autonomically heal Ontological Drift."""
-    asyncio.run(execute_sync())
+    from coreason_ecosystem.utils.telemetry import (
+        start_otlp_background_worker,
+        stop_otlp_background_worker,
+    )
+
+    async def _run() -> None:
+        start_otlp_background_worker()
+        try:
+            await execute_sync()
+        finally:
+            await stop_otlp_background_worker()
+
+    asyncio.run(_run())
 
 
 def main() -> None:  # pragma: no cover
