@@ -32,6 +32,15 @@ workflow_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "workflow_id", default=None
 )
 
+# Precompiled, combined regex for single-pass execution
+_REDACTION_PATTERN = re.compile(
+    r"(?P<ssn>\b\d{3}-\d{2}-\d{4}\b)|(?P<email>\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b)"
+)
+
+
+def _redact_match(match: re.Match[str]) -> str:
+    return "<REDACTED_SSN>" if match.group("ssn") else "<REDACTED_EMAIL>"
+
 
 @contextmanager
 def bind_epistemic_context(
@@ -102,18 +111,10 @@ def _patch_record(record: "Record") -> None:
     if current_workflow_id:
         record["extra"]["workflow_id"] = current_workflow_id
 
-    env = os.getenv("ENV", "development")
-    if env == "production":
-        msg = record["message"]
-        # Basic SSN pattern redaction: ###-##-####
-        msg = re.sub(r"\b\d{3}-\d{2}-\d{4}\b", "<REDACTED_SSN>", msg)
-        # Basic Email pattern redaction
-        msg = re.sub(
-            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b",
-            "<REDACTED_EMAIL>",
-            msg,
-        )
-        record["message"] = msg
+    # Avoid redundant os.getenv lookups on every log
+    if os.environ.get("ENV", "development") == "production":
+        # Execute the precompiled regex in a single highly-optimized pass
+        record["message"] = _REDACTION_PATTERN.sub(_redact_match, record["message"])
 
 
 # Defer telemetry mesh setup

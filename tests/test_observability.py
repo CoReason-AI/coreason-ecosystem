@@ -67,9 +67,8 @@ def test_patch_record() -> None:
     assert record["extra"]["epistemic_root"] == "test_root"
 
 
-@patch("os.getenv")
-def test_redaction_filter_dev(mock_getenv: AsyncMock) -> None:
-    mock_getenv.return_value = "development"
+@patch.dict("os.environ", {"ENV": "development"})
+def test_redaction_filter_dev() -> None:
     record: dict[str, Any] = {
         "message": "Test message with email@example.com and 123-45-6789",
         "extra": {},
@@ -80,9 +79,8 @@ def test_redaction_filter_dev(mock_getenv: AsyncMock) -> None:
     assert "123-45-6789" in record["message"]
 
 
-@patch("os.getenv")
-def test_redaction_filter_prod(mock_getenv: AsyncMock) -> None:
-    mock_getenv.return_value = "production"
+@patch.dict("os.environ", {"ENV": "production"})
+def test_redaction_filter_prod() -> None:
     record: dict[str, Any] = {
         "message": "Test message with email@example.com and 123-45-6789",
         "extra": {},
@@ -95,17 +93,21 @@ def test_redaction_filter_prod(mock_getenv: AsyncMock) -> None:
 
 @pytest.mark.asyncio
 async def test_otlp_worker() -> None:
-    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-    queue.put_nowait(
+    import queue
+    from datetime import datetime
+
+    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
+    q.put_nowait(
         {
             "level": {"name": "INFO"},
             "message": "test",
             "extra": {"key": "value"},
+            "time": datetime.now(),
         }
     )
 
     with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
+        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
         patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
     ):
         worker_task = asyncio.create_task(_otlp_worker("http://test"))
@@ -116,17 +118,21 @@ async def test_otlp_worker() -> None:
 
 @pytest.mark.asyncio
 async def test_otlp_worker_exception() -> None:
-    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-    queue.put_nowait(
+    import queue
+    from datetime import datetime
+
+    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
+    q.put_nowait(
         {
             "level": {"name": "INFO"},
             "message": "test",
             "extra": {"key": "value"},
+            "time": datetime.now(),
         }
     )
 
     with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
+        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
         patch("httpx.AsyncClient.post", side_effect=Exception("error")) as mock_post,
     ):
         worker_task = asyncio.create_task(_otlp_worker("http://test"))
@@ -138,18 +144,21 @@ async def test_otlp_worker_exception() -> None:
 @pytest.mark.asyncio
 async def test_otlp_worker_request_error() -> None:
     import httpx
+    import queue
+    from datetime import datetime
 
-    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-    queue.put_nowait(
+    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
+    q.put_nowait(
         {
             "level": {"name": "INFO"},
             "message": "test",
             "extra": {"key": "value"},
+            "time": datetime.now(),
         }
     )
 
     with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
+        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
         patch(
             "httpx.AsyncClient.post", side_effect=httpx.RequestError("error")
         ) as mock_post,
@@ -161,61 +170,33 @@ async def test_otlp_worker_request_error() -> None:
 
 
 def test_otlp_log_sink() -> None:
-    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-    loop = asyncio.new_event_loop()
+    import queue
+
+    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
 
     class MockMessage:
         record = {"test": "data"}
 
-    with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
-        patch("coreason_ecosystem.utils.telemetry._otlp_loop", loop),
-    ):
+    with patch("coreason_ecosystem.utils.telemetry._otlp_queue", q):
         otlp_log_sink(MockMessage())  # type: ignore
 
-    loop.run_until_complete(asyncio.sleep(0.01))
-    assert queue.get_nowait() == {"test": "data"}
-    loop.close()
+    assert q.get_nowait() == {"test": "data"}
 
 
 def test_otlp_log_sink_exception() -> None:
-    from unittest.mock import MagicMock
+    import queue
 
-    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-    mock_loop = MagicMock()
-    mock_loop.call_soon_threadsafe.side_effect = Exception("error")
+    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
 
     class MockMessage:
-        record = {"test": "data"}
+        @property
+        def record(self) -> Any:
+            raise Exception("error")
 
-    with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
-        patch("coreason_ecosystem.utils.telemetry._otlp_loop", mock_loop),
-    ):
+    with patch("coreason_ecosystem.utils.telemetry._otlp_queue", q):
         otlp_log_sink(MockMessage())  # type: ignore
 
-    assert queue.empty()
-
-
-def test_otlp_log_sink_full() -> None:
-    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=1)
-    queue.put_nowait({"fill": "queue"})
-    loop = asyncio.new_event_loop()
-
-    class MockMessage:
-        record = {"test": "data"}
-
-    with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
-        patch("coreason_ecosystem.utils.telemetry._otlp_loop", loop),
-    ):
-        otlp_log_sink(MockMessage())  # type: ignore
-
-    loop.run_until_complete(asyncio.sleep(0.01))
-    # Assert queue is still just full with initial element
-    assert queue.get_nowait() == {"fill": "queue"}
-    assert queue.empty()
-    loop.close()
+    assert q.empty()
 
 
 def test_telemetry_model_success() -> None:
@@ -228,18 +209,14 @@ def test_telemetry_model_success() -> None:
         assert model.name == "test"
         assert (
             mock_get_tracer.return_value.start_as_current_span.call_count == 1
-        )  # Now only called in _telemetry_validation_hook
-
-    # Test direct init to trigger `_telemetry_validation_hook`
-    with patch("opentelemetry.trace.get_tracer") as mock_get_tracer:
-        model = TestModel(name="test2")
-        assert getattr(model, "name", None) == "test2"
-        mock_get_tracer.return_value.start_as_current_span.assert_called_once()
+        )  # Called in validate_with_telemetry
 
 
 @pytest.mark.asyncio
 async def test_stop_otlp_background_worker() -> None:
-    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+    import queue
+
+    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
     loop = asyncio.get_running_loop()
 
     async def mock_coro() -> None:
@@ -248,7 +225,7 @@ async def test_stop_otlp_background_worker() -> None:
     mock_task = loop.create_task(mock_coro())
 
     with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
+        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
         patch("coreason_ecosystem.utils.telemetry._otlp_task", mock_task),
     ):
         from coreason_ecosystem.utils.telemetry import stop_otlp_background_worker
@@ -259,7 +236,9 @@ async def test_stop_otlp_background_worker() -> None:
 
 @pytest.mark.asyncio
 async def test_stop_otlp_background_worker_cancelled() -> None:
-    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+    import queue
+
+    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
     loop = asyncio.get_running_loop()
 
     async def mock_coro() -> None:
@@ -269,7 +248,7 @@ async def test_stop_otlp_background_worker_cancelled() -> None:
     mock_task.cancel()
 
     with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
+        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
         patch("coreason_ecosystem.utils.telemetry._otlp_task", mock_task),
     ):
         from coreason_ecosystem.utils.telemetry import stop_otlp_background_worker
@@ -280,8 +259,10 @@ async def test_stop_otlp_background_worker_cancelled() -> None:
 
 @pytest.mark.asyncio
 async def test_stop_otlp_background_worker_timeout() -> None:
-    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-    queue.put_nowait({"level": {"name": "INFO"}, "message": "test", "extra": {}})
+    import queue
+
+    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
+    q.put_nowait({"level": {"name": "INFO"}, "message": "test", "extra": {}})
     loop = asyncio.get_running_loop()
 
     async def mock_coro() -> None:
@@ -290,7 +271,7 @@ async def test_stop_otlp_background_worker_timeout() -> None:
     mock_task = loop.create_task(mock_coro())
 
     with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
+        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
         patch("coreason_ecosystem.utils.telemetry._otlp_task", mock_task),
         patch("asyncio.wait_for", side_effect=asyncio.TimeoutError),
     ):

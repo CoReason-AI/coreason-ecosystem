@@ -10,6 +10,7 @@
 
 import asyncio
 import logging
+import queue
 import sys
 import time
 from typing import TYPE_CHECKING, Any
@@ -19,7 +20,7 @@ from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 if TYPE_CHECKING:
@@ -52,9 +53,8 @@ class ObservabilitySettings(BaseSettings):  # type: ignore[misc]
 
 
 # Global queue and task for OTLP export
-_otlp_queue: asyncio.Queue[dict[str, Any]] | None = None
+_otlp_queue: queue.SimpleQueue[dict[str, Any]] | None = None
 _otlp_task: asyncio.Task[None] | None = None
-_otlp_loop: asyncio.AbstractEventLoop | None = None
 
 
 async def _otlp_worker(endpoint: str) -> None:
@@ -72,9 +72,16 @@ async def _otlp_worker(endpoint: str) -> None:
     async with httpx.AsyncClient() as client:
         while _otlp_queue is not None:
             try:
-                record = await _otlp_queue.get()
-                # Dummy translation to OTLP JSON (simplified for testing/mesh integration)
-                # SOTA 2026 demands proper protobufs, but for non-blocking HTTP we will use basic REST.
+                # Poll the lock-free queue (non-blocking in async context using a short sleep)
+                try:
+                    record = _otlp_queue.get_nowait()
+                except queue.Empty:
+                    await asyncio.sleep(0.01)
+                    continue
+
+                # Use the actual log generation timestamp, not current processing time
+                log_time_ns = int(record["time"].timestamp() * 1e9)
+
                 payload = {
                     "resourceLogs": [
                         {
@@ -82,7 +89,7 @@ async def _otlp_worker(endpoint: str) -> None:
                                 {
                                     "logRecords": [
                                         {
-                                            "timeUnixNano": int(time.time() * 1e9),
+                                            "timeUnixNano": log_time_ns,
                                             "severityText": record["level"]["name"],
                                             "body": {"stringValue": record["message"]},
                                             "attributes": [
@@ -102,26 +109,20 @@ async def _otlp_worker(endpoint: str) -> None:
                 try:
                     await client.post(endpoint, json=payload, timeout=2.0)
                 except httpx.RequestError:
-                    # Drop silently on telemetry failure to prevent cascading
                     pass
-                _otlp_queue.task_done()
             except asyncio.CancelledError:
                 break
             except Exception:
-                # Catch-all to prevent worker crash
-                if _otlp_queue is not None:
-                    _otlp_queue.task_done()
+                pass
 
 
 def otlp_log_sink(message: "Message") -> None:
     """
-    Custom loguru sink that routes records to the asyncio queue.
+    Custom loguru sink that routes records to the SimpleQueue lock-free queue.
     """
-    if _otlp_queue is not None and _otlp_loop is not None:
+    if _otlp_queue is not None:
         try:
-            _otlp_loop.call_soon_threadsafe(
-                _otlp_queue.put_nowait, dict(message.record)
-            )
+            _otlp_queue.put_nowait(dict(message.record))
         except Exception:
             pass
 
@@ -130,12 +131,12 @@ def start_otlp_background_worker() -> None:
     """
     Initializes the OTLP async worker task. Call this after the event loop starts.
     """
-    global _otlp_queue, _otlp_task, _otlp_loop
+    global _otlp_queue, _otlp_task
     try:
-        _otlp_loop = asyncio.get_running_loop()
+        loop = asyncio.get_running_loop()
         if _otlp_queue is None:
-            _otlp_queue = asyncio.Queue(maxsize=10000)
-        _otlp_task = _otlp_loop.create_task(
+            _otlp_queue = queue.SimpleQueue()
+        _otlp_task = loop.create_task(
             _otlp_worker(ObservabilitySettings().otlp_endpoint)
         )
     except RuntimeError:
@@ -148,8 +149,13 @@ async def stop_otlp_background_worker() -> None:
 
     if _otlp_queue is not None:
         try:
+
+            async def _wait_for_queue() -> None:
+                while not _otlp_queue.empty():
+                    await asyncio.sleep(0.05)
+
             # Give the worker a maximum of 3 seconds to flush pending telemetry
-            await asyncio.wait_for(_otlp_queue.join(), timeout=3.0)
+            await asyncio.wait_for(_wait_for_queue(), timeout=3.0)
         except asyncio.TimeoutError:
             # If the network is degraded, abandon the remaining logs rather than hanging the CLI
             pass
@@ -169,38 +175,28 @@ class TelemetryModel(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    @model_validator(mode="after")
-    def _telemetry_validation_hook(self) -> "TelemetryModel":
-        tracer = trace.get_tracer("coreason.pydantic.telemetry")
-
-        with tracer.start_as_current_span(
-            f"validate_{self.__class__.__name__}"
-        ) as span:
-            start_time = time.perf_counter()
-            # If we reach here, Pydantic core validation succeeded.
-            end_time = time.perf_counter()
-            delta_t = end_time - start_time
-
-            span.set_attribute("delta_t_seconds", delta_t)
-            span.add_event("Validation successful")
-            logger.debug(f"Validated {self.__class__.__name__} in {delta_t:.6f}s")
-            return self
-
     # Note: Intercepting failures dynamically requires either a decorator around instantiation
     # or hooking into Pydantic's core schema directly. For this architecture, we provide a
     # robust instrumented initialization method.
     @classmethod
     def validate_with_telemetry(cls, data: dict[str, Any]) -> "TelemetryModel":
         settings = ObservabilitySettings()
+        tracer = trace.get_tracer("coreason.pydantic.telemetry")
+
+        start_time = time.perf_counter()
         try:
-            # This internal call will trigger the @model_validator hook and its success span
-            return cls.model_validate(data)
+            instance = cls.model_validate(data)
+            delta_t = time.perf_counter() - start_time
+
+            with tracer.start_as_current_span(f"validate_{cls.__name__}") as span:
+                span.set_attribute("delta_t_seconds", delta_t)
+                span.add_event("Validation successful")
+            return instance
         except Exception as e:
             from pydantic import ValidationError
 
             if isinstance(e, ValidationError):
                 # Fallback to create an error span if model_validate fails before the hook
-                tracer = trace.get_tracer("coreason.pydantic.telemetry")
                 with tracer.start_as_current_span(
                     f"validate_{cls.__name__}_error"
                 ) as span:
