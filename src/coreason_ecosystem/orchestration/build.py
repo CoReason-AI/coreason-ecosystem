@@ -1,9 +1,9 @@
 # Copyright (c) 2026 CoReason, Inc.
 # Licensed under the Prosperity Public License 3.0
 
+import asyncio
 import hashlib
 import json
-import subprocess
 from pathlib import Path
 
 import typer
@@ -62,19 +62,19 @@ async def execute_build(target_path: str) -> None:
             wasm_out_path = file_path.with_suffix(".wasm")
 
             try:
-                compile_proc = subprocess.run(
-                    [
-                        "componentize-py",
-                        "-d",
-                        "coreason-bindings",
-                        "-w",
-                        "extism",
-                        str(file_path),
-                        "-o",
-                        str(wasm_out_path),
-                    ],
-                    capture_output=True,
+                compile_proc = await asyncio.create_subprocess_exec(
+                    "componentize-py",
+                    "-d",
+                    "coreason-bindings",
+                    "-w",
+                    "extism",
+                    str(file_path),
+                    "-o",
+                    str(wasm_out_path),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )
+                stdout, stderr = await compile_proc.communicate()
             except FileNotFoundError:
                 console.print(
                     "[bold red]✗ Fatal Error: 'componentize-py' compiler not found.[/bold red]"
@@ -86,7 +86,7 @@ async def execute_build(target_path: str) -> None:
 
             if compile_proc.returncode != 0:
                 console.print(f"[bold red]Error compiling {file_path}:[/bold red]")
-                console.print(compile_proc.stderr.decode("utf-8", errors="replace"))
+                console.print(stderr.decode("utf-8", errors="replace"))
                 raise typer.Exit(1)
 
             # 2. Calculate the cryptographic SHA-256 hash of the compiled file

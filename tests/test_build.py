@@ -4,7 +4,7 @@
 import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from typer.testing import CliRunner
 
@@ -16,13 +16,17 @@ runner = CliRunner()
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
 @patch("coreason_ecosystem.orchestration.build.Path.read_bytes")
 @patch("coreason_ecosystem.orchestration.build.Path.open")
+@patch("coreason_ecosystem.orchestration.build.Path.mkdir")
+@patch("coreason_ecosystem.orchestration.build.FileLock")
 @patch("coreason_ecosystem.orchestration.build.Path.is_dir")
 @patch("coreason_ecosystem.orchestration.build.Path.rglob")
-@patch("coreason_ecosystem.orchestration.build.subprocess.run")
+@patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_command_dir(
-    mock_run: Any,
+    mock_create_subprocess_exec: Any,
     mock_rglob: Any,
     mock_is_dir: Any,
+    mock_filelock: Any,
+    mock_mkdir: Any,
     mock_open: Any,
     mock_read_bytes: Any,
     mock_exists: Any,
@@ -32,7 +36,11 @@ def test_build_command_dir(
     mock_read_bytes.return_value = b"print('hello')"
     mock_is_dir.return_value = True
     mock_rglob.return_value = [Path("test1.py"), Path("test2.py")]
-    mock_run.return_value.returncode = 0
+
+    mock_process = AsyncMock()
+    mock_process.returncode = 0
+    mock_process.communicate.return_value = (b"", b"")
+    mock_create_subprocess_exec.return_value = mock_process
 
     import io
 
@@ -47,10 +55,18 @@ def test_build_command_dir(
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
+@patch("coreason_ecosystem.orchestration.build.Path.open")
+@patch("coreason_ecosystem.orchestration.build.Path.mkdir")
+@patch("coreason_ecosystem.orchestration.build.FileLock")
 @patch("coreason_ecosystem.orchestration.build.Path.is_dir")
 @patch("coreason_ecosystem.orchestration.build.Path.rglob")
 def test_build_command_dir_no_files(
-    mock_rglob: Any, mock_is_dir: Any, mock_exists: Any
+    mock_rglob: Any,
+    mock_is_dir: Any,
+    mock_filelock: Any,
+    mock_mkdir: Any,
+    mock_open: Any,
+    mock_exists: Any,
 ) -> None:
     """Test the build command execution logic."""
     mock_exists.return_value = True
@@ -63,8 +79,50 @@ def test_build_command_dir_no_files(
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
+@patch("coreason_ecosystem.orchestration.build.Path.open")
+@patch("coreason_ecosystem.orchestration.build.Path.mkdir")
+@patch("coreason_ecosystem.orchestration.build.FileLock")
 @patch("coreason_ecosystem.orchestration.build.Path.is_dir")
-def test_build_command_dir_no_cap_dir(mock_is_dir: Any, mock_exists: Any) -> None:
+@patch("coreason_ecosystem.orchestration.build.Path.rglob")
+@patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
+def test_build_compiler_not_found(
+    mock_create_subprocess_exec: Any,
+    mock_rglob: Any,
+    mock_is_dir: Any,
+    mock_filelock: Any,
+    mock_mkdir: Any,
+    mock_open: Any,
+    mock_exists: Any,
+) -> None:
+    """Test the build command when componentize-py is not found."""
+    mock_exists.return_value = True
+    mock_is_dir.return_value = False  # Target is a file
+    mock_create_subprocess_exec.side_effect = FileNotFoundError
+
+    import io
+
+    # Mock open for ledger reading
+    mock_open.return_value.__enter__.return_value = io.StringIO("{}")
+
+    result = runner.invoke(app, ["build", "test.py"])
+
+    assert result.exit_code == 1
+    assert "Fatal Error: 'componentize-py' compiler not found" in result.stdout
+    assert "uv pip install componentize-py" in result.stdout
+
+
+@patch("coreason_ecosystem.orchestration.build.Path.exists")
+@patch("coreason_ecosystem.orchestration.build.Path.open")
+@patch("coreason_ecosystem.orchestration.build.Path.mkdir")
+@patch("coreason_ecosystem.orchestration.build.FileLock")
+@patch("coreason_ecosystem.orchestration.build.Path.is_dir")
+def test_build_command_dir_no_cap_dir(
+    mock_is_dir: Any,
+    mock_filelock: Any,
+    mock_mkdir: Any,
+    mock_open: Any,
+    mock_exists: Any,
+) -> None:
     """Test the build command execution logic when capabilities dir does not exist."""
     mock_exists.side_effect = [True, False, False, False]
     mock_is_dir.return_value = True

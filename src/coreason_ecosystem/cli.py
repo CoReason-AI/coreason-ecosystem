@@ -24,7 +24,7 @@ def global_excepthook(
 sys.excepthook = global_excepthook
 
 
-def version_callback(value: bool) -> None:  # pragma: no cover
+def version_callback(value: bool) -> None:
     if value:
         try:
             version = importlib.metadata.version("coreason-ecosystem")
@@ -48,7 +48,7 @@ def cli_callback(
         callback=version_callback,
         is_eager=True,
     ),
-) -> None:  # pragma: no cover
+) -> None:
     """The Autopoietic Hypervisor for the Tripartite Cybernetic Manifold."""
     pass
 
