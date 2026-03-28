@@ -134,7 +134,9 @@ async def test_execute_init_package_not_found(
 
 
 @pytest.mark.asyncio
-async def test_execute_init_path_traversal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_execute_init_path_traversal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.chdir(tmp_path)
 
     with pytest.raises(ValueError, match="Project name cannot contain path separators"):
@@ -143,8 +145,14 @@ async def test_execute_init_path_traversal(tmp_path: Path, monkeypatch: pytest.M
     with pytest.raises(ValueError, match="Project name cannot contain path separators"):
         await execute_init("nested\\path")
 
-    with pytest.raises(ValueError, match="Project path must be a subdirectory of the current working directory"):
+    with pytest.raises(
+        ValueError,
+        match="Project path must be a subdirectory of the current working directory",
+    ):
         await execute_init("..")
 
-    with pytest.raises(ValueError, match="Project path must be a subdirectory of the current working directory"):
+    with pytest.raises(
+        ValueError,
+        match="Project path must be a subdirectory of the current working directory",
+    ):
         await execute_init(".")
