@@ -2,6 +2,7 @@
 # Licensed under the Prosperity Public License 3.0
 
 import hashlib
+import importlib.metadata
 from pathlib import Path
 
 
@@ -16,8 +17,6 @@ async def calculate_epistemic_root(project_path: Path) -> str:
         h_ontology = hashlib.sha256(b"").hexdigest()
 
     # Component 2 (H_env)
-    import importlib.metadata
-
     env_str = ""
 
     # 1. Get the local manifest version (which the CLI has access to)
