@@ -4,8 +4,8 @@ from unittest.mock import patch, AsyncMock
 from coreason_ecosystem.orchestration.sync import execute_sync
 
 
-async def monitor_event_loop():
-    max_block = 0
+async def monitor_event_loop() -> float:
+    max_block = 0.0
     start_time = time.perf_counter()
     while time.perf_counter() - start_time < 2.0:  # Monitor for 2 seconds
         loop_start = time.perf_counter()
@@ -16,7 +16,7 @@ async def monitor_event_loop():
     return max_block
 
 
-async def main():
+async def main() -> None:
     with patch(
         "coreason_ecosystem.orchestration.sync.execute_build", new_callable=AsyncMock
     ):
