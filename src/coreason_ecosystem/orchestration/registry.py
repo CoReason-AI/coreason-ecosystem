@@ -1,18 +1,8 @@
 # Copyright (c) 2026 CoReason, Inc.
 # Licensed under the Prosperity Public License 3.0
 
-import asyncio
 import hashlib
-import importlib.metadata
 from pathlib import Path
-
-
-def _hash_file(path: Path, default_content: bytes) -> str:
-    if path.exists():
-        content = path.read_bytes()
-    else:
-        content = default_content
-    return hashlib.sha256(content).hexdigest()
 
 
 async def calculate_epistemic_root(project_path: Path) -> str:
@@ -20,9 +10,14 @@ async def calculate_epistemic_root(project_path: Path) -> str:
 
     # Component 1 (H_ontology)
     schema_path = project_path / "coreason_ontology.schema.json"
-    h_ontology = await asyncio.to_thread(_hash_file, schema_path, b"")
+    if schema_path.exists():
+        h_ontology = hashlib.sha256(schema_path.read_bytes()).hexdigest()
+    else:
+        h_ontology = hashlib.sha256(b"").hexdigest()
 
     # Component 2 (H_env)
+    import importlib.metadata
+
     env_str = ""
 
     # 1. Get the local manifest version (which the CLI has access to)
@@ -40,7 +35,10 @@ async def calculate_epistemic_root(project_path: Path) -> str:
 
     # Component 3 (H_capabilities)
     ledger_path = project_path / ".coreason" / "capability_ledger.json"
-    h_capabilities = await asyncio.to_thread(_hash_file, ledger_path, b"{}")
+    if ledger_path.exists():
+        h_capabilities = hashlib.sha256(ledger_path.read_bytes()).hexdigest()
+    else:
+        h_capabilities = hashlib.sha256(b"{}").hexdigest()
 
     # The Merkle Root
     combined = h_ontology + h_env + h_capabilities
