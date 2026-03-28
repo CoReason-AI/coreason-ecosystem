@@ -72,11 +72,17 @@ def init(
     topology: str = typer.Option("base", help="Target topology (base, medallion, rag)"),
 ) -> None:
     """Autonomically generate a mathematically verified Swarm workspace."""
-    from coreason_ecosystem.utils.telemetry import start_otlp_background_worker
+    from coreason_ecosystem.utils.telemetry import (
+        start_otlp_background_worker,
+        stop_otlp_background_worker,
+    )
 
     async def _run() -> None:
         start_otlp_background_worker()
-        await execute_init(project_name, topology)
+        try:
+            await execute_init(project_name, topology)
+        finally:
+            await stop_otlp_background_worker()
 
     with console.status("[bold green]Synthesizing Ontological Boundaries...") as status:
         asyncio.run(_run())
@@ -94,11 +100,17 @@ def build(
     ),
 ) -> None:
     """Compile human-readable Python capabilities into WASM boundaries and calculate their Epistemic Seals."""
-    from coreason_ecosystem.utils.telemetry import start_otlp_background_worker
+    from coreason_ecosystem.utils.telemetry import (
+        start_otlp_background_worker,
+        stop_otlp_background_worker,
+    )
 
     async def _run() -> None:
         start_otlp_background_worker()
-        await execute_build(target_path)
+        try:
+            await execute_build(target_path)
+        finally:
+            await stop_otlp_background_worker()
 
     asyncio.run(_run())
 
@@ -106,11 +118,17 @@ def build(
 @app.command(name="up")
 def up() -> None:
     """Implement Idempotent DAG Resolution for the Swarm infrastructure."""
-    from coreason_ecosystem.utils.telemetry import start_otlp_background_worker
+    from coreason_ecosystem.utils.telemetry import (
+        start_otlp_background_worker,
+        stop_otlp_background_worker,
+    )
 
     async def _run() -> None:
         start_otlp_background_worker()
-        await execute_up()
+        try:
+            await execute_up()
+        finally:
+            await stop_otlp_background_worker()
 
     asyncio.run(_run())
 
@@ -118,11 +136,17 @@ def up() -> None:
 @app.command(name="doctor")
 def doctor() -> None:
     """Prove Ontological Isomorphism across the Tripartite Manifold."""
-    from coreason_ecosystem.utils.telemetry import start_otlp_background_worker
+    from coreason_ecosystem.utils.telemetry import (
+        start_otlp_background_worker,
+        stop_otlp_background_worker,
+    )
 
     async def _run() -> None:
         start_otlp_background_worker()
-        await execute_doctor()
+        try:
+            await execute_doctor()
+        finally:
+            await stop_otlp_background_worker()
 
     asyncio.run(_run())
 
@@ -133,11 +157,17 @@ def doctor() -> None:
 )
 def sync() -> None:
     """Autonomically heal Ontological Drift."""
-    from coreason_ecosystem.utils.telemetry import start_otlp_background_worker
+    from coreason_ecosystem.utils.telemetry import (
+        start_otlp_background_worker,
+        stop_otlp_background_worker,
+    )
 
     async def _run() -> None:
         start_otlp_background_worker()
-        await execute_sync()
+        try:
+            await execute_sync()
+        finally:
+            await stop_otlp_background_worker()
 
     asyncio.run(_run())
 

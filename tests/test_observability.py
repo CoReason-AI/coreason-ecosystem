@@ -225,14 +225,55 @@ def test_telemetry_model_success() -> None:
         assert isinstance(model, TestModel)
         assert model.name == "test"
         assert (
-            mock_get_tracer.return_value.start_as_current_span.call_count == 2
-        )  # Called in both validate_with_telemetry and _telemetry_validation_hook
+            mock_get_tracer.return_value.start_as_current_span.call_count == 1
+        )  # Now only called in _telemetry_validation_hook
 
     # Test direct init to trigger `_telemetry_validation_hook`
     with patch("opentelemetry.trace.get_tracer") as mock_get_tracer:
         model = TestModel(name="test2")
         assert getattr(model, "name", None) == "test2"
         mock_get_tracer.return_value.start_as_current_span.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_stop_otlp_background_worker() -> None:
+    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+    loop = asyncio.get_running_loop()
+
+    async def mock_coro() -> None:
+        pass
+
+    mock_task = loop.create_task(mock_coro())
+
+    with (
+        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
+        patch("coreason_ecosystem.utils.telemetry._otlp_task", mock_task),
+    ):
+        from coreason_ecosystem.utils.telemetry import stop_otlp_background_worker
+
+        await stop_otlp_background_worker()
+        assert mock_task.cancelled()
+
+
+@pytest.mark.asyncio
+async def test_stop_otlp_background_worker_cancelled() -> None:
+    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+    loop = asyncio.get_running_loop()
+
+    async def mock_coro() -> None:
+        await asyncio.sleep(1)
+
+    mock_task = loop.create_task(mock_coro())
+    mock_task.cancel()
+
+    with (
+        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
+        patch("coreason_ecosystem.utils.telemetry._otlp_task", mock_task),
+    ):
+        from coreason_ecosystem.utils.telemetry import stop_otlp_background_worker
+
+        # It shouldn't raise CancelledError because we catch it in stop_otlp_background_worker
+        await stop_otlp_background_worker()
 
 
 @patch.dict("os.environ", {"COREASON_ENABLE_DIAGNOSTICS": "1"})

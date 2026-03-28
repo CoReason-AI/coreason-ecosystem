@@ -30,6 +30,7 @@ __all__ = [
     "TelemetryModel",
     "setup_telemetry_mesh",
     "start_otlp_background_worker",
+    "stop_otlp_background_worker",
     "logger",
 ]
 
@@ -59,6 +60,12 @@ _otlp_loop: asyncio.AbstractEventLoop | None = None
 async def _otlp_worker(endpoint: str) -> None:
     """
     Background worker that flushes logs to OTLP strictly asynchronously.
+
+    Note: We bypass the official `opentelemetry-sdk` log exporter (which uses standard
+    Python `threading.Thread`) in favor of manual REST. Under Python 3.14t (Free-Threading
+    / `nogil`), relying on legacy threading models can introduce unpredictable GIL-related
+    contention during heavy WASM AOT compilation. Using pure `asyncio.Task` + `httpx`
+    bypasses the OS threading layer entirely, ensuring PEP-703 free-threading safety.
     """
     import httpx
 
@@ -135,6 +142,20 @@ def start_otlp_background_worker() -> None:
         logger.warning("Failed to start OTLP worker: No running event loop.")
 
 
+async def stop_otlp_background_worker() -> None:
+    """Gracefully flush the queue and shut down the OTLP worker."""
+    global _otlp_queue, _otlp_task
+    if _otlp_queue is not None:
+        await _otlp_queue.join()
+
+    if _otlp_task is not None:
+        _otlp_task.cancel()
+        try:
+            await _otlp_task
+        except asyncio.CancelledError:
+            pass
+
+
 class TelemetryModel(BaseModel):
     """
     Base Pydantic model that automatically instruments validation with OpenTelemetry spans.
@@ -165,19 +186,18 @@ class TelemetryModel(BaseModel):
     @classmethod
     def validate_with_telemetry(cls, data: dict[str, Any]) -> "TelemetryModel":
         settings = ObservabilitySettings()
-        tracer = trace.get_tracer("coreason.pydantic.telemetry")
-        with tracer.start_as_current_span(f"validate_{cls.__name__}") as span:
-            start_time = time.perf_counter()
-            try:
-                obj = cls.model_validate(data)
-                delta_t = time.perf_counter() - start_time
-                span.set_attribute("delta_t_seconds", delta_t)
-                return obj
-            except Exception as e:
-                # Capture Semantic Entropy
-                from pydantic import ValidationError
+        try:
+            # This internal call will trigger the @model_validator hook and its success span
+            return cls.model_validate(data)
+        except Exception as e:
+            from pydantic import ValidationError
 
-                if isinstance(e, ValidationError):
+            if isinstance(e, ValidationError):
+                # Fallback to create an error span if model_validate fails before the hook
+                tracer = trace.get_tracer("coreason.pydantic.telemetry")
+                with tracer.start_as_current_span(
+                    f"validate_{cls.__name__}_error"
+                ) as span:
                     errors = e.errors()
                     redacted_errors: list[Any] = []
                     for err in errors:
@@ -194,7 +214,7 @@ class TelemetryModel(BaseModel):
                     logger.error(
                         f"Ontological Drift in {cls.__name__}: {redacted_errors}"
                     )
-                raise
+            raise
 
 
 def setup_telemetry_mesh() -> None:
