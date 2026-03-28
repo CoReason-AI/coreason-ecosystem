@@ -14,12 +14,16 @@ from coreason_ecosystem.orchestration.init import execute_init
 
 @pytest.fixture
 def temp_project_dir(tmp_path: Path) -> Generator[Path]:
-    project_name = "test_swarm_workspace"
+    project_name = f"test_swarm_workspace_{tmp_path.name}"
     # Create the path in CWD to pass startswith check
     path = Path.cwd() / project_name
     yield path
     if path.exists():
-        shutil.rmtree(path)
+        try:
+            shutil.rmtree(path)
+        except OSError:
+            # Handle race conditions in parallel tests
+            pass
 
 
 @pytest.mark.asyncio
