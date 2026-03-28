@@ -8,7 +8,16 @@ from pathlib import Path
 
 async def execute_init(project_name: str, topology: str = "base") -> None:
     """Synthesize a mathematically verified Swarm workspace."""
-    project_path = Path(project_name)
+    # 0. Ontological Boundary Validation
+    if "/" in project_name or "\\" in project_name:
+        raise ValueError(f"Project name '{project_name}' contains invalid path separators.")
+
+    project_path = Path(project_name).resolve()
+    base_path = Path.cwd().resolve()
+
+    if not str(project_path).startswith(str(base_path)):
+        raise ValueError(f"Project path '{project_path}' escapes the current working directory.")
+
     project_path.mkdir(parents=True, exist_ok=True)
 
     # 1. Directory Genesis
