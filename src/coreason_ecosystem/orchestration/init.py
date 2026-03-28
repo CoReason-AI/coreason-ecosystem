@@ -1,8 +1,8 @@
 # Copyright (c) 2026 CoReason, Inc.
 # Licensed under the Prosperity Public License 3.0
 
+import asyncio
 import json
-import subprocess
 from pathlib import Path
 
 
@@ -113,4 +113,5 @@ if __name__ == "__main__":
 """
     (project_path / ".pre-commit-config.yaml").write_text(pre_commit_config)
 
-    subprocess.run(["git", "init"], cwd=str(project_path), check=False)  # noqa: S607
+    process = await asyncio.create_subprocess_exec("git", "init", cwd=str(project_path))
+    await process.communicate()
