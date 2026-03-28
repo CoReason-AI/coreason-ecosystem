@@ -1,6 +1,7 @@
 # Copyright (c) 2026 CoReason, Inc.
 # Licensed under the Prosperity Public License 3.0
 
+import importlib.metadata
 import json
 import subprocess
 from pathlib import Path
@@ -17,6 +18,21 @@ async def execute_init(project_name: str, topology: str = "base") -> None:
 
     if not str(project_path).startswith(str(base_path)):
         raise ValueError(f"Project path '{project_path}' escapes the current working directory.")
+    if "/" in project_name or "\\" in project_name:
+        raise ValueError("Invalid project name: path separators are not allowed.")
+
+    project_path = Path(project_name)
+    try:
+        resolved_path = project_path.resolve()
+        cwd = Path.cwd().resolve()
+        if not resolved_path.is_relative_to(cwd) or resolved_path == cwd:
+            raise ValueError(
+                "Invalid project name: must resolve to a subdirectory of the current working directory."
+            )
+    except Exception as e:
+        if not isinstance(e, ValueError):  # pragma: no cover
+            raise ValueError(f"Invalid project name: {e}") from e
+        raise
 
     project_path.mkdir(parents=True, exist_ok=True)
 
@@ -26,8 +42,6 @@ async def execute_init(project_name: str, topology: str = "base") -> None:
     (project_path / "src" / "intents").mkdir(parents=True, exist_ok=True)
 
     # 2. Dependency Locking
-    import importlib.metadata
-
     try:
         manifest_version = importlib.metadata.version("coreason-manifest")
     except importlib.metadata.PackageNotFoundError:
