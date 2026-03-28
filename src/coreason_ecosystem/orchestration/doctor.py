@@ -19,8 +19,8 @@ async def execute_doctor() -> None:
     table.add_column("Status", style="magenta")
     table.add_column("Telemetry/Hash", style="green")
 
-    # Probe A: Runtime Integrity
     async with httpx.AsyncClient() as client:
+        # Probe A: Runtime Integrity
         try:
             resp = await client.get("http://localhost:8000/docs", timeout=2.0)
             if resp.status_code == 200:
@@ -29,14 +29,13 @@ async def execute_doctor() -> None:
             else:
                 status_a = f"[red]✗ ERROR {resp.status_code}[/red]"
                 latency_a = "N/A"
-        except httpx.RequestError, httpx.TimeoutException:
+        except (httpx.RequestError, httpx.TimeoutException):
             status_a = "[red]✗ OFFLINE[/red]"
             latency_a = "N/A"
 
-    table.add_row("Runtime Daemon", status_a, latency_a)
+        table.add_row("Runtime Daemon", status_a, latency_a)
 
-    # Probe B: Telemetry Mesh
-    async with httpx.AsyncClient() as client:
+        # Probe B: Telemetry Mesh
         try:
             # Check telemetry endpoint without blocking indefinitely.
             # We assume it streams, so getting a 200 on connect proves it's alive.
@@ -49,33 +48,32 @@ async def execute_doctor() -> None:
                 else:
                     status_b = f"[red]✗ ERROR {resp.status_code}[/red]"
                     latency_b = "N/A"
-        except httpx.RequestError, httpx.TimeoutException:
+        except (httpx.RequestError, httpx.TimeoutException):
             status_b = "[red]✗ TIMEOUT/OFFLINE[/red]"
             latency_b = "N/A"
 
-    table.add_row("Telemetry Mesh", status_b, latency_b)
+        table.add_row("Telemetry Mesh", status_b, latency_b)
 
-    # Probe C: Schema Sync
-    manifest_path = Path(coreason_manifest.__path__[0])
-    schema_path = manifest_path / "spec" / "coreason_ontology.schema.json"
+        # Probe C: Schema Sync
+        manifest_path = Path(coreason_manifest.__path__[0])
+        schema_path = manifest_path / "spec" / "coreason_ontology.schema.json"
 
-    if schema_path.exists():
-        schema_bytes = schema_path.read_bytes()
-        schema_hash = hashlib.sha256(schema_bytes).hexdigest()
-        status_c = "[green]✓ SYNCED[/green]"
-        latency_c = schema_hash[:16] + "..."
-    else:
-        status_c = "[red]✗ MISSING[/red]"
-        latency_c = "N/A"
+        if schema_path.exists():
+            schema_bytes = schema_path.read_bytes()
+            schema_hash = hashlib.sha256(schema_bytes).hexdigest()
+            status_c = "[green]✓ SYNCED[/green]"
+            latency_c = schema_hash[:16] + "..."
+        else:
+            status_c = "[red]✗ MISSING[/red]"
+            latency_c = "N/A"
 
-    table.add_row("Ontology Schema", status_c, latency_c)
+        table.add_row("Ontology Schema", status_c, latency_c)
 
-    # Probe D: Epistemic Isomorphism
-    local_root = read_registry_lock(Path.cwd())
-    if local_root is None:
-        local_root = "UNSEALED"
+        # Probe D: Epistemic Isomorphism
+        local_root = read_registry_lock(Path.cwd())
+        if local_root is None:
+            local_root = "UNSEALED"
 
-    async with httpx.AsyncClient() as client:
         try:
             resp = await client.get(
                 "http://localhost:8000/api/v1/epistemic/verify",
@@ -93,10 +91,10 @@ async def execute_doctor() -> None:
             else:
                 status_d = f"[yellow]⚠ HTTP {resp.status_code}[/yellow]"
                 latency_d = "Check Daemon"
-        except httpx.RequestError, httpx.TimeoutException:
+        except (httpx.RequestError, httpx.TimeoutException):
             status_d = "[yellow]⚠ UNREACHABLE[/yellow]"
             latency_d = "Check Daemon"
 
-    table.add_row("Epistemic Isomorphism", status_d, latency_d)
+        table.add_row("Epistemic Isomorphism", status_d, latency_d)
 
     console.print(table)
