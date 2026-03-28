@@ -14,8 +14,10 @@ from coreason_ecosystem.orchestration.init import execute_init
 
 @pytest.fixture
 def temp_project_dir(tmp_path: Path) -> Generator[Path]:
-    project_name = "test_swarm_workspace"
-    path = tmp_path / project_name
+    import uuid
+
+    project_name = f"test_swarm_workspace_{uuid.uuid4().hex}"
+    path = Path.cwd() / project_name
     yield path
     if path.exists():
         shutil.rmtree(path)
@@ -31,6 +33,7 @@ async def test_execute_init_base_topology(
     mock_exec.return_value = mock_process
 
     await execute_init(str(temp_project_dir), topology="base")
+    await execute_init(temp_project_dir.name, topology="base")
 
     # Verify directories
     assert (temp_project_dir / "src" / "agents").is_dir()
@@ -74,6 +77,9 @@ async def test_execute_init_base_topology(
     # Verify git init call
     mock_exec.assert_called_once_with("git", "init", cwd=str(temp_project_dir))
     mock_process.communicate.assert_called_once()
+    mock_run.assert_called_once_with(
+        ["git", "init"], cwd=temp_project_dir.name, check=False
+    )
 
 
 @pytest.mark.asyncio
@@ -86,6 +92,8 @@ async def test_execute_init_medallion_topology(
     mock_exec.return_value = mock_process
 
     await execute_init(str(temp_project_dir), topology="medallion")
+    _ = mock_run
+    await execute_init(temp_project_dir.name, topology="medallion")
     cap_dir = temp_project_dir / "src" / "capabilities"
     assert (cap_dir / "bronze_ingest.py").is_file()
     assert (cap_dir / "silver_cleanse.py").is_file()
@@ -102,6 +110,8 @@ async def test_execute_init_rag_topology(
     mock_exec.return_value = mock_process
 
     await execute_init(str(temp_project_dir), topology="rag")
+    _ = mock_run
+    await execute_init(temp_project_dir.name, topology="rag")
     cap_dir = temp_project_dir / "src" / "capabilities"
     assert (cap_dir / "embed_document.py").is_file()
     assert (cap_dir / "retrieve_context.py").is_file()
@@ -120,9 +130,27 @@ async def test_execute_init_package_not_found(
     mock_exec.return_value = mock_process
 
     mock_version.side_effect = importlib.metadata.PackageNotFoundError
-    await execute_init(str(temp_project_dir), topology="base")
+    await execute_init(temp_project_dir.name, topology="base")
 
-    assert (temp_project_dir / "pyproject.toml").is_file()
-    toml_content = (temp_project_dir / "pyproject.toml").read_text()
+    assert (Path.cwd() / temp_project_dir.name / "pyproject.toml").is_file()
+    toml_content = (Path.cwd() / temp_project_dir.name / "pyproject.toml").read_text()
     assert "coreason-runtime==0.1.0" in toml_content
     assert "coreason-manifest==0.1.0" in toml_content
+
+
+@pytest.mark.asyncio
+async def test_execute_init_path_traversal() -> None:
+    with pytest.raises(ValueError, match="path separators are not allowed"):
+        await execute_init("../malicious_dir", topology="base")
+
+    with pytest.raises(ValueError, match="path separators are not allowed"):
+        await execute_init("some/dir", topology="base")
+
+    with pytest.raises(ValueError, match="path separators are not allowed"):
+        await execute_init("some\\dir", topology="base")
+
+    with pytest.raises(
+        ValueError,
+        match="must resolve to a subdirectory of the current working directory",
+    ):
+        await execute_init(".", topology="base")
