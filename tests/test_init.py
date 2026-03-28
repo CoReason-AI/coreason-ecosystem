@@ -5,7 +5,7 @@ import json
 import shutil
 from collections.abc import Generator
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -15,22 +15,19 @@ from coreason_ecosystem.orchestration.init import execute_init
 @pytest.fixture
 def temp_project_dir(tmp_path: Path) -> Generator[Path]:
     project_name = "test_swarm_workspace"
-    path = tmp_path / project_name
+    # Create the path in CWD to pass startswith check
+    path = Path.cwd() / project_name
     yield path
     if path.exists():
         shutil.rmtree(path)
 
 
 @pytest.mark.asyncio
-@patch("coreason_ecosystem.orchestration.init.asyncio.create_subprocess_exec")
+@patch("coreason_ecosystem.orchestration.init.subprocess.run")
 async def test_execute_init_base_topology(
-    mock_exec: MagicMock, temp_project_dir: Path
+    mock_run: MagicMock, temp_project_dir: Path
 ) -> None:
-    mock_process = MagicMock()
-    mock_process.communicate = AsyncMock(return_value=(b"", b""))
-    mock_exec.return_value = mock_process
-
-    await execute_init(str(temp_project_dir), topology="base")
+    await execute_init(temp_project_dir.name, topology="base")
 
     # Verify directories
     assert (temp_project_dir / "src" / "agents").is_dir()
@@ -72,20 +69,18 @@ async def test_execute_init_base_topology(
     )
 
     # Verify git init call
-    mock_exec.assert_called_once_with("git", "init", cwd=str(temp_project_dir))
-    mock_process.communicate.assert_called_once()
+    mock_run.assert_called_once_with(
+        ["git", "init"], cwd=str(temp_project_dir.resolve()), check=False
+    )
 
 
 @pytest.mark.asyncio
-@patch("coreason_ecosystem.orchestration.init.asyncio.create_subprocess_exec")
+@patch("coreason_ecosystem.orchestration.init.subprocess.run")
 async def test_execute_init_medallion_topology(
-    mock_exec: MagicMock, temp_project_dir: Path
+    mock_run: MagicMock, temp_project_dir: Path
 ) -> None:
-    mock_process = MagicMock()
-    mock_process.communicate = AsyncMock(return_value=(b"", b""))
-    mock_exec.return_value = mock_process
-
-    await execute_init(str(temp_project_dir), topology="medallion")
+    _ = mock_run
+    await execute_init(temp_project_dir.name, topology="medallion")
     cap_dir = temp_project_dir / "src" / "capabilities"
     assert (cap_dir / "bronze_ingest.py").is_file()
     assert (cap_dir / "silver_cleanse.py").is_file()
@@ -93,34 +88,27 @@ async def test_execute_init_medallion_topology(
 
 
 @pytest.mark.asyncio
-@patch("coreason_ecosystem.orchestration.init.asyncio.create_subprocess_exec")
+@patch("coreason_ecosystem.orchestration.init.subprocess.run")
 async def test_execute_init_rag_topology(
-    mock_exec: MagicMock, temp_project_dir: Path
+    mock_run: MagicMock, temp_project_dir: Path
 ) -> None:
-    mock_process = MagicMock()
-    mock_process.communicate = AsyncMock(return_value=(b"", b""))
-    mock_exec.return_value = mock_process
-
-    await execute_init(str(temp_project_dir), topology="rag")
+    _ = mock_run
+    await execute_init(temp_project_dir.name, topology="rag")
     cap_dir = temp_project_dir / "src" / "capabilities"
     assert (cap_dir / "embed_document.py").is_file()
     assert (cap_dir / "retrieve_context.py").is_file()
 
 
 @pytest.mark.asyncio
-@patch("coreason_ecosystem.orchestration.init.asyncio.create_subprocess_exec")
+@patch("coreason_ecosystem.orchestration.init.subprocess.run")
 @patch("importlib.metadata.version")
 async def test_execute_init_package_not_found(
-    mock_version: MagicMock, mock_exec: MagicMock, temp_project_dir: Path
+    mock_version: MagicMock, mock_run: MagicMock, temp_project_dir: Path
 ) -> None:
     import importlib.metadata
 
-    mock_process = MagicMock()
-    mock_process.communicate = AsyncMock(return_value=(b"", b""))
-    mock_exec.return_value = mock_process
-
     mock_version.side_effect = importlib.metadata.PackageNotFoundError
-    await execute_init(str(temp_project_dir), topology="base")
+    await execute_init(temp_project_dir.name, topology="base")
 
     assert (temp_project_dir / "pyproject.toml").is_file()
     toml_content = (temp_project_dir / "pyproject.toml").read_text()

@@ -1,8 +1,8 @@
 # Copyright (c) 2026 CoReason, Inc.
 # Licensed under the Prosperity Public License 3.0
 
-import asyncio
 import json
+import subprocess
 from pathlib import Path
 
 
@@ -10,17 +10,18 @@ async def execute_init(project_name: str, topology: str = "base") -> None:
     """Synthesize a mathematically verified Swarm workspace."""
     # 0. Ontological Boundary Validation
     if "/" in project_name or "\\" in project_name:
-        raise ValueError(f"Project name '{project_name}' contains invalid path separators.")
+        raise ValueError(
+            f"Project name '{project_name}' contains invalid path separators."
+        )
 
     project_path = Path(project_name).resolve()
     base_path = Path.cwd().resolve()
 
     if not str(project_path).startswith(str(base_path)):
-        raise ValueError(f"Project path '{project_path}' escapes the current working directory.")
-    if "/" in project_name or "\\" in project_name:
-        raise ValueError("Invalid project name: path separators are not allowed.")
+        raise ValueError(
+            f"Project path '{project_path}' escapes the current working directory."
+        )
 
-    project_path = Path(project_name)
     project_path.mkdir(parents=True, exist_ok=True)
 
     # 1. Directory Genesis
@@ -125,5 +126,4 @@ if __name__ == "__main__":
 """
     (project_path / ".pre-commit-config.yaml").write_text(pre_commit_config)
 
-    process = await asyncio.create_subprocess_exec("git", "init", cwd=str(project_path))
-    await process.communicate()
+    subprocess.run(["git", "init"], cwd=str(project_path), check=False)  # noqa: S607
