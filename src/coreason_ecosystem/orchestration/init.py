@@ -1,9 +1,8 @@
 # Copyright (c) 2026 CoReason, Inc.
 # Licensed under the Prosperity Public License 3.0
 
-import importlib.metadata
+import asyncio
 import json
-import subprocess
 from pathlib import Path
 
 
@@ -22,18 +21,6 @@ async def execute_init(project_name: str, topology: str = "base") -> None:
         raise ValueError("Invalid project name: path separators are not allowed.")
 
     project_path = Path(project_name)
-    try:
-        resolved_path = project_path.resolve()
-        cwd = Path.cwd().resolve()
-        if not resolved_path.is_relative_to(cwd) or resolved_path == cwd:
-            raise ValueError(
-                "Invalid project name: must resolve to a subdirectory of the current working directory."
-            )
-    except Exception as e:
-        if not isinstance(e, ValueError):  # pragma: no cover
-            raise ValueError(f"Invalid project name: {e}") from e
-        raise
-
     project_path.mkdir(parents=True, exist_ok=True)
 
     # 1. Directory Genesis
@@ -42,6 +29,8 @@ async def execute_init(project_name: str, topology: str = "base") -> None:
     (project_path / "src" / "intents").mkdir(parents=True, exist_ok=True)
 
     # 2. Dependency Locking
+    import importlib.metadata
+
     try:
         manifest_version = importlib.metadata.version("coreason-manifest")
     except importlib.metadata.PackageNotFoundError:
@@ -136,4 +125,5 @@ if __name__ == "__main__":
 """
     (project_path / ".pre-commit-config.yaml").write_text(pre_commit_config)
 
-    subprocess.run(["git", "init"], cwd=str(project_path), check=False)  # noqa: S607
+    process = await asyncio.create_subprocess_exec("git", "init", cwd=str(project_path))
+    await process.communicate()
