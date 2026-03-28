@@ -17,7 +17,8 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from pydantic import BaseModel, ConfigDict, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -28,14 +29,14 @@ __all__ = [
     "ObservabilitySettings",
     "TelemetryModel",
     "setup_telemetry_mesh",
+    "start_otlp_background_worker",
     "logger",
 ]
-
 
 __all__.append("bind_epistemic_context")
 
 
-class ObservabilitySettings(BaseSettings):
+class ObservabilitySettings(BaseSettings):  # type: ignore[misc]
     """
     Dynamic configuration for the Observability Mesh.
     """
@@ -52,6 +53,7 @@ class ObservabilitySettings(BaseSettings):
 # Global queue and task for OTLP export
 _otlp_queue: asyncio.Queue[dict[str, Any]] | None = None
 _otlp_task: asyncio.Task[None] | None = None
+_otlp_loop: asyncio.AbstractEventLoop | None = None
 
 
 async def _otlp_worker(endpoint: str) -> None:
@@ -108,11 +110,29 @@ def otlp_log_sink(message: "Message") -> None:
     """
     Custom loguru sink that routes records to the asyncio queue.
     """
-    if _otlp_queue is not None:
+    if _otlp_queue is not None and _otlp_loop is not None:
         try:
-            _otlp_queue.put_nowait(dict(message.record))
-        except asyncio.QueueFull:
+            _otlp_loop.call_soon_threadsafe(
+                _otlp_queue.put_nowait, dict(message.record)
+            )
+        except Exception:
             pass
+
+
+def start_otlp_background_worker() -> None:
+    """
+    Initializes the OTLP async worker task. Call this after the event loop starts.
+    """
+    global _otlp_queue, _otlp_task, _otlp_loop
+    try:
+        _otlp_loop = asyncio.get_running_loop()
+        if _otlp_queue is None:
+            _otlp_queue = asyncio.Queue(maxsize=10000)
+        _otlp_task = _otlp_loop.create_task(
+            _otlp_worker(ObservabilitySettings().otlp_endpoint)
+        )
+    except RuntimeError:
+        logger.warning("Failed to start OTLP worker: No running event loop.")
 
 
 class TelemetryModel(BaseModel):
@@ -185,7 +205,6 @@ def setup_telemetry_mesh() -> None:
     from coreason_ecosystem.utils.logger import (
         InterceptHandler,
         _patch_record,
-        _redaction_filter,
     )
 
     settings = ObservabilitySettings()
@@ -202,7 +221,6 @@ def setup_telemetry_mesh() -> None:
             "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
             "<level>{message}</level>"
         ),
-        filter=_redaction_filter,
     )
 
     from pathlib import Path
@@ -219,28 +237,23 @@ def setup_telemetry_mesh() -> None:
         enqueue=True,
         level="DEBUG",
         diagnose=settings.enable_diagnostics,
-        filter=_redaction_filter,
     )
-
-    # Initialize async queue for OTLP
-    global _otlp_queue, _otlp_task
-    try:
-        loop = asyncio.get_running_loop()
-        _otlp_queue = asyncio.Queue(maxsize=10000)
-        _otlp_task = loop.create_task(_otlp_worker(settings.otlp_endpoint))
-        logger.add(otlp_log_sink, level=settings.log_level)
-    except RuntimeError:
-        # No running event loop yet (e.g. CLI initialization phase).
-        # We will skip the async OTLP sink setup for now or rely on the sync SDK if needed.
-        pass
-
-    logger.configure(patcher=_patch_record)
 
     # OpenTelemetry Tracing Setup
     provider = TracerProvider()
-    processor = BatchSpanProcessor(ConsoleSpanExporter())
+
+    trace_endpoint = settings.otlp_endpoint.replace("v1/logs", "v1/traces")
+    otlp_exporter = OTLPSpanExporter(endpoint=trace_endpoint)
+
+    processor = BatchSpanProcessor(otlp_exporter)
     provider.add_span_processor(processor)
     trace.set_tracer_provider(provider)
+
+    logger.configure(patcher=_patch_record)
+
+    # Note: the background worker and sink must be started after event loop spins up.
+    # However we add the sink now, but wrap in enqueue=True to bridge OS threads
+    logger.add(otlp_log_sink, level=settings.log_level, enqueue=True)
 
     # Route standard logging to loguru
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)

@@ -9,14 +9,12 @@ from pydantic import ValidationError
 from coreason_ecosystem.utils.logger import (
     InterceptHandler,
     _patch_record,
-    _redaction_filter,
     bind_epistemic_context,
 )
 from coreason_ecosystem.utils.telemetry import (
     TelemetryModel,
     _otlp_worker,
     otlp_log_sink,
-    setup_telemetry_mesh,
 )
 
 
@@ -72,8 +70,12 @@ def test_patch_record() -> None:
 @patch("os.getenv")
 def test_redaction_filter_dev(mock_getenv: AsyncMock) -> None:
     mock_getenv.return_value = "development"
-    record: dict[str, str] = {"message": "Test message with email@example.com and 123-45-6789"}
-    assert _redaction_filter(record) is True  # type: ignore
+    record: dict[str, Any] = {
+        "message": "Test message with email@example.com and 123-45-6789",
+        "extra": {},
+    }
+    with bind_epistemic_context("", ""):
+        _patch_record(record)  # type: ignore
     assert "email@example.com" in record["message"]
     assert "123-45-6789" in record["message"]
 
@@ -81,8 +83,12 @@ def test_redaction_filter_dev(mock_getenv: AsyncMock) -> None:
 @patch("os.getenv")
 def test_redaction_filter_prod(mock_getenv: AsyncMock) -> None:
     mock_getenv.return_value = "production"
-    record: dict[str, str] = {"message": "Test message with email@example.com and 123-45-6789"}
-    assert _redaction_filter(record) is True  # type: ignore
+    record: dict[str, Any] = {
+        "message": "Test message with email@example.com and 123-45-6789",
+        "extra": {},
+    }
+    with bind_epistemic_context("", ""):
+        _patch_record(record)  # type: ignore
     assert "<REDACTED_EMAIL>" in record["message"]
     assert "<REDACTED_SSN>" in record["message"]
 
@@ -128,6 +134,7 @@ async def test_otlp_worker_exception() -> None:
         worker_task.cancel()
         mock_post.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_otlp_worker_request_error() -> None:
     import httpx
@@ -155,27 +162,58 @@ async def test_otlp_worker_request_error() -> None:
 
 def test_otlp_log_sink() -> None:
     queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+    loop = asyncio.new_event_loop()
 
     class MockMessage:
         record = {"test": "data"}
 
-    with patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue):
+    with (
+        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
+        patch("coreason_ecosystem.utils.telemetry._otlp_loop", loop),
+    ):
         otlp_log_sink(MockMessage())  # type: ignore
+
+    loop.run_until_complete(asyncio.sleep(0.01))
     assert queue.get_nowait() == {"test": "data"}
+    loop.close()
+
+
+def test_otlp_log_sink_exception() -> None:
+    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+    mock_loop = AsyncMock()
+    mock_loop.call_soon_threadsafe.side_effect = Exception("error")
+
+    class MockMessage:
+        record = {"test": "data"}
+
+    with (
+        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
+        patch("coreason_ecosystem.utils.telemetry._otlp_loop", mock_loop),
+    ):
+        otlp_log_sink(MockMessage())  # type: ignore
+
+    assert queue.empty()
 
 
 def test_otlp_log_sink_full() -> None:
     queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=1)
     queue.put_nowait({"fill": "queue"})
+    loop = asyncio.new_event_loop()
 
     class MockMessage:
         record = {"test": "data"}
 
-    with patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue):
+    with (
+        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
+        patch("coreason_ecosystem.utils.telemetry._otlp_loop", loop),
+    ):
         otlp_log_sink(MockMessage())  # type: ignore
+
+    loop.run_until_complete(asyncio.sleep(0.01))
     # Assert queue is still just full with initial element
     assert queue.get_nowait() == {"fill": "queue"}
     assert queue.empty()
+    loop.close()
 
 
 def test_telemetry_model_success() -> None:
@@ -186,7 +224,9 @@ def test_telemetry_model_success() -> None:
         model = TestModel.validate_with_telemetry({"name": "test"})
         assert isinstance(model, TestModel)
         assert model.name == "test"
-        assert mock_get_tracer.return_value.start_as_current_span.call_count == 2 # Called in both validate_with_telemetry and _telemetry_validation_hook
+        assert (
+            mock_get_tracer.return_value.start_as_current_span.call_count == 2
+        )  # Called in both validate_with_telemetry and _telemetry_validation_hook
 
     # Test direct init to trigger `_telemetry_validation_hook`
     with patch("opentelemetry.trace.get_tracer") as mock_get_tracer:
@@ -214,20 +254,25 @@ def test_telemetry_model_failure_no_diagnostics() -> None:
 
 
 @patch("asyncio.get_running_loop")
-def test_setup_telemetry_mesh(mock_get_running_loop: AsyncMock) -> None:
+def test_start_otlp_background_worker(mock_get_running_loop: AsyncMock) -> None:
     mock_loop = AsyncMock()
     mock_get_running_loop.return_value = mock_loop
-    setup_telemetry_mesh()
+    from coreason_ecosystem.utils.telemetry import start_otlp_background_worker
+
+    start_otlp_background_worker()
     mock_loop.create_task.assert_called_once()
 
 
 @patch("asyncio.get_running_loop", side_effect=RuntimeError)
-def test_setup_telemetry_mesh_no_loop(mock_get_running_loop: AsyncMock) -> None:
-    setup_telemetry_mesh()
+def test_start_otlp_background_worker_no_loop(mock_get_running_loop: AsyncMock) -> None:
+    from coreason_ecosystem.utils.telemetry import start_otlp_background_worker
+
+    start_otlp_background_worker()
+
 
 def test_logger_patch_record_none() -> None:
-    record: dict[str, Any] = {"extra": {}}
+    record: dict[str, Any] = {"message": "Test message", "extra": {}}
     # Do not bind context to test the path where variables are not set
-    _patch_record(record) # type: ignore
+    _patch_record(record)  # type: ignore
     assert "workflow_id" not in record["extra"]
     assert "epistemic_root" not in record["extra"]

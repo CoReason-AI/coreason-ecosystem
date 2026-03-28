@@ -76,7 +76,9 @@ class InterceptHandler(logging.Handler):
 
         # Find caller from where originated the logged message.
         frame, depth = sys._getframe(6), 6
-        while frame and frame.f_code.co_filename == logging.__file__:  # pragma: no cover
+        while (
+            frame and frame.f_code.co_filename == logging.__file__
+        ):  # pragma: no cover
             frame = frame.f_back  # type: ignore[assignment]
             depth += 1
 
@@ -87,10 +89,10 @@ class InterceptHandler(logging.Handler):
 
 def _patch_record(record: "Record") -> None:
     """
-    Patches the log record with epistemic context.
+    Patches the log record with epistemic context and applies redaction.
 
     Args:
-        record (dict[str, Any]): The log record dictionary.
+        record (Record): The log record dictionary.
     """
     current_root = epistemic_root.get()
     current_workflow_id = workflow_id.get()
@@ -100,34 +102,18 @@ def _patch_record(record: "Record") -> None:
     if current_workflow_id:
         record["extra"]["workflow_id"] = current_workflow_id
 
-
-def _redaction_filter(record: "Record") -> bool:
-    """
-    Filters and redacts sensitive information from log messages.
-
-    Args:
-        record (dict[str, Any]): The log record dictionary.
-
-    Returns:
-        bool: True to allow the log record to be emitted.
-    """
     env = os.getenv("ENV", "development")
     if env == "production":
-        message = record["message"]
-
+        msg = record["message"]
         # Basic SSN pattern redaction: ###-##-####
-        message = re.sub(r"\b\d{3}-\d{2}-\d{4}\b", "<REDACTED_SSN>", message)
-
+        msg = re.sub(r"\b\d{3}-\d{2}-\d{4}\b", "<REDACTED_SSN>", msg)
         # Basic Email pattern redaction
-        message = re.sub(
+        msg = re.sub(
             r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b",
             "<REDACTED_EMAIL>",
-            message,
+            msg,
         )
-
-        record["message"] = message
-
-    return True
+        record["message"] = msg
 
 
 # Defer telemetry mesh setup
