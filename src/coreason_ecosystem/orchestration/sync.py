@@ -1,8 +1,8 @@
 # Copyright (c) 2026 CoReason, Inc.
 # Licensed under the Prosperity Public License 3.0
 
+import asyncio
 import json
-import subprocess
 from pathlib import Path
 
 from rich.status import Status
@@ -54,17 +54,15 @@ async def execute_sync() -> None:
         import shutil
 
         docker_bin = shutil.which("docker") or "docker"
-        subprocess.run(
-            [
-                docker_bin,
-                "compose",
-                "-f",
-                str(compose_path.resolve()),
-                "restart",
-                "coreason-runtime",
-            ],
-            check=False,
+        process = await asyncio.create_subprocess_exec(
+            docker_bin,
+            "compose",
+            "-f",
+            str(compose_path.resolve()),
+            "restart",
+            "coreason-runtime",
         )
+        await process.wait()
 
         status.update("[green]Swarm Restored.[/green]")
         console.print("[bold green]✓ Autopoietic Healing Complete[/bold green]")
