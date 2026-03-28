@@ -2,6 +2,7 @@
 # Licensed under the Prosperity Public License 3.0
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -50,8 +51,6 @@ async def execute_sync() -> None:
         )
         if not compose_path.exists():
             compose_path = project_path / "infrastructure" / "local" / "compose.yaml"
-
-        import shutil
 
         docker_bin = shutil.which("docker") or "docker"
         subprocess.run(
