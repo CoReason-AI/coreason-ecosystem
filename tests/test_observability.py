@@ -179,8 +179,9 @@ def test_otlp_log_sink() -> None:
 
 
 def test_otlp_log_sink_exception() -> None:
+    from unittest.mock import MagicMock
     queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-    mock_loop = AsyncMock()
+    mock_loop = MagicMock()
     mock_loop.call_soon_threadsafe.side_effect = Exception("error")
 
     class MockMessage:
@@ -318,17 +319,20 @@ def test_telemetry_model_failure_no_diagnostics() -> None:
 
 
 @patch("asyncio.get_running_loop")
-def test_start_otlp_background_worker(mock_get_running_loop: AsyncMock) -> None:
-    mock_loop = AsyncMock()
+def test_start_otlp_background_worker(mock_get_running_loop: Any) -> None:
+    from unittest.mock import MagicMock
+    mock_loop = MagicMock()
     mock_get_running_loop.return_value = mock_loop
-    from coreason_ecosystem.utils.telemetry import start_otlp_background_worker
 
-    start_otlp_background_worker()
-    mock_loop.create_task.assert_called_once()
+    # We must patch _otlp_worker to prevent it from returning an unawaited coroutine in the test
+    with patch("coreason_ecosystem.utils.telemetry._otlp_worker", new=MagicMock(return_value="dummy_coro")):
+        from coreason_ecosystem.utils.telemetry import start_otlp_background_worker
+        start_otlp_background_worker()
+        mock_loop.create_task.assert_called_once_with("dummy_coro")
 
 
 @patch("asyncio.get_running_loop", side_effect=RuntimeError)
-def test_start_otlp_background_worker_no_loop(mock_get_running_loop: AsyncMock) -> None:
+def test_start_otlp_background_worker_no_loop(mock_get_running_loop: Any) -> None:
     from coreason_ecosystem.utils.telemetry import start_otlp_background_worker
 
     start_otlp_background_worker()
