@@ -78,7 +78,7 @@ async def _otlp_worker(endpoint: str) -> None:
     contention during heavy WASM AOT compilation. Using pure `asyncio.Task` + `httpx`
     bypasses the OS threading layer entirely, ensuring PEP-703 free-threading safety.
     """
-    import httpx
+    import httpx  # pragma: no cover
 
     async with httpx.AsyncClient() as client:
         while _otlp_queue is not None:
