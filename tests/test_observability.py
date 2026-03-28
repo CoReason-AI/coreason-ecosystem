@@ -79,7 +79,7 @@ def test_redaction_filter_dev() -> None:
     assert "123-45-6789" in record["message"]
 
 
-@patch.dict("os.environ", {"ENV": "production"})
+@patch("coreason_ecosystem.utils.logger._IS_PRODUCTION", True)
 def test_redaction_filter_prod() -> None:
     record: dict[str, Any] = {
         "message": "Test message with email@example.com and 123-45-6789",
@@ -282,8 +282,9 @@ async def test_stop_otlp_background_worker_timeout() -> None:
         assert mock_task.cancelled()
 
 
-@patch.dict("os.environ", {"COREASON_ENABLE_DIAGNOSTICS": "1"})
-def test_telemetry_model_failure_diagnostics() -> None:
+@patch("coreason_ecosystem.utils.telemetry.get_observability_settings")
+def test_telemetry_model_failure_diagnostics(mock_get_settings: Any) -> None:
+    mock_get_settings.return_value.enable_diagnostics = True
     class TestModel(TelemetryModel):
         name: str
 
@@ -291,8 +292,9 @@ def test_telemetry_model_failure_diagnostics() -> None:
         TestModel.validate_with_telemetry({"name": 123})
 
 
-@patch.dict("os.environ", {"COREASON_ENABLE_DIAGNOSTICS": "0"})
-def test_telemetry_model_failure_no_diagnostics() -> None:
+@patch("coreason_ecosystem.utils.telemetry.get_observability_settings")
+def test_telemetry_model_failure_no_diagnostics(mock_get_settings: Any) -> None:
+    mock_get_settings.return_value.enable_diagnostics = False
     class TestModel(TelemetryModel):
         name: str
 

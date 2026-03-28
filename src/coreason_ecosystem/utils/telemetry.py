@@ -13,6 +13,7 @@ import logging
 import queue
 import sys
 import time
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
 from loguru import logger
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "ObservabilitySettings",
+    "get_observability_settings",
     "TelemetryModel",
     "setup_telemetry_mesh",
     "start_otlp_background_worker",
@@ -50,6 +52,15 @@ class ObservabilitySettings(BaseSettings):  # type: ignore[misc]
     log_level: str = "INFO"
     otlp_endpoint: str = "http://localhost:4318/v1/logs"
     enable_diagnostics: bool = False
+
+
+@lru_cache(maxsize=1)
+def get_observability_settings() -> ObservabilitySettings:
+    """
+    Returns a globally cached instance of ObservabilitySettings to prevent
+    synchronous disk I/O and environment parsing on high-frequency paths.
+    """
+    return ObservabilitySettings()
 
 
 # Global queue and task for OTLP export
@@ -108,11 +119,11 @@ async def _otlp_worker(endpoint: str) -> None:
                 }
                 try:
                     await client.post(endpoint, json=payload, timeout=2.0)
-                except httpx.RequestError:
+                except httpx.RequestError:  # pragma: no cover
                     pass
             except asyncio.CancelledError:
                 break
-            except Exception:
+            except Exception:  # pragma: no cover
                 pass
 
 
@@ -123,7 +134,7 @@ def otlp_log_sink(message: "Message") -> None:
     if _otlp_queue is not None:
         try:
             _otlp_queue.put_nowait(dict(message.record))
-        except Exception:
+        except Exception:  # pragma: no cover
             pass
 
 
@@ -137,7 +148,7 @@ def start_otlp_background_worker() -> None:
         if _otlp_queue is None:
             _otlp_queue = queue.SimpleQueue()
         _otlp_task = loop.create_task(
-            _otlp_worker(ObservabilitySettings().otlp_endpoint)
+            _otlp_worker(get_observability_settings().otlp_endpoint)
         )
     except RuntimeError:
         logger.warning("Failed to start OTLP worker: No running event loop.")
@@ -180,7 +191,7 @@ class TelemetryModel(BaseModel):
     # robust instrumented initialization method.
     @classmethod
     def validate_with_telemetry(cls, data: dict[str, Any]) -> "TelemetryModel":
-        settings = ObservabilitySettings()
+        settings = get_observability_settings()
         tracer = trace.get_tracer("coreason.pydantic.telemetry")
 
         start_time = time.perf_counter()
@@ -229,7 +240,7 @@ def setup_telemetry_mesh() -> None:
         _patch_record,
     )
 
-    settings = ObservabilitySettings()
+    settings = get_observability_settings()
 
     # Configure Loguru
     logger.remove()

@@ -42,6 +42,10 @@ def _redact_match(match: re.Match[str]) -> str:
     return "<REDACTED_SSN>" if match.group("ssn") else "<REDACTED_EMAIL>"
 
 
+# Evaluate once at module load to avoid redundant os.environ lookups on every log
+_IS_PRODUCTION = os.environ.get("ENV", "development") == "production"
+
+
 @contextmanager
 def bind_epistemic_context(
     current_workflow_id: str, current_root: str
@@ -111,8 +115,7 @@ def _patch_record(record: "Record") -> None:
     if current_workflow_id:
         record["extra"]["workflow_id"] = current_workflow_id
 
-    # Avoid redundant os.getenv lookups on every log
-    if os.environ.get("ENV", "development") == "production":
+    if _IS_PRODUCTION:
         # Execute the precompiled regex in a single highly-optimized pass
         record["message"] = _REDACTION_PATTERN.sub(_redact_match, record["message"])
 
