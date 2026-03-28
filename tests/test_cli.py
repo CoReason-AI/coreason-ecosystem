@@ -174,6 +174,37 @@ def test_up_command(
 ) -> None:
     """Test the up command execution logic."""
     mock_calc_root.return_value = "deadbeef"
+    mock_exists.return_value = True
+    mock_is_port_bound.side_effect = [False, False, False, False]
+
+    mock_proc = AsyncMock()
+    mock_proc.communicate.return_value = (b"", b"")
+    mock_exec.return_value = mock_proc
+
+    result = runner.invoke(app, ["up"])
+    assert result.exit_code == 0
+    assert (
+        mock_exec.call_count == 4
+    )  # postgres, temporal, coreason-runtime, observability
+
+
+@patch(
+    "coreason_ecosystem.orchestration.up.calculate_epistemic_root",
+    new_callable=AsyncMock,
+)
+@patch("coreason_ecosystem.orchestration.up.write_registry_lock")
+@patch("coreason_ecosystem.orchestration.up.Path.exists")
+@patch("coreason_ecosystem.orchestration.up.asyncio.create_subprocess_exec")
+@patch("coreason_ecosystem.orchestration.up.is_port_bound")
+def test_up_command_compose_fallback(
+    mock_is_port_bound: Any,
+    mock_exec: Any,
+    mock_exists: Any,
+    mock_write_lock: Any,
+    mock_calc_root: Any,
+) -> None:
+    """Test the up command execution logic for the compose path fallback."""
+    mock_calc_root.return_value = "deadbeef"
     mock_exists.return_value = False
     mock_is_port_bound.side_effect = [False, False, False, False]
 
