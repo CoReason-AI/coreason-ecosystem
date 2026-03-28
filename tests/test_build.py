@@ -94,7 +94,6 @@ def test_build_command_target_not_exists(mock_exists: Any) -> None:
 @patch("coreason_ecosystem.orchestration.build.Path.is_dir")
 @patch("coreason_ecosystem.orchestration.build.Path.rglob")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
-@patch("coreason_ecosystem.orchestration.build.subprocess.run")
 def test_build_compiler_not_found(
     mock_run: Any,
     mock_rglob: Any,
