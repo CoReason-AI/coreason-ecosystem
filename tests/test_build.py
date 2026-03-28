@@ -64,6 +64,25 @@ def test_build_command_dir_no_files(
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
 @patch("coreason_ecosystem.orchestration.build.Path.is_dir")
+@patch("coreason_ecosystem.orchestration.build.Path.rglob")
+@patch("coreason_ecosystem.orchestration.build.subprocess.run")
+def test_build_compiler_not_found(
+    mock_run: Any, mock_rglob: Any, mock_is_dir: Any, mock_exists: Any
+) -> None:
+    """Test the build command when componentize-py is not found."""
+    mock_exists.return_value = True
+    mock_is_dir.return_value = False  # Target is a file
+    mock_run.side_effect = FileNotFoundError
+
+    result = runner.invoke(app, ["build", "test.py"])
+
+    assert result.exit_code == 1
+    assert "Fatal Error: 'componentize-py' compiler not found" in result.stdout
+    assert "uv pip install componentize-py" in result.stdout
+
+
+@patch("coreason_ecosystem.orchestration.build.Path.exists")
+@patch("coreason_ecosystem.orchestration.build.Path.is_dir")
 def test_build_command_dir_no_cap_dir(mock_is_dir: Any, mock_exists: Any) -> None:
     """Test the build command execution logic when capabilities dir does not exist."""
     mock_exists.side_effect = [True, False, False, False]
