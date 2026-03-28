@@ -1,7 +1,7 @@
 import asyncio
 import time
 from pathlib import Path
-from coreason_ecosystem.orchestration.registry import calculate_epistemic_root  # type: ignore
+from coreason_ecosystem.orchestration.registry import calculate_epistemic_root
 
 
 async def background_task() -> None:
