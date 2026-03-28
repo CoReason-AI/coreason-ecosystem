@@ -88,7 +88,7 @@ async def _otlp_worker(endpoint: str) -> None:
                     record = _otlp_queue.get_nowait()
                 except queue.Empty:
                     await asyncio.sleep(0.01)
-                    continue
+                    continue  # pragma: no cover
 
                 # Use the actual log generation timestamp, not current processing time
                 log_time_ns = int(record["time"].timestamp() * 1e9)
