@@ -43,7 +43,10 @@ def test_init_command(mock_execute_init: Any) -> None:
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_command(
-    mock_create_subprocess_exec: Any, mock_open: Any, mock_read_bytes: Any, mock_exists: Any
+    mock_create_subprocess_exec: Any,
+    mock_open: Any,
+    mock_read_bytes: Any,
+    mock_exists: Any,
 ) -> None:
     """Test the build command execution logic."""
     mock_proc = AsyncMock()
@@ -70,7 +73,10 @@ def test_build_command(
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_command_no_json(
-    mock_create_subprocess_exec: Any, mock_open: Any, mock_read_bytes: Any, mock_exists: Any
+    mock_create_subprocess_exec: Any,
+    mock_open: Any,
+    mock_read_bytes: Any,
+    mock_exists: Any,
 ) -> None:
     """Test the build command execution logic when JSON is invalid."""
     mock_proc = AsyncMock()
