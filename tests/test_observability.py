@@ -285,6 +285,7 @@ async def test_stop_otlp_background_worker_timeout() -> None:
 @patch("coreason_ecosystem.utils.telemetry.get_observability_settings")
 def test_telemetry_model_failure_diagnostics(mock_get_settings: Any) -> None:
     mock_get_settings.return_value.enable_diagnostics = True
+
     class TestModel(TelemetryModel):
         name: str
 
@@ -295,6 +296,7 @@ def test_telemetry_model_failure_diagnostics(mock_get_settings: Any) -> None:
 @patch("coreason_ecosystem.utils.telemetry.get_observability_settings")
 def test_telemetry_model_failure_no_diagnostics(mock_get_settings: Any) -> None:
     mock_get_settings.return_value.enable_diagnostics = False
+
     class TestModel(TelemetryModel):
         name: str
 
