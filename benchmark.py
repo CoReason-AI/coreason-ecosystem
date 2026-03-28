@@ -1,15 +1,15 @@
 import asyncio
 import time
 from pathlib import Path
-from coreason_ecosystem.orchestration.registry import calculate_epistemic_root
+from coreason_ecosystem.orchestration.registry import calculate_epistemic_root  # type: ignore
 
 
-async def background_task():
+async def background_task() -> None:
     for _ in range(50):
         await asyncio.sleep(0.01)
 
 
-async def run_benchmark():
+async def run_benchmark() -> None:
     # Setup files
     project_path = Path("/tmp/coreason_benchmark")
     project_path.mkdir(exist_ok=True)
