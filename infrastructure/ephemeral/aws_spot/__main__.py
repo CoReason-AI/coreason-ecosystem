@@ -8,6 +8,7 @@
 #
 # This license allows you to use and share this software for noncommercial purposes for free and to try this software for commercial purposes for thirty days.
 
+import base64
 import pulumi
 import pulumi_aws as aws
 
@@ -15,6 +16,9 @@ config = pulumi.Config()
 instance_type = config.require("instance_type")
 ami_id = config.require("ami_id")
 ssh_pub_key = config.require("ssh_pub_key")
+boot_payload_b64 = config.require("boot_payload_b64")
+
+boot_payload = base64.b64decode(boot_payload_b64).decode("utf-8")
 
 key_pair = aws.ec2.KeyPair("spot-key", public_key=ssh_pub_key)
 
@@ -23,6 +27,7 @@ spot_instance_request = aws.ec2.SpotInstanceRequest(
     ami=ami_id,
     instance_type=instance_type,
     key_name=key_pair.key_name,
+    user_data=boot_payload,
     wait_for_fulfillment=True,
     spot_type="one-time",
 )

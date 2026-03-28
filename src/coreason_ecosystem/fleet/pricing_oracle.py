@@ -9,21 +9,19 @@
 # This license allows you to use and share this software for noncommercial purposes for free and to try this software for commercial purposes for thirty days.
 
 
-from pydantic import BaseModel
+from typing import TYPE_CHECKING
 
-from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
+from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile  # type: ignore[attr-defined]
 
-
-class HardwareProfile(BaseModel):
-    min_vram_gb: float
-    provider_whitelist: list[str]
-    accelerator_type: str
+if TYPE_CHECKING:
+    from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
 
 
 class PricingOracle:
     async def calculate_optimal_bid(
         self, hardware_profile: HardwareProfile, max_budget_hr: float
-    ) -> ComputeNodeTarget | None:
+    ) -> "ComputeNodeTarget | None":
+        from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
         # Mock order book for available nodes
         order_book = [
             ComputeNodeTarget(

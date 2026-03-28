@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from coreason_ecosystem.fleet.daemon import AutonomicFleetManager
-from coreason_ecosystem.fleet.pricing_oracle import HardwareProfile
+from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
 from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
 
 
@@ -30,6 +30,8 @@ def manager(templates_path: Path) -> AutonomicFleetManager:
         max_budget_hr=5.0,
         polling_interval_sec=10,
         templates_path=templates_path,
+        mesh_auth_key="test_auth_key",
+        temporal_mesh_ip="10.0.0.5",
     )
 
 
@@ -41,10 +43,23 @@ async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
     profile = HardwareProfile(
         min_vram_gb=16.0, provider_whitelist=["aws"], accelerator_type="ampere"
     )
+    security_profile = SecurityProfile(network_isolation=True)
+    setattr(
+        manager.monitor,
+        "get_active_task_security_profile",
+        AsyncMock(return_value=security_profile),
+    )
     setattr(
         manager.monitor,
         "get_active_task_hardware_profile",
         AsyncMock(return_value=profile),
+    )
+
+    security_profile = SecurityProfile(network_isolation=True)
+    setattr(
+        manager.monitor,
+        "get_active_task_security_profile",
+        AsyncMock(return_value=security_profile),
     )
 
     bid = ComputeNodeTarget(
@@ -63,9 +78,15 @@ async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
 
     getattr(manager.monitor, "get_queue_derivative").assert_awaited_once()
     getattr(manager.monitor, "get_active_task_hardware_profile").assert_awaited_once()
+    getattr(manager.monitor, "get_active_task_security_profile").assert_awaited_once()
     getattr(manager.oracle, "calculate_optimal_bid").assert_awaited_once_with(
         profile, 5.0
     )
+
+    bid.hardware_profile = profile
+    bid.security_profile = security_profile
+    bid.mesh_auth_key = manager.mesh_auth_key
+    bid.temporal_mesh_ip = manager.temporal_mesh_ip
     getattr(manager.driver, "provision_node").assert_awaited_once_with(bid)
     assert manager._running is False
 

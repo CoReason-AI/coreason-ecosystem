@@ -24,9 +24,13 @@ class AutonomicFleetManager:
         max_budget_hr: float,
         polling_interval_sec: int,
         templates_path: Path,
+        mesh_auth_key: str,
+        temporal_mesh_ip: str,
     ) -> None:
         self.max_budget_hr = max_budget_hr
         self.polling_interval_sec = polling_interval_sec
+        self.mesh_auth_key = mesh_auth_key
+        self.temporal_mesh_ip = temporal_mesh_ip
         self.driver = PulumiFleetDriver(templates_dir=templates_path)
         self.oracle = PricingOracle()
         self.monitor = ThermodynamicMonitor()
@@ -44,12 +48,20 @@ class AutonomicFleetManager:
                 if derivative > 0:
                     # Scale Up Logic
                     profile = await self.monitor.get_active_task_hardware_profile()
-                    if profile:
+                    security_profile = await self.monitor.get_active_task_security_profile()
+
+                    if profile and security_profile:
                         bid = await self.oracle.calculate_optimal_bid(
                             profile, self.max_budget_hr
                         )
                         if bid:
                             logger.info(f"Optimal Bid Found: {bid}. Provisioning...")
+
+                            bid.hardware_profile = profile
+                            bid.security_profile = security_profile
+                            bid.mesh_auth_key = self.mesh_auth_key
+                            bid.temporal_mesh_ip = self.temporal_mesh_ip
+
                             result = await self.driver.provision_node(bid)
                             logger.info(
                                 f"Provisioning Complete: {result['stack_name']}"
