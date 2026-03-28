@@ -143,10 +143,16 @@ def start_otlp_background_worker() -> None:
 
 
 async def stop_otlp_background_worker() -> None:
-    """Gracefully flush the queue and shut down the OTLP worker."""
+    """Gracefully flush the queue and shut down the OTLP worker with a strict timeout."""
     global _otlp_queue, _otlp_task
+
     if _otlp_queue is not None:
-        await _otlp_queue.join()
+        try:
+            # Give the worker a maximum of 3 seconds to flush pending telemetry
+            await asyncio.wait_for(_otlp_queue.join(), timeout=3.0)
+        except asyncio.TimeoutError:
+            # If the network is degraded, abandon the remaining logs rather than hanging the CLI
+            pass
 
     if _otlp_task is not None:
         _otlp_task.cancel()

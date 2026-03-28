@@ -276,6 +276,29 @@ async def test_stop_otlp_background_worker_cancelled() -> None:
         await stop_otlp_background_worker()
 
 
+@pytest.mark.asyncio
+async def test_stop_otlp_background_worker_timeout() -> None:
+    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+    queue.put_nowait({"level": {"name": "INFO"}, "message": "test", "extra": {}})
+    loop = asyncio.get_running_loop()
+
+    async def mock_coro() -> None:
+        await asyncio.sleep(1)
+
+    mock_task = loop.create_task(mock_coro())
+
+    with (
+        patch("coreason_ecosystem.utils.telemetry._otlp_queue", queue),
+        patch("coreason_ecosystem.utils.telemetry._otlp_task", mock_task),
+        patch("asyncio.wait_for", side_effect=asyncio.TimeoutError),
+    ):
+        from coreason_ecosystem.utils.telemetry import stop_otlp_background_worker
+
+        # It shouldn't raise TimeoutError because we catch it in stop_otlp_background_worker
+        await stop_otlp_background_worker()
+        assert mock_task.cancelled()
+
+
 @patch.dict("os.environ", {"COREASON_ENABLE_DIAGNOSTICS": "1"})
 def test_telemetry_model_failure_diagnostics() -> None:
     class TestModel(TelemetryModel):

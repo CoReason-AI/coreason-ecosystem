@@ -17,6 +17,14 @@ def global_excepthook(
     exc_value: BaseException,
     exc_traceback: Any,
 ) -> None:  # pragma: no cover
+    from coreason_ecosystem.utils.logger import logger
+
+    # 1. Log the critical error to the mesh (JSON + OTLP)
+    logger.opt(exception=(exc_type, exc_value, exc_traceback)).critical(
+        f"Fatal Execution Error: {exc_value}"
+    )
+
+    # 2. Print to the operator's terminal
     console.print(f"[bold red]✗ Fatal Execution Error:[/bold red] {exc_value}")
     sys.exit(1)
 
