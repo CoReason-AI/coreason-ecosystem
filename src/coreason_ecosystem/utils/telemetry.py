@@ -40,7 +40,7 @@ __all__ = [
 __all__.append("bind_epistemic_context")
 
 
-class ObservabilitySettings(BaseSettings):  # type: ignore[misc]
+class ObservabilitySettings(BaseSettings):
     """
     Dynamic configuration for the Observability Mesh.
     """
