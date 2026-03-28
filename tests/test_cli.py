@@ -21,6 +21,28 @@ def test_cli_main_entry() -> None:
     assert "CoReason Meta-Orchestrator Control Plane" in result.stdout
 
 
+def test_version_callback_happy_path() -> None:
+    """Test the version callback with a successful version lookup."""
+    with patch("importlib.metadata.version") as mock_version:
+        mock_version.return_value = "1.2.3"
+        result = runner.invoke(app, ["--version"])
+        assert result.exit_code == 0
+        assert "v1.2.3" in result.stdout
+        mock_version.assert_called_once_with("coreason-ecosystem")
+
+
+def test_version_callback_local_dev() -> None:
+    """Test the version callback when package is not found (local development)."""
+    import importlib.metadata
+
+    with patch("importlib.metadata.version") as mock_version:
+        mock_version.side_effect = importlib.metadata.PackageNotFoundError
+        result = runner.invoke(app, ["--version"])
+        assert result.exit_code == 0
+        assert "vunknown (local development)" in result.stdout
+        mock_version.assert_called_once_with("coreason-ecosystem")
+
+
 def test_main_module_execution() -> None:
     """Test that the __main__ module starts the CLI application."""
     with patch("coreason_ecosystem.cli.app") as mock_app:
