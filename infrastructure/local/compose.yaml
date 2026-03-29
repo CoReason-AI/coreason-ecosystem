@@ -24,9 +24,6 @@ services:
           memory: '4G'
     environment:
       - EPISTEMIC_MERKLE_ROOT=${EPISTEMIC_MERKLE_ROOT}
-    volumes:
-      - ./latent_memory.lance:/app/latent_memory.lance
-      - ./epistemic_ledger.lance:/app/epistemic_ledger.lance
     ports:
       - "8000:8000"
     networks:
