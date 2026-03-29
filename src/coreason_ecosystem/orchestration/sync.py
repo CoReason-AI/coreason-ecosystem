@@ -9,13 +9,14 @@
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
 import asyncio
-import json
+import os
+import subprocess
 from pathlib import Path
 
+import typer
 from rich.status import Status
 
 from coreason_ecosystem.cli import console
-from coreason_ecosystem.orchestration.build import execute_build
 from coreason_ecosystem.orchestration.registry import (
     calculate_epistemic_root,
     write_registry_lock,
@@ -28,19 +29,6 @@ async def execute_sync() -> None:
     project_path = Path.cwd()
 
     with Status("[cyan]Detecting Drift...[/cyan]", console=console) as status:
-        # 1. Semantic Sync
-        status.update("[yellow]Regenerating Ontology...[/yellow]")
-        schema = {
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "title": "Swarm Ontology",
-        }
-        schema_path = project_path / "coreason_ontology.schema.json"
-        with schema_path.open("w", encoding="utf-8") as f:
-            json.dump(schema, f, indent=4)
-
-        # 2. Physical Sync
-        status.update("[magenta]Re-crystallizing Capabilities...[/magenta]")
-        await execute_build(str(project_path))
 
         # 3. Registry Sync
         status.update("[blue]Syncing Epistemic Registry...[/blue]")
@@ -49,27 +37,43 @@ async def execute_sync() -> None:
 
         # 4. Thermodynamic Restart
         status.update("[red]Initiating Thermodynamic Restart...[/red]")
-        compose_path = (
-            Path(__file__).parent.parent.parent.parent
-            / "infrastructure"
-            / "local"
-            / "compose.yaml"
-        )
+        compose_path = project_path / "infrastructure" / "local" / "compose.yaml"
         if not compose_path.exists():
-            compose_path = project_path / "infrastructure" / "local" / "compose.yaml"
+            compose_path = (
+                Path(__file__).parent.parent.parent.parent
+                / "infrastructure"
+                / "local"
+                / "compose.yaml"
+            )
+            if not compose_path.exists():
+                console.print(
+                    "[bold red]Error: Could not locate compose.yaml in workspace or fallback path.[/bold red]"
+                )
+                raise typer.Exit(1)
 
         import shutil
 
         docker_bin = shutil.which("docker") or "docker"
+
+        env = os.environ.copy()
+        env["EPISTEMIC_MERKLE_ROOT"] = root_hash
+
         process = await asyncio.create_subprocess_exec(
             docker_bin,
             "compose",
             "-f",
             str(compose_path.resolve()),
-            "restart",
+            "up",
+            "-d",
             "coreason-runtime",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
         )
-        await process.wait()
+        _, stderr = await process.communicate()
+        if process.returncode != 0:
+            console.print(f"[bold red]Error starting coreason-runtime:[/bold red]\n[bold red]{stderr.decode('utf-8')}[/bold red]")
+            raise typer.Exit(1)
 
         status.update("[green]Swarm Restored.[/green]")
         console.print("[bold green]✓ Autopoietic Healing Complete[/bold green]")
