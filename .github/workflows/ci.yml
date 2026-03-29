@@ -93,6 +93,12 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest]
         python-version: ["3.14-dev", "3.14t-dev"]
+      exclude:
+        # grpcio compilation fails on Windows/macOS for Python 3.14 freethreaded
+        - os: windows-latest
+          python-version: "3.14t-dev"
+        - os: macos-latest
+          python-version: "3.14t-dev"
     steps:
       - uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493
       - name: Install uv
