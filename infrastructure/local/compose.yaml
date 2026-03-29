@@ -16,14 +16,14 @@ services:
       - swarm-mesh
 
   coreason-runtime:
-    build:
-      context: ../../
-      dockerfile: Dockerfile
+    image: ghcr.io/coreason/coreason-runtime:latest
     deploy:
       resources:
         limits:
           cpus: '2.0'
           memory: '4G'
+    environment:
+      - EPISTEMIC_MERKLE_ROOT=${EPISTEMIC_MERKLE_ROOT}
     volumes:
       - ./latent_memory.lance:/app/latent_memory.lance
       - ./epistemic_ledger.lance:/app/epistemic_ledger.lance
@@ -35,8 +35,6 @@ services:
 
   prometheus:
     image: prom/prometheus
-    volumes:
-      - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - swarm-mesh
 
@@ -44,9 +42,6 @@ services:
     image: grafana/grafana
     ports:
       - "3000:3000"
-    volumes:
-      - ../observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
-      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards
     networks:
       - swarm-mesh
 
