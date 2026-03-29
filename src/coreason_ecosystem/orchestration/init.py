@@ -29,15 +29,22 @@ async def execute_init(project_name: str, topology: str = "base") -> None:
     project_path.mkdir(parents=True, exist_ok=True)
 
     # 1. Directory Genesis
-    (project_path / "src" / "agents").mkdir(parents=True, exist_ok=True)
-    (project_path / "src" / "capabilities").mkdir(parents=True, exist_ok=True)
-    (project_path / "src" / "intents").mkdir(parents=True, exist_ok=True)
+    package_name = project_name.replace("-", "_")
+    package_dir = project_path / "src" / package_name
+    (package_dir / "agents").mkdir(parents=True, exist_ok=True)
+    (package_dir / "capabilities").mkdir(parents=True, exist_ok=True)
+    (package_dir / "intents").mkdir(parents=True, exist_ok=True)
 
     # 2. Dependency Locking
-    try:
-        manifest_version = importlib.metadata.version("coreason-manifest")
-    except importlib.metadata.PackageNotFoundError:
-        manifest_version = "0.1.0"  # Fallback
+    def get_version(pkg_name: str) -> str:
+        try:
+            return importlib.metadata.version(pkg_name)
+        except importlib.metadata.PackageNotFoundError:
+            return "0.1.0"  # Fallback
+
+    runtime_version = get_version("coreason-runtime")
+    manifest_version = get_version("coreason-manifest")
+    ecosystem_version = get_version("coreason-ecosystem")
 
     pyproject_toml_content = f"""[build-system]
 requires = ["hatchling"]
@@ -47,9 +54,13 @@ build-backend = "hatchling.build"
 name = "{project_name}"
 version = "0.1.0"
 description = "Autopoietically generated CoReason Swarm Workspace"
+requires-python = ">=3.14"
 dependencies = [
-    "coreason-runtime=={manifest_version}",
-    "coreason-manifest=={manifest_version}"
+    "coreason-runtime>={runtime_version}",
+    "coreason-manifest>={manifest_version}",
+    "coreason-ecosystem>={ecosystem_version}",
+    "componentize-py",
+    "extism-pdk"
 ]
 """
     (project_path / "pyproject.toml").write_text(pyproject_toml_content)
@@ -63,7 +74,7 @@ dependencies = [
         json.dump(schema, f, indent=4)
 
     # 4. Topological Routing
-    cap_dir = project_path / "src" / "capabilities"
+    cap_dir = package_dir / "capabilities"
     cap_template = """# Copyright (c) 2026 CoReason, Inc.
 # Licensed under the Prosperity Public License 3.0
 
