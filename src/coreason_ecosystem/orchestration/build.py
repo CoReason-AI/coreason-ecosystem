@@ -42,20 +42,66 @@ async def execute_build(target_path: str) -> None:
     else:
         files_to_build = [target]
 
-    if not files_to_build:
+    # Filter to only compile capability files
+    capability_files = []
+    for f_path in files_to_build:
+        if f_path.is_file() and "# coreason: capability" in f_path.read_text(
+            encoding="utf-8"
+        ):
+            capability_files.append(f_path)
+
+    if not capability_files:
         console.print(
             f"[yellow]Warning:[/yellow] No capabilities found to build in {target_path}."
         )
         return
 
-    # Ensure the .coreason directory exists in the user's current working directory
+    # Ensure the .coreason directory and bin directory exist in the user's current working directory
     coreason_dir = Path.cwd() / ".coreason"
-    coreason_dir.mkdir(parents=True, exist_ok=True)
+    bin_dir = coreason_dir / "bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
 
     # Load existing ledger
     ledger_path = coreason_dir / "capability_ledger.json"
     lock_path = coreason_dir / "capability_ledger.json.lock"
 
+    async def compile_file(file_path: Path) -> tuple[Path, str, str]:
+        wasm_out_path = bin_dir / f"{file_path.stem}.wasm"
+        try:
+            compile_proc = await asyncio.create_subprocess_exec(
+                "componentize-py",
+                "-d",
+                "coreason-bindings",
+                "-w",
+                "extism",
+                str(file_path),
+                "-o",
+                str(wasm_out_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await compile_proc.communicate()
+            if compile_proc.returncode != 0:
+                console.print(f"[bold red]Error compiling {file_path}:[/bold red]")
+                console.print(stderr.decode("utf-8", errors="replace"))
+                raise typer.Exit(1)
+
+            # 2. Calculate the cryptographic SHA-256 hash of the compiled file
+            content = await asyncio.to_thread(wasm_out_path.read_bytes)
+            file_hash = hashlib.sha256(content).hexdigest()
+            return file_path, str(file_path.relative_to(Path.cwd())), file_hash
+        except FileNotFoundError:
+            console.print(
+                "[bold red]✗ Fatal Error: 'componentize-py' compiler not found.[/bold red]"
+            )
+            console.print(
+                "Please install the WASM toolchain: [cyan]uv pip install componentize-py[/cyan]"
+            )
+            raise typer.Exit(1)
+
+    results = await asyncio.gather(*(compile_file(f) for f in capability_files))
+
+    # 4. Register the hash into .coreason/capability_ledger.json
     with FileLock(lock_path, timeout=10):
         ledger_data = {}
         if ledger_path.exists():
@@ -65,53 +111,17 @@ async def execute_build(target_path: str) -> None:
             except json.JSONDecodeError:
                 ledger_data = {}
 
-        for file_path in files_to_build:
-            wasm_out_path = file_path.with_suffix(".wasm")
-
-            try:
-                compile_proc = await asyncio.create_subprocess_exec(
-                    "componentize-py",
-                    "-d",
-                    "coreason-bindings",
-                    "-w",
-                    "extism",
-                    str(file_path),
-                    "-o",
-                    str(wasm_out_path),
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                stdout, stderr = await compile_proc.communicate()
-            except FileNotFoundError:
-                console.print(
-                    "[bold red]✗ Fatal Error: 'componentize-py' compiler not found.[/bold red]"
-                )
-                console.print(
-                    "Please install the WASM toolchain: [cyan]uv pip install componentize-py[/cyan]"
-                )
-                raise typer.Exit(1)
-
-            if compile_proc.returncode != 0:
-                console.print(f"[bold red]Error compiling {file_path}:[/bold red]")
-                console.print(stderr.decode("utf-8", errors="replace"))
-                raise typer.Exit(1)
-
-            # 2. Calculate the cryptographic SHA-256 hash of the compiled file
-            content = wasm_out_path.read_bytes()
-
-            # 3. Store the hash using target path as key
-            file_hash = hashlib.sha256(content).hexdigest()
-            ledger_data[str(file_path.resolve())] = file_hash
+        for file_path, rel_path, file_hash in results:
+            ledger_data[rel_path] = file_hash
 
             # Output the calculated Epistemic Seal (hash) to the terminal
             panel = Panel(
-                f"[green]Capability Crystallized:[/green]\n[cyan]{file_path.resolve()}[/cyan]\n\n"
+                f"[green]Capability Crystallized:[/green]\n[cyan]{rel_path}[/cyan]\n\n"
                 f"[bold]Epistemic Seal (SHA-256):[/bold]\n[yellow]{file_hash}[/yellow]",
                 title="[bold blue]Build Complete[/bold blue]",
                 expand=False,
             )
             console.print(panel)
 
-        # 4. Register the hash into .coreason/capability_ledger.json
         with ledger_path.open("w", encoding="utf-8") as f:
             json.dump(ledger_data, f, indent=4)

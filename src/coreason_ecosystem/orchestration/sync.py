@@ -20,6 +20,7 @@ from coreason_ecosystem.orchestration.registry import (
     calculate_epistemic_root,
     write_registry_lock,
 )
+from coreason_manifest.utils.algebra import get_ontology_schema
 
 
 async def execute_sync() -> None:
@@ -30,13 +31,10 @@ async def execute_sync() -> None:
     with Status("[cyan]Detecting Drift...[/cyan]", console=console) as status:
         # 1. Semantic Sync
         status.update("[yellow]Regenerating Ontology...[/yellow]")
-        schema = {
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "title": "Swarm Ontology",
-        }
+        schema = get_ontology_schema()
         schema_path = project_path / "coreason_ontology.schema.json"
         with schema_path.open("w", encoding="utf-8") as f:
-            json.dump(schema, f, indent=4)
+            json.dump(schema, f, ensure_ascii=False, indent=2)
 
         # 2. Physical Sync
         status.update("[magenta]Re-crystallizing Capabilities...[/magenta]")
@@ -49,14 +47,14 @@ async def execute_sync() -> None:
 
         # 4. Thermodynamic Restart
         status.update("[red]Initiating Thermodynamic Restart...[/red]")
-        compose_path = (
-            Path(__file__).parent.parent.parent.parent
-            / "infrastructure"
-            / "local"
-            / "compose.yaml"
-        )
+        compose_path = project_path / "infrastructure" / "local" / "compose.yaml"
         if not compose_path.exists():
-            compose_path = project_path / "infrastructure" / "local" / "compose.yaml"
+            compose_path = (
+                Path(__file__).parent.parent.parent.parent
+                / "infrastructure"
+                / "local"
+                / "compose.yaml"
+            )
 
         import shutil
 
@@ -66,10 +64,15 @@ async def execute_sync() -> None:
             "compose",
             "-f",
             str(compose_path.resolve()),
-            "restart",
+            "up",
+            "-d",
+            "--force-recreate",
             "coreason-runtime",
         )
         await process.wait()
+
+        if process.returncode != 0:
+            raise RuntimeError("Docker Compose Sync Failed.")
 
         status.update("[green]Swarm Restored.[/green]")
         console.print("[bold green]✓ Autopoietic Healing Complete[/bold green]")

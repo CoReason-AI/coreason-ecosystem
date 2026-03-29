@@ -48,6 +48,7 @@ def test_sync_command(
 
     # Mock the returned process
     mock_process = AsyncMock()
+    mock_process.returncode = 0
     mock_sub_exec.return_value = mock_process
 
     result = runner.invoke(app, ["sync"])
@@ -90,6 +91,7 @@ def test_sync_command_compose_fallback(
 
     # Mock the returned process
     mock_process = AsyncMock()
+    mock_process.returncode = 0
     mock_sub_exec.return_value = mock_process
 
     result = runner.invoke(app, ["sync"])
