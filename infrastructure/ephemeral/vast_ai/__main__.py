@@ -1,12 +1,12 @@
-# Copyright (c) 2026 CoReason, Inc
+# The Prosperity Public License 3.0.0
 #
-# This software is proprietary and dual-licensed
-# Licensed under the Prosperity Public License 3.0 (the "License")
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
-# For details, see the LICENSE file
-# Commercial use beyond a 30-day trial requires a separate license
+# Contributor: CoReason, Inc.
 #
-# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
+# Source Code: https://github.com/CoReason-AI/coreason_manifest
+#
+# Purpose
+#
+# This license allows you to use and share this software for noncommercial purposes for free and to try this software for commercial purposes for thirty days.
 
 import base64
 import pulumi
