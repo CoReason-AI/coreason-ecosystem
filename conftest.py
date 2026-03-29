@@ -21,7 +21,7 @@ class SecurityProfile(BaseModel):
     network_isolation: bool = True
 
 
-import coreason_manifest.spec.ontology as module
+import coreason_manifest.spec.ontology as module  # noqa: E402
 
 module.HardwareProfile = HardwareProfile
 module.SecurityProfile = SecurityProfile
