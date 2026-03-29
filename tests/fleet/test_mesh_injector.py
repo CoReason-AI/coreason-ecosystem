@@ -8,14 +8,16 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-import pytest
 import base64
 from coreason_ecosystem.fleet.mesh_injector import MeshInjector
 from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
 
+
 def test_mesh_injector_aws_isolated():
     injector = MeshInjector()
-    hw = HardwareProfile(min_vram_gb=16.0, provider_whitelist=["aws"], accelerator_type="ampere")
+    hw = HardwareProfile(
+        min_vram_gb=16.0, provider_whitelist=["aws"], accelerator_type="ampere"
+    )
     sec = SecurityProfile(network_isolation=True)
     payload_b64 = injector.compile_payload("aws", hw, sec, "test_auth_key", "10.0.0.5")
     payload = base64.b64decode(payload_b64).decode("utf-8")
@@ -26,9 +28,12 @@ def test_mesh_injector_aws_isolated():
     assert "WASM_MAX_PAGES" in payload
     assert "#cloud-config" in payload
 
+
 def test_mesh_injector_vast_not_isolated():
     injector = MeshInjector()
-    hw = HardwareProfile(min_vram_gb=16.0, provider_whitelist=["vast"], accelerator_type="ampere")
+    hw = HardwareProfile(
+        min_vram_gb=16.0, provider_whitelist=["vast"], accelerator_type="ampere"
+    )
     sec = SecurityProfile(network_isolation=False)
     payload_b64 = injector.compile_payload("vast", hw, sec, "test_auth_key", "10.0.0.5")
     payload = base64.b64decode(payload_b64).decode("utf-8")

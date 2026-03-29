@@ -32,3 +32,10 @@ async def test_get_active_task_hardware_profile(monitor: ThermodynamicMonitor) -
     assert "aws" in profile.provider_whitelist
     assert "vast" in profile.provider_whitelist
     assert profile.accelerator_type == "ampere"
+
+
+@pytest.mark.asyncio
+async def test_get_active_task_security_profile(monitor: ThermodynamicMonitor) -> None:
+    profile = await monitor.get_active_task_security_profile()
+    assert profile is not None
+    assert profile.network_isolation is True
