@@ -1,12 +1,12 @@
-# The Prosperity Public License 3.0.0
+# Copyright (c) 2026 CoReason, Inc
 #
-# Contributor: CoReason, Inc.
+# This software is proprietary and dual-licensed
+# Licensed under the Prosperity Public License 3.0 (the "License")
+# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
+# For details, see the LICENSE file
+# Commercial use beyond a 30-day trial requires a separate license
 #
-# Source Code: https://github.com/CoReason-AI/coreason_manifest
-#
-# Purpose
-#
-# This license allows you to use and share this software for noncommercial purposes for free and to try this software for commercial purposes for thirty days.
+# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
 import asyncio
 import uuid
@@ -17,17 +17,25 @@ from loguru import logger
 from pydantic import BaseModel
 from pulumi import automation as auto
 
+from coreason_ecosystem.fleet.mesh_injector import MeshInjector
+from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile  # type: ignore[attr-defined]
+
 
 class ComputeNodeTarget(BaseModel):
     provider: Literal["aws", "vast"]
     instance_id: str
     hourly_cost: float
     vram_gb: float
+    hardware_profile: HardwareProfile | None = None
+    security_profile: SecurityProfile | None = None
+    mesh_auth_key: str | None = None
+    temporal_mesh_ip: str | None = None
 
 
 class PulumiFleetDriver:
     def __init__(self, templates_dir: Path) -> None:
         self.templates_dir = templates_dir
+        self.injector = MeshInjector()
 
     async def provision_node(self, target: ComputeNodeTarget) -> dict[str, str]:
         stack_name = f"fleet-worker-{uuid.uuid4().hex[:8]}"
@@ -43,6 +51,17 @@ class PulumiFleetDriver:
         )
 
         stack.set_config("provider", auto.ConfigValue(target.provider))
+
+        if target.hardware_profile and target.security_profile and target.mesh_auth_key and target.temporal_mesh_ip:
+            payload_b64 = self.injector.compile_payload(
+                provider=target.provider,
+                hardware=target.hardware_profile,
+                security=target.security_profile,
+                mesh_auth_key=target.mesh_auth_key,
+                temporal_mesh_ip=target.temporal_mesh_ip,
+            )
+            stack.set_config("boot_payload_b64", auto.ConfigValue(value=payload_b64))
+
         if target.provider == "aws":
             stack.set_config("instance_type", auto.ConfigValue(target.instance_id))
             stack.set_config("ami_id", auto.ConfigValue("ami-0abcdef1234567890"))

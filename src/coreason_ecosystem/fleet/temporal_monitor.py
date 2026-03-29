@@ -1,17 +1,16 @@
-# The Prosperity Public License 3.0.0
+# Copyright (c) 2026 CoReason, Inc
 #
-# Contributor: CoReason, Inc.
+# This software is proprietary and dual-licensed
+# Licensed under the Prosperity Public License 3.0 (the "License")
+# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
+# For details, see the LICENSE file
+# Commercial use beyond a 30-day trial requires a separate license
 #
-# Source Code: https://github.com/CoReason-AI/coreason_manifest
-#
-# Purpose
-#
-# This license allows you to use and share this software for noncommercial purposes for free and to try this software for commercial purposes for thirty days.
+# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
 import asyncio
 
-
-from coreason_ecosystem.fleet.pricing_oracle import HardwareProfile
+from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile  # type: ignore[attr-defined]
 
 
 class ThermodynamicMonitor:
@@ -23,6 +22,7 @@ class ThermodynamicMonitor:
             provider_whitelist=["aws", "vast"],
             accelerator_type="ampere",
         )
+        self._mock_security_profile = SecurityProfile(network_isolation=True)
 
     async def get_queue_derivative(self) -> float:
         # Simulate fetching Temporal kinetic-queue depth via Prometheus HTTP call.
@@ -33,3 +33,8 @@ class ThermodynamicMonitor:
         # Simulate fetching the requirements of the pending tasks
         await asyncio.sleep(0.1)
         return self._mock_hardware_profile
+
+    async def get_active_task_security_profile(self) -> SecurityProfile | None:
+        # Simulate fetching the security requirements of the pending tasks
+        await asyncio.sleep(0.1)
+        return self._mock_security_profile

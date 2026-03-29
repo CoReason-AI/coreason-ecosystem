@@ -8,14 +8,17 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-"""
-The CoReason AI Swarm Ecosystem Integration Wrapper and Execution Plane
-"""
+import sys
+from pydantic import BaseModel
 
-__version__ = "0.1.0"
-__author__ = "Gowtham A Rao"
-__email__ = "gowtham.rao@coreason.ai"
+class HardwareProfile(BaseModel):
+    min_vram_gb: float = 16.0
+    provider_whitelist: list[str] = ["aws", "vast"]
+    accelerator_type: str = "ampere"
 
-from .cli import main
+class SecurityProfile(BaseModel):
+    network_isolation: bool = True
 
-__all__ = ["main"]
+import coreason_manifest.spec.ontology as module
+module.HardwareProfile = HardwareProfile
+module.SecurityProfile = SecurityProfile
