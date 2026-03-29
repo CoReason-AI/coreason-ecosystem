@@ -62,6 +62,11 @@ dependencies = [
     "componentize-py",
     "extism-pdk"
 ]
+
+[dependency-groups]
+dev = [
+    "pre-commit"
+]
 """
     (project_path / "pyproject.toml").write_text(pyproject_toml_content)
 
