@@ -10,7 +10,7 @@
 
 from typing import TYPE_CHECKING
 
-from coreason_manifest.spec.ontology import HardwareProfile  # type: ignore[attr-defined]
+from coreason_manifest.spec.ontology import HardwareProfile
 
 if TYPE_CHECKING:
     from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget

@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from pulumi import automation as auto
 
 from coreason_ecosystem.fleet.mesh_injector import MeshInjector
-from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile  # type: ignore[attr-defined]
+from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
 
 
 class ComputeNodeTarget(BaseModel):

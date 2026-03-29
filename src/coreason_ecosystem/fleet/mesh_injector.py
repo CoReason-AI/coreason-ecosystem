@@ -12,7 +12,7 @@ import base64
 import math
 from typing import Literal
 
-from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile  # type: ignore[attr-defined]
+from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
 
 
 class MeshInjector:

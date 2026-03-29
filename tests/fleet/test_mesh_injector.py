@@ -13,7 +13,7 @@ from coreason_ecosystem.fleet.mesh_injector import MeshInjector
 from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
 
 
-def test_mesh_injector_aws_isolated():
+def test_mesh_injector_aws_isolated() -> None:
     injector = MeshInjector()
     hw = HardwareProfile(
         min_vram_gb=16.0, provider_whitelist=["aws"], accelerator_type="ampere"
@@ -29,7 +29,7 @@ def test_mesh_injector_aws_isolated():
     assert "#cloud-config" in payload
 
 
-def test_mesh_injector_vast_not_isolated():
+def test_mesh_injector_vast_not_isolated() -> None:
     injector = MeshInjector()
     hw = HardwareProfile(
         min_vram_gb=16.0, provider_whitelist=["vast"], accelerator_type="ampere"
