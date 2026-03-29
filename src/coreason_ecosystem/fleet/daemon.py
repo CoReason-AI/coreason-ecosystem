@@ -48,7 +48,9 @@ class AutonomicFleetManager:
                 if derivative > 0:
                     # Scale Up Logic
                     profile = await self.monitor.get_active_task_hardware_profile()
-                    security_profile = await self.monitor.get_active_task_security_profile()
+                    security_profile = (
+                        await self.monitor.get_active_task_security_profile()
+                    )
 
                     if profile and security_profile:
                         bid = await self.oracle.calculate_optimal_bid(

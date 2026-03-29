@@ -16,6 +16,7 @@ from coreason_ecosystem.fleet.pulumi_actuator import (
     PulumiFleetDriver,
     ComputeNodeTarget,
 )
+from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
 
 
 @pytest.fixture
@@ -37,8 +38,20 @@ def driver(tmp_templates_dir: Path) -> PulumiFleetDriver:
 async def test_provision_node_aws(
     mock_auto: MagicMock, driver: PulumiFleetDriver
 ) -> None:
+    hw_prof = HardwareProfile(
+        min_vram_gb=16.0, provider_whitelist=["aws"], accelerator_type="ampere"
+    )
+    sec_prof = SecurityProfile(network_isolation=True)
+
     target = ComputeNodeTarget(
-        provider="aws", instance_id="t3.micro", hourly_cost=0.01, vram_gb=0.0
+        provider="aws",
+        instance_id="t3.micro",
+        hourly_cost=0.01,
+        vram_gb=0.0,
+        hardware_profile=hw_prof,
+        security_profile=sec_prof,
+        mesh_auth_key="test_auth_key",
+        temporal_mesh_ip="10.0.0.5",
     )
 
     mock_stack = MagicMock()
@@ -56,7 +69,16 @@ async def test_provision_node_aws(
     mock_stack.set_config.assert_any_call(
         "instance_type", mock_auto.ConfigValue("t3.micro")
     )
+    # Check that boot payload was compiled and injected
+    assert any(
+        call[0][0] == "boot_payload_b64"
+        for call in mock_stack.set_config.call_args_list
+    )
     mock_stack.up.assert_called_once()
+
+    # Assert on_output callback
+    on_output_cb = mock_stack.up.call_args[1]["on_output"]
+    on_output_cb(" test msg ")
 
 
 @pytest.mark.asyncio
@@ -92,6 +114,10 @@ async def test_destroy_node(mock_auto: MagicMock, driver: PulumiFleetDriver) -> 
     mock_auto.select_stack.assert_called_once()
     mock_stack.destroy.assert_called_once()
     mock_stack.workspace.remove_stack.assert_called_once_with("fleet-worker-xyz")
+
+    # Assert on_output callback
+    on_output_cb = mock_stack.destroy.call_args[1]["on_output"]
+    on_output_cb(" test msg ")
 
 
 @pytest.mark.asyncio

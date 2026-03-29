@@ -1,12 +1,12 @@
-# Copyright (c) 2026 CoReason, Inc
+# The Prosperity Public License 3.0.0
 #
-# This software is proprietary and dual-licensed
-# Licensed under the Prosperity Public License 3.0 (the "License")
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
-# For details, see the LICENSE file
-# Commercial use beyond a 30-day trial requires a separate license
+# Contributor: CoReason, Inc.
 #
-# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
+# Source Code: https://github.com/CoReason-AI/coreason_manifest
+#
+# Purpose
+#
+# This license allows you to use and share this software for noncommercial purposes for free and to try this software for commercial purposes for thirty days.
 
 import asyncio
 import importlib.metadata
@@ -85,8 +85,12 @@ app.add_typer(fleet_app, name="fleet", help="Manage the autonomic compute fleet.
 
 @fleet_app.command("start")
 def fleet_start(
-    mesh_auth_key: str = typer.Option(..., help="The ephemeral Tailscale/Headscale auth key"),
-    temporal_mesh_ip: str = typer.Option(..., help="The internal 10.x.x.x IP of the Medallion State Engine"),
+    mesh_auth_key: str = typer.Option(
+        ..., help="The ephemeral Tailscale/Headscale auth key"
+    ),
+    temporal_mesh_ip: str = typer.Option(
+        ..., help="The internal 10.x.x.x IP of the Medallion State Engine"
+    ),
     max_budget_hr: float = typer.Option(5.0, help="Max budget per hour"),
     polling_interval: int = typer.Option(10, help="Polling interval in seconds"),
 ) -> None:  # pragma: no cover

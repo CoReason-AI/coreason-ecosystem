@@ -186,3 +186,31 @@ async def test_daemon_start_no_bid_found(manager: AutonomicFleetManager) -> None
         await manager.start()
 
     getattr(manager.driver, "provision_node").assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_daemon_start_no_bid_found_with_requirements(
+    manager: AutonomicFleetManager,
+) -> None:
+    setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=1.5))
+    profile = HardwareProfile(
+        min_vram_gb=16.0, provider_whitelist=["aws"], accelerator_type="ampere"
+    )
+    security_profile = SecurityProfile(network_isolation=True)
+    setattr(
+        manager.monitor,
+        "get_active_task_hardware_profile",
+        AsyncMock(return_value=profile),
+    )
+    setattr(
+        manager.monitor,
+        "get_active_task_security_profile",
+        AsyncMock(return_value=security_profile),
+    )
+    setattr(manager.oracle, "calculate_optimal_bid", AsyncMock(return_value=None))
+    setattr(manager.driver, "provision_node", AsyncMock())
+
+    with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
+        await manager.start()
+
+    getattr(manager.driver, "provision_node").assert_not_called()
