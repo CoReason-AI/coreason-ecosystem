@@ -40,19 +40,38 @@ async def execute_init(project_name: str, topology: str = "base") -> None:
         manifest_version = "0.1.0"  # Fallback
 
     pyproject_toml_content = f"""[build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "{project_name}"
 version = "0.1.0"
 description = "Autopoietically generated CoReason Swarm Workspace"
+requires-python = ">=3.14"
 dependencies = [
-    "coreason-runtime=={manifest_version}",
-    "coreason-manifest=={manifest_version}"
+    "coreason-runtime>={manifest_version}",
+    "coreason-manifest>={manifest_version}",
+    "coreason-ecosystem",
+    "componentize-py",
+    "extism-pdk"
 ]
+
+[dependency-groups]
+dev = [
+    "pre-commit"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/{project_name}"]
 """
     (project_path / "pyproject.toml").write_text(pyproject_toml_content)
+
+    # 2.5 WASM Interface Scaffolding
+    wit_content = """package coreason:bindings;
+world agent {
+}
+"""
+    (project_path / "coreason-bindings.wit").write_text(wit_content)
 
     # 3. Ontological Seed
     schema = {
@@ -66,6 +85,8 @@ dependencies = [
     cap_dir = project_path / "src" / "capabilities"
     cap_template = """# Copyright (c) 2026 CoReason, Inc.
 # Licensed under the Prosperity Public License 3.0
+
+# coreason: capability
 
 import json
 import sys

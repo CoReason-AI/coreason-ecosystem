@@ -42,23 +42,31 @@ def test_build_command_dir(
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"print('hello')"
     mock_is_dir.return_value = True
-    mock_rglob.return_value = [Path("test1.py"), Path("test2.py")]
 
-    mock_process = AsyncMock()
-    mock_process.returncode = 0
-    mock_process.communicate.return_value = (b"", b"")
-    mock_create_subprocess_exec.return_value = mock_process
+    # We need to mock read_text to include '# coreason: capability' for the files
+    cwd = Path.cwd()
+    p1, p2 = cwd / "test1.py", cwd / "test2.py"
 
-    import io
+    with patch("coreason_ecosystem.orchestration.build.Path.is_file", return_value=True):
+        with patch("coreason_ecosystem.orchestration.build.Path.read_text", return_value="# coreason: capability"):
+            mock_rglob.return_value = [p1, p2]
 
-    # We need to simulate the file open for both reading and writing the JSON
-    # For writing, mock the open context manager
-    mock_file = io.StringIO(json.dumps({"test": "hash"}))
-    mock_open.return_value.__enter__.return_value = mock_file
+            mock_process = AsyncMock()
+            mock_process.returncode = 0
+            mock_process.communicate.return_value = (b"", b"")
+            mock_create_subprocess_exec.return_value = mock_process
 
-    result = runner.invoke(app, ["build", "dummy_dir"])
-    assert result.exit_code == 0
-    assert "Capability Crystallized" in result.stdout
+            import io
+
+            # We need to simulate the file open for both reading and writing the JSON
+            # For writing, mock the open context manager
+            mock_file = io.StringIO(json.dumps({"test": "hash"}))
+            mock_open.return_value.__enter__.return_value = mock_file
+
+            result = runner.invoke(app, ["build", "dummy_dir"])
+            assert result.exit_code == 0
+            assert "Capability Crystallized" in result.stdout
+
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
@@ -111,11 +119,13 @@ def test_build_compiler_not_found(
     # Mock open for ledger reading
     mock_open.return_value.__enter__.return_value = io.StringIO("{}")
 
-    result = runner.invoke(app, ["build", "test.py"])
+    with patch("coreason_ecosystem.orchestration.build.Path.is_file", return_value=True):
+        with patch("coreason_ecosystem.orchestration.build.Path.read_text", return_value="# coreason: capability"):
+            result = runner.invoke(app, ["build", "test.py"])
 
-    assert result.exit_code == 1
-    assert "Fatal Error: 'componentize-py' compiler not found" in result.stdout
-    assert "uv pip install componentize-py" in result.stdout
+            assert result.exit_code == 1
+            assert "Fatal Error: 'componentize-py' compiler not found" in result.stdout
+            assert "uv pip install componentize-py" in result.stdout
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")

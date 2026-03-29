@@ -59,17 +59,21 @@ class MeshInjector:
             aws_commands.extend(fw_commands)
             bash_commands.extend(fw_commands)
 
-        aws_commands.extend([
-            "curl -fsSL https://get.docker.com | sh",
-            "systemctl enable --now docker",
-            f"docker run -d --net=host -e TEMPORAL_HOST={temporal_mesh_ip} -e WASM_MAX_PAGES={wasm_pages} ghcr.io/coreason/coreason-runtime:latest",
-        ])
+        aws_commands.extend(
+            [
+                "curl -fsSL https://get.docker.com | sh",
+                "systemctl enable --now docker",
+                f"docker run -d --net=host -e TEMPORAL_HOST={temporal_mesh_ip} -e WASM_MAX_PAGES={wasm_pages} ghcr.io/coreason/coreason-runtime:latest",
+            ]
+        )
 
-        bash_commands.extend([
-            "curl -fsSL https://get.docker.com | sh",
-            "systemctl enable --now docker",
-            f"docker run -d --net=host -e TEMPORAL_HOST={temporal_mesh_ip} -e WASM_MAX_PAGES={wasm_pages} ghcr.io/coreason/coreason-runtime:latest",
-        ])
+        bash_commands.extend(
+            [
+                "curl -fsSL https://get.docker.com | sh",
+                "systemctl enable --now docker",
+                f"docker run -d --net=host -e TEMPORAL_HOST={temporal_mesh_ip} -e WASM_MAX_PAGES={wasm_pages} ghcr.io/coreason/coreason-runtime:latest",
+            ]
+        )
 
         if provider == "aws":
             payload_lines = ["#cloud-config", "runcmd:"]

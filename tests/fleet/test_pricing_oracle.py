@@ -11,7 +11,7 @@
 import pytest
 
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
-from coreason_manifest.spec.ontology import HardwareProfile
+from coreason_manifest.spec.ontology import HardwareProfile  # type: ignore[attr-defined]
 
 
 @pytest.fixture

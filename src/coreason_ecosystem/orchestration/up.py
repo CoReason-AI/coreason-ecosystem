@@ -41,15 +41,6 @@ async def execute_up() -> None:
 
     # Resolve the compose file path dynamically
     compose_path = Path.cwd() / "infrastructure" / "local" / "compose.yaml"
-    if not compose_path.exists():
-        # Fallback to resolving relative to the project root assuming the file is deeply nested during execution
-        compose_path = (
-            Path(__file__).parent.parent.parent.parent
-            / "infrastructure"
-            / "local"
-            / "compose.yaml"
-        )
-
     compose_path_str = str(compose_path.resolve())
 
     with Progress(
@@ -60,144 +51,126 @@ async def execute_up() -> None:
     ) as progress:
         # Node 1: Epistemic Ledger (Postgres)
         task_postgres = progress.add_task(
-            "[yellow]Checking Ledger (Postgres: 5432)...[/yellow]", total=None
+            "[yellow]Checking Ledger (Postgres)...[/yellow]", total=None
         )
-        if await is_port_bound(5432):
-            progress.update(
-                task_postgres,
-                description="[green]✓ Ledger ACTIVE (Postgres: 5432)[/green]",
-                completed=True,
-            )
-        else:
-            progress.update(
-                task_postgres,
-                description="[cyan]Binding Epistemic Ledger...[/cyan]",
-            )
-            proc = await asyncio.create_subprocess_exec(
-                "docker",
-                "compose",
-                "-f",
-                compose_path_str,
-                "up",
-                "-d",
-                "postgres",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            await proc.communicate()
-            progress.update(
-                task_postgres,
-                description="[green]✓ Ledger ACTIVE (Postgres: 5432)[/green]",
-                completed=True,
-            )
+        progress.update(
+            task_postgres,
+            description="[cyan]Binding Epistemic Ledger...[/cyan]",
+        )
+        proc = await asyncio.create_subprocess_exec(
+            "docker",
+            "compose",
+            "-f",
+            compose_path_str,
+            "up",
+            "-d",
+            "postgres",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"Ledger Ignition Failed: {stderr.decode()}")
+        progress.update(
+            task_postgres,
+            description="[green]✓ Ledger ACTIVE (Postgres: 5432)[/green]",
+            completed=True,
+        )
 
         # Node 2: Orchestration Fabric (Temporal)
         task_temporal = progress.add_task(
-            "[yellow]Checking Orchestrator (Temporal: 7233)...[/yellow]", total=None
+            "[yellow]Checking Orchestrator (Temporal)...[/yellow]", total=None
         )
-        if await is_port_bound(7233):
-            progress.update(
-                task_temporal,
-                description="[green]✓ Orchestrator ACTIVE (Temporal: 7233)[/green]",
-                completed=True,
-            )
-        else:
-            progress.update(
-                task_temporal,
-                description="[cyan]Igniting Thermodynamic Mesh...[/cyan]",
-            )
-            proc = await asyncio.create_subprocess_exec(
-                "docker",
-                "compose",
-                "-f",
-                compose_path_str,
-                "up",
-                "-d",
-                "temporal",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            await proc.communicate()
-            progress.update(
-                task_temporal,
-                description="[green]✓ Orchestrator ACTIVE (Temporal: 7233)[/green]",
-                completed=True,
-            )
+        progress.update(
+            task_temporal,
+            description="[cyan]Igniting Thermodynamic Mesh...[/cyan]",
+        )
+        proc = await asyncio.create_subprocess_exec(
+            "docker",
+            "compose",
+            "-f",
+            compose_path_str,
+            "up",
+            "-d",
+            "temporal",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"Orchestrator Ignition Failed: {stderr.decode()}")
+        progress.update(
+            task_temporal,
+            description="[green]✓ Orchestrator ACTIVE (Temporal: 7233)[/green]",
+            completed=True,
+        )
 
         # Node 3: Physics Engine (Daemon)
         task_daemon = progress.add_task(
-            "[yellow]Checking Physics Engine (Daemon: 8000)...[/yellow]", total=None
+            "[yellow]Checking Physics Engine (Daemon)...[/yellow]", total=None
         )
-        if await is_port_bound(8000):
-            progress.update(
-                task_daemon,
-                description="[green]✓ Physics Engine ACTIVE (Daemon: 8000)[/green]",
-                completed=True,
-            )
-        else:
-            progress.update(
-                task_daemon,
-                description="[cyan]Igniting Thermodynamic Mesh...[/cyan]",
-            )
+        progress.update(
+            task_daemon,
+            description="[cyan]Igniting Thermodynamic Mesh...[/cyan]",
+        )
 
-            # The Cryptographic Handshake
-            project_path = Path.cwd()
-            root_hash = await calculate_epistemic_root(project_path)
-            write_registry_lock(project_path, root_hash)
+        # The Cryptographic Handshake
+        project_path = Path.cwd()
+        root_hash = await calculate_epistemic_root(project_path)
+        write_registry_lock(project_path, root_hash)
 
-            env = os.environ.copy()
-            env["EPISTEMIC_MERKLE_ROOT"] = root_hash
+        env = os.environ.copy()
+        env["EPISTEMIC_MERKLE_ROOT"] = root_hash
 
-            proc = await asyncio.create_subprocess_exec(
-                "docker",
-                "compose",
-                "-f",
-                compose_path_str,
-                "up",
-                "-d",
-                "coreason-runtime",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=env,
-            )
-            await proc.communicate()
-            progress.update(
-                task_daemon,
-                description="[green]✓ Physics Engine ACTIVE (Daemon: 8000)[/green]",
-                completed=True,
-            )
+        proc = await asyncio.create_subprocess_exec(
+            "docker",
+            "compose",
+            "-f",
+            compose_path_str,
+            "up",
+            "-d",
+            "coreason-runtime",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"Physics Engine Ignition Failed: {stderr.decode()}")
+        progress.update(
+            task_daemon,
+            description="[green]✓ Physics Engine ACTIVE (Daemon: 8000)[/green]",
+            completed=True,
+        )
 
         # Node 4: Observability Sidecars (Prometheus & Grafana)
         task_observability = progress.add_task(
-            "[yellow]Checking Observability Sidecars (Grafana: 3000)...[/yellow]",
+            "[yellow]Checking Observability Sidecars...[/yellow]",
             total=None,
         )
-        if await is_port_bound(3000):
-            progress.update(
-                task_observability,
-                description="[green]✓ Observability ACTIVE (Grafana: 3000)[/green]",
-                completed=True,
+        progress.update(
+            task_observability,
+            description="[cyan]Booting Observability Sidecars...[/cyan]",
+        )
+        proc = await asyncio.create_subprocess_exec(
+            "docker",
+            "compose",
+            "-f",
+            compose_path_str,
+            "up",
+            "-d",
+            "prometheus",
+            "grafana",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"Observability Sidecars Ignition Failed: {stderr.decode()}"
             )
-        else:
-            progress.update(
-                task_observability,
-                description="[cyan]Booting Observability Sidecars...[/cyan]",
-            )
-            proc = await asyncio.create_subprocess_exec(
-                "docker",
-                "compose",
-                "-f",
-                compose_path_str,
-                "up",
-                "-d",
-                "prometheus",
-                "grafana",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            await proc.communicate()
-            progress.update(
-                task_observability,
-                description="[green]✓ Observability ACTIVE (Grafana: 3000)[/green]",
-                completed=True,
-            )
+        progress.update(
+            task_observability,
+            description="[green]✓ Observability ACTIVE (Grafana: 3000)[/green]",
+            completed=True,
+        )
