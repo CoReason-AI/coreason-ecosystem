@@ -36,11 +36,21 @@ async def execute_build(target_path: str) -> None:
     if target.is_dir():
         cap_dir = target / "src" / "capabilities"
         if cap_dir.exists():
-            files_to_build = list(cap_dir.rglob("*.py"))
+            potential_files = list(cap_dir.rglob("*.py"))
         else:
-            files_to_build = list(target.rglob("*.py"))
+            potential_files = list(target.rglob("*.py"))
     else:
-        files_to_build = [target]
+        potential_files = [target]
+
+    # Filter files to only include those that are Extism capabilities
+    files_to_build = []
+    for file_path in potential_files:
+        try:
+            content = file_path.read_text(encoding="utf-8")
+            if "def main(" in content or "@validate_call" in content:
+                files_to_build.append(file_path)
+        except Exception as e:
+            console.print(f"[yellow]Warning:[/yellow] Could not read {file_path}: {e}")
 
     if not files_to_build:
         console.print(
@@ -71,10 +81,6 @@ async def execute_build(target_path: str) -> None:
             try:
                 compile_proc = await asyncio.create_subprocess_exec(
                     "componentize-py",
-                    "-d",
-                    "coreason-bindings",
-                    "-w",
-                    "extism",
                     str(file_path),
                     "-o",
                     str(wasm_out_path),
@@ -101,11 +107,11 @@ async def execute_build(target_path: str) -> None:
 
             # 3. Store the hash using target path as key
             file_hash = hashlib.sha256(content).hexdigest()
-            ledger_data[str(file_path.resolve())] = file_hash
+            ledger_data[str(file_path.relative_to(Path.cwd()))] = file_hash
 
             # Output the calculated Epistemic Seal (hash) to the terminal
             panel = Panel(
-                f"[green]Capability Crystallized:[/green]\n[cyan]{file_path.resolve()}[/cyan]\n\n"
+                f"[green]Capability Crystallized:[/green]\n[cyan]{file_path.relative_to(Path.cwd())}[/cyan]\n\n"
                 f"[bold]Epistemic Seal (SHA-256):[/bold]\n[yellow]{file_hash}[/yellow]",
                 title="[bold blue]Build Complete[/bold blue]",
                 expand=False,
