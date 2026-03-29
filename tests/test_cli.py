@@ -184,11 +184,11 @@ def test_build_command_compile_error(
 )
 @patch("coreason_ecosystem.orchestration.up.write_registry_lock")
 @patch("coreason_ecosystem.orchestration.up.Path.exists")
+@patch("coreason_ecosystem.orchestration.up.shutil.copy2")
 @patch("coreason_ecosystem.orchestration.up.asyncio.create_subprocess_exec")
-@patch("coreason_ecosystem.orchestration.up.is_port_bound")
 def test_up_command(
-    mock_is_port_bound: Any,
     mock_exec: Any,
+    mock_copy2: Any,
     mock_exists: Any,
     mock_write_lock: Any,
     mock_calc_root: Any,
@@ -196,9 +196,9 @@ def test_up_command(
     """Test the up command execution logic."""
     mock_calc_root.return_value = "deadbeef"
     mock_exists.return_value = False
-    mock_is_port_bound.side_effect = [False, False, False, False]
 
     mock_proc = AsyncMock()
+    mock_proc.returncode = 0
     mock_proc.communicate.return_value = (b"", b"")
     mock_exec.return_value = mock_proc
 
@@ -214,44 +214,28 @@ def test_up_command(
     new_callable=AsyncMock,
 )
 @patch("coreason_ecosystem.orchestration.up.write_registry_lock")
+@patch("coreason_ecosystem.orchestration.up.Path.exists")
+@patch("coreason_ecosystem.orchestration.up.shutil.copy2")
 @patch("coreason_ecosystem.orchestration.up.asyncio.create_subprocess_exec")
-@patch("coreason_ecosystem.orchestration.up.is_port_bound")
-def test_up_command_all_bound(
-    mock_is_port_bound: Any, mock_exec: Any, mock_write_lock: Any, mock_calc_root: Any
+def test_up_command_failure(
+    mock_exec: Any,
+    mock_copy2: Any,
+    mock_exists: Any,
+    mock_write_lock: Any,
+    mock_calc_root: Any,
 ) -> None:
-    """Test the up command execution logic when all bound."""
+    """Test the up command execution logic when a subprocess fails."""
     mock_calc_root.return_value = "deadbeef"
-    mock_is_port_bound.side_effect = [True, True, True, True]
+    mock_exists.return_value = False
+
+    mock_proc = AsyncMock()
+    mock_proc.returncode = 1
+    mock_proc.communicate.return_value = (b"", b"mocked docker failure")
+    mock_exec.return_value = mock_proc
 
     result = runner.invoke(app, ["up"])
-    assert result.exit_code == 0
-    assert mock_exec.call_count == 0
-
-
-@patch("coreason_ecosystem.orchestration.up.asyncio.wait_for")
-def test_up_is_port_bound_true(mock_wait_for: Any) -> None:
-    """Test port bound check function."""
-    from coreason_ecosystem.orchestration.up import is_port_bound
-
-    mock_reader = AsyncMock()
-    mock_writer = AsyncMock()
-    # Ensure wait_closed is an async mock so await works
-    mock_writer.wait_closed = AsyncMock()
-    mock_wait_for.return_value = (mock_reader, mock_writer)
-
-    result = asyncio.run(is_port_bound(1234))
-    assert result is True
-
-
-@patch("coreason_ecosystem.orchestration.up.asyncio.wait_for")
-def test_up_is_port_bound_false(mock_wait_for: Any) -> None:
-    """Test port bound check function on failure."""
-    from coreason_ecosystem.orchestration.up import is_port_bound
-
-    mock_wait_for.side_effect = ConnectionRefusedError()
-
-    result = asyncio.run(is_port_bound(1234))
-    assert result is False
+    assert result.exit_code == 1
+    assert "mocked docker failure" in result.stdout
 
 
 class MockResponse:
