@@ -140,9 +140,9 @@ async def test_execute_init_package_not_found(
 
     assert (project_path / "pyproject.toml").is_file()
     toml_content = (project_path / "pyproject.toml").read_text()
-    assert "coreason-runtime==*" in toml_content
-    assert "coreason-manifest==*" in toml_content
-    assert "coreason-ecosystem==*" in toml_content
+    assert "coreason-runtime" in toml_content
+    assert "coreason-manifest" in toml_content
+    assert "coreason-ecosystem" in toml_content
     assert "componentize-py" in toml_content
     assert "python-pdk" in toml_content
 

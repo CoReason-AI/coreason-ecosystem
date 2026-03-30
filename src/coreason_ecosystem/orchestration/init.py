@@ -180,16 +180,16 @@ version = "0.1.0"
 description = "Autopoietically generated CoReason Swarm Workspace"
 requires-python = ">=3.14"
 dependencies = [
-    "coreason-runtime==*",
-    "coreason-manifest==*",
-    "coreason-ecosystem==*",
+    "coreason-runtime",
+    "coreason-manifest",
+    "coreason-ecosystem",
     "componentize-py",
     "extism-pdk",
     "python-pdk"
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/{project_name}"]
+packages = ["src/{package_name}"]
 
 [dependency-groups]
 dev = [
