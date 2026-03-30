@@ -32,26 +32,14 @@ async def is_port_bound(port: int) -> bool:
         writer.close()
         await writer.wait_closed()
         return True
-    except (TimeoutError, Exception):
+    except (ConnectionRefusedError, TimeoutError, OSError):
         return False
 
 
 async def execute_up() -> None:
     """Implement Idempotent DAG Resolution for the Swarm infrastructure."""
 
-    # Resolve the compose file path dynamically
     compose_path = Path.cwd() / "infrastructure" / "local" / "compose.yaml"
-    if not compose_path.exists():
-        # Read the internal compose file, create dirs, and copy it
-        internal_compose_path = (
-            Path(__file__).parent.parent.parent.parent
-            / "infrastructure"
-            / "local"
-            / "compose.yaml"
-        )
-        compose_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(internal_compose_path, compose_path)
-
     compose_path_str = str(compose_path.resolve())
 
     with Progress(
@@ -77,10 +65,7 @@ async def execute_up() -> None:
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            console.print(
-                f"[red]Error starting Postgres:[/red]\n{stderr.decode('utf-8')}"
-            )
-            raise typer.Exit(1)
+            raise RuntimeError(stderr.decode())
         timeout_limit = 30
         elapsed = 0
         while not await is_port_bound(5432):
@@ -114,10 +99,7 @@ async def execute_up() -> None:
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            console.print(
-                f"[red]Error starting Temporal:[/red]\n{stderr.decode('utf-8')}"
-            )  # pragma: no cover
-            raise typer.Exit(1)  # pragma: no cover
+            raise RuntimeError(stderr.decode())
         timeout_limit = 30
         elapsed = 0
         while not await is_port_bound(7233):
@@ -161,10 +143,7 @@ async def execute_up() -> None:
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            console.print(
-                f"[red]Error starting Physics Engine:[/red]\n{stderr.decode('utf-8')}"
-            )  # pragma: no cover
-            raise typer.Exit(1)  # pragma: no cover
+            raise RuntimeError(stderr.decode())
         timeout_limit = 30
         elapsed = 0
         while not await is_port_bound(8000):
@@ -200,10 +179,7 @@ async def execute_up() -> None:
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            console.print(
-                f"[red]Error starting Observability:[/red]\n{stderr.decode('utf-8')}"
-            )  # pragma: no cover
-            raise typer.Exit(1)  # pragma: no cover
+            raise RuntimeError(stderr.decode())
         progress.update(
             task_observability,
             description="[green]✓ Observability ACTIVE (Grafana: 3000)[/green]",

@@ -255,7 +255,8 @@ def test_up_command_failure(
 
     result = runner.invoke(app, ["up"])
     assert result.exit_code == 1
-    assert "mocked docker failure" in result.stdout
+    assert isinstance(result.exception, RuntimeError)
+    assert "mocked docker failure" in str(result.exception)
 
 
 class MockResponse:
