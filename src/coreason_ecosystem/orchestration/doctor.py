@@ -16,12 +16,17 @@ import httpx
 from rich.table import Table
 
 from coreason_ecosystem.cli import console
-from coreason_ecosystem.orchestration.registry import calculate_epistemic_root, read_registry_lock
+from coreason_ecosystem.orchestration.registry import (
+    calculate_epistemic_root,
+    read_registry_lock,
+)
 
 
 async def execute_doctor() -> None:
     """Prove Ontological Isomorphism across the Tripartite Manifold."""
-    base_url = os.environ.get("COREASON_RUNTIME_URL", "http://localhost:8000").rstrip("/")
+    base_url = os.environ.get("COREASON_RUNTIME_URL", "http://localhost:8000").rstrip(
+        "/"
+    )
 
     table = Table(title="[bold blue]Ontological Isomorphism Diagnostic[/bold blue]")
     table.add_column("System Boundary", style="cyan", no_wrap=True)

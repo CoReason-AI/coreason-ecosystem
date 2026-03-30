@@ -14,7 +14,9 @@ import json
 from pathlib import Path
 
 
-async def execute_init(project_name: str, topology: str = "base", lang: str = "python") -> None:
+async def execute_init(
+    project_name: str, topology: str = "base", lang: str = "python"
+) -> None:
     """Synthesize a mathematically verified Swarm workspace."""
     if "/" in project_name or "\\" in project_name:
         raise ValueError("Project name cannot contain path separators")
@@ -71,10 +73,10 @@ crate-type = ["cdylib"]
 extism-pdk = "1.0"
 """
         (project_path / "Cargo.toml").write_text(cargo_toml)
-        
+
         src_dir = project_path / "src"
         src_dir.mkdir(parents=True, exist_ok=True)
-        
+
         rust_template = """use extism_pdk::*;
 
 #[plugin_fn]
@@ -107,7 +109,7 @@ go 1.21
 require github.com/extism/go-pdk v1.0.0
 """
         (project_path / "go.mod").write_text(go_mod)
-        
+
         go_template = """package main
 
 import (

@@ -26,29 +26,56 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
         rel_path = file_path.resolve().relative_to(Path.cwd().resolve())
     except ValueError:
         rel_path = file_path.resolve()
-    safe_name = "_".join(rel_path.parts)
-    safe_name = Path(safe_name).with_suffix(".wasm").name
+
+    safe_name = f"{hashlib.md5(str(rel_path).encode()).hexdigest()[:8]}_{file_path.with_suffix('.wasm').name}"
     wasm_out_path = bin_dir / safe_name
-    module_name = str(file_path.with_suffix("")).replace("/", ".")
+    module_name = ".".join(rel_path.with_suffix("").parts)
 
     try:
-        compile_proc = await asyncio.create_subprocess_exec(
-            "componentize-py",
-            "-d", "wit",                 # Point to the wit directory you just created
-            "-w", "example-world",       # The name of the world in your world.wit file
-            "componentize",              # The required subcommand
-            module_name,                 # The python app/module to componentize
-            "-o", str(wasm_out_path),    # The output wasm binary
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+        if file_path.suffix == ".py":
+            compile_proc = await asyncio.create_subprocess_exec(
+                "componentize-py",
+                "-d",
+                "wit",
+                "-w",
+                "example-world",
+                "componentize",
+                module_name,
+                "-o",
+                str(wasm_out_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        elif file_path.suffix == ".rs":
+            compile_proc = await asyncio.create_subprocess_exec(
+                "cargo",
+                "component",
+                "build",
+                "--release",
+                "--target",
+                "wasm32-wasi",
+                cwd=str(file_path.parent),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        elif file_path.suffix == ".go":
+            compile_proc = await asyncio.create_subprocess_exec(
+                "tinygo",
+                "build",
+                "-target=wasi",
+                "-o",
+                str(wasm_out_path),
+                str(file_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        else:
+            raise ValueError(f"Unsupported file type: {file_path.suffix}")
+
         stdout, stderr = await compile_proc.communicate()
     except FileNotFoundError:
         console.print(
-            "[bold red]✗ Fatal Error: 'componentize-py' compiler not found.[/bold red]"
-        )
-        console.print(
-            "Please install the WASM toolchain: [cyan]uv pip install componentize-py[/cyan]"
+            "[bold red]✗ Fatal Error: Missing compiler for toolchain.[/bold red]"
         )
         raise typer.Exit(1)
 
@@ -56,6 +83,24 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
         console.print(f"[bold red]Error compiling {file_path}:[/bold red]")
         console.print(stderr.decode("utf-8", errors="replace"))
         raise typer.Exit(1)
+
+    import shutil
+
+    if file_path.suffix == ".rs":
+        target_wasm = (
+            file_path.parent
+            / "target"
+            / "wasm32-wasi"
+            / "release"
+            / f"{file_path.stem}.wasm"
+        )
+        if target_wasm.exists():
+            shutil.copy2(target_wasm, wasm_out_path)
+        else:
+            console.print(
+                f"[bold red]Error: Could not locate compiled WASM for {file_path}[/bold red]"
+            )
+            raise typer.Exit(1)
 
     # 2. Calculate the cryptographic SHA-256 hash of the compiled file
     content = wasm_out_path.read_bytes()
@@ -90,21 +135,17 @@ async def execute_build(target_path: str) -> None:
     if target.is_dir():
         cap_dir = target / "src" / "capabilities"
         if cap_dir.exists():
-            potential_files = list(cap_dir.rglob("*.py"))
+            files_to_build: list[Path] = []
+            files_to_build.extend(cap_dir.rglob("*.py"))
+            files_to_build.extend(cap_dir.rglob("*.rs"))
+            files_to_build.extend(cap_dir.rglob("*.go"))
         else:
-            potential_files = list(target.rglob("*.py"))
+            files_to_build = []
+            files_to_build.extend(target.rglob("*.py"))
+            files_to_build.extend(target.rglob("*.rs"))
+            files_to_build.extend(target.rglob("*.go"))
     else:
-        potential_files = [target]
-
-    # Filter files to only include those that are Extism capabilities
-    files_to_build = []
-    for file_path in potential_files:
-        try:
-            content = file_path.read_text(encoding="utf-8")
-            if "def main(" in content or "@validate_call" in content:
-                files_to_build.append(file_path)
-        except Exception as e:
-            console.print(f"[yellow]Warning:[/yellow] Could not read {file_path}: {e}")
+        files_to_build = [target]
 
     if not files_to_build:
         console.print(

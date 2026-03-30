@@ -144,7 +144,7 @@ async def test_execute_init_package_not_found(
     assert "coreason-manifest>=0.1.0" in toml_content
     assert "coreason-ecosystem>=0.1.0" in toml_content
     assert "componentize-py" in toml_content
-    assert "extism-pdk" in toml_content
+    assert "python-pdk" in toml_content
 
 
 @pytest.mark.asyncio
