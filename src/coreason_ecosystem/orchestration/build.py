@@ -54,6 +54,7 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
                 "--release",
                 "--target",
                 "wasm32-wasi",
+                cwd=str(file_path.parent),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -86,10 +87,20 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
     import shutil
 
     if file_path.suffix == ".rs":
-        target_dir = Path.cwd() / "target" / "wasm32-wasi" / "release"
-        wasm_files = list(target_dir.glob("*.wasm"))
-        if wasm_files:
-            shutil.copy2(wasm_files[0], wasm_out_path)
+        target_wasm = (
+            file_path.parent
+            / "target"
+            / "wasm32-wasi"
+            / "release"
+            / f"{file_path.stem}.wasm"
+        )
+        if target_wasm.exists():
+            shutil.copy2(target_wasm, wasm_out_path)
+        else:
+            console.print(
+                f"[bold red]Error: Could not locate compiled WASM for {file_path}[/bold red]"
+            )
+            raise typer.Exit(1)
 
     # 2. Calculate the cryptographic SHA-256 hash of the compiled file
     content = wasm_out_path.read_bytes()
