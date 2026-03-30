@@ -22,7 +22,6 @@ runner = CliRunner()
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
 @patch("coreason_ecosystem.orchestration.build.Path.read_bytes")
-@patch("coreason_ecosystem.orchestration.build.Path.read_text")
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.Path.mkdir")
 @patch("coreason_ecosystem.orchestration.build.FileLock")
@@ -36,16 +35,18 @@ def test_build_command_dir(
     mock_filelock: Any,
     mock_mkdir: Any,
     mock_open: Any,
-    mock_read_text: Any,
     mock_read_bytes: Any,
     mock_exists: Any,
 ) -> None:
     """Test the build command execution logic."""
     mock_exists.return_value = True
-    mock_read_text.return_value = "def main():\n    pass"
     mock_read_bytes.return_value = b"test bytes"
     mock_is_dir.return_value = True
-    mock_rglob.return_value = [Path.cwd() / "test1.py", Path.cwd() / "test2.py"]
+    mock_rglob.side_effect = [
+        [Path.cwd() / "test1.py", Path.cwd() / "test2.py"],  # .py
+        [],  # .rs
+        [],  # .go
+    ]
 
     mock_process = AsyncMock()
     mock_process.returncode = 0
@@ -59,14 +60,15 @@ def test_build_command_dir(
     mock_file = io.StringIO(json.dumps({"test": "hash"}))
     mock_open.return_value.__enter__.return_value = mock_file
 
-    with patch("coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()):
+    with patch(
+        "coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()
+    ):
         result = runner.invoke(app, ["build", str(Path.cwd() / "dummy_dir")])
         assert result.exit_code == 0
         assert "Capability Crystallized" in result.stdout
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
-@patch("coreason_ecosystem.orchestration.build.Path.read_text")
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.Path.mkdir")
 @patch("coreason_ecosystem.orchestration.build.FileLock")
@@ -78,12 +80,10 @@ def test_build_command_dir_no_files(
     mock_filelock: Any,
     mock_mkdir: Any,
     mock_open: Any,
-    mock_read_text: Any,
     mock_exists: Any,
 ) -> None:
     """Test the build command execution logic."""
     mock_exists.return_value = True
-    mock_read_text.return_value = "def main():\n    pass"
     mock_is_dir.return_value = True
     mock_rglob.return_value = []
 
@@ -93,7 +93,6 @@ def test_build_command_dir_no_files(
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
-@patch("coreason_ecosystem.orchestration.build.Path.read_text")
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.Path.mkdir")
 @patch("coreason_ecosystem.orchestration.build.FileLock")
@@ -107,12 +106,10 @@ def test_build_compiler_not_found(
     mock_filelock: Any,
     mock_mkdir: Any,
     mock_open: Any,
-    mock_read_text: Any,
     mock_exists: Any,
 ) -> None:
     """Test the build command when componentize-py is not found."""
     mock_exists.return_value = True
-    mock_read_text.return_value = "def main():\n    pass"
     mock_is_dir.return_value = False  # Target is a file
     mock_create_subprocess_exec.side_effect = FileNotFoundError
 
@@ -121,7 +118,9 @@ def test_build_compiler_not_found(
     # Mock open for ledger reading
     mock_open.return_value.__enter__.return_value = io.StringIO("{}")
 
-    with patch("coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()):
+    with patch(
+        "coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()
+    ):
         result = runner.invoke(app, ["build", str(Path.cwd() / "test.py")])
 
         assert result.exit_code == 1

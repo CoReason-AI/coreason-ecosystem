@@ -127,3 +127,7 @@ omit = ["tests/*"]
 
 [tool.hatch.version]
 source = "vcs"
+
+
+[tool.codespell]
+ignore-words-list = "wit,WIT"

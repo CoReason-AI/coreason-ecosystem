@@ -18,6 +18,7 @@ from coreason_ecosystem.cli import app
 runner = CliRunner()
 
 
+@patch("coreason_ecosystem.orchestration.sync.execute_build", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.sync.Path.exists")
 @patch(
     "coreason_ecosystem.orchestration.sync.asyncio.create_subprocess_exec",
@@ -35,6 +36,7 @@ def test_sync_command(
     mock_write_lock: Any,
     mock_sub_exec: Any,
     mock_exists: Any,
+    mock_execute_build: Any,
 ) -> None:
     """Test the sync command execution logic."""
     import io
@@ -53,12 +55,14 @@ def test_sync_command(
     result = runner.invoke(app, ["sync"])
     assert result.exit_code == 0
     assert "Autopoietic Healing Complete" in result.stdout
+    mock_execute_build.assert_called_once()
     mock_calc_root.assert_called_once()
     mock_write_lock.assert_called_once()
     mock_sub_exec.assert_called_once()
     mock_process.communicate.assert_called_once()
 
 
+@patch("coreason_ecosystem.orchestration.sync.execute_build", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.sync.Path.exists")
 @patch(
     "coreason_ecosystem.orchestration.sync.asyncio.create_subprocess_exec",
@@ -76,6 +80,7 @@ def test_sync_command_compose_fallback(
     mock_write_lock: Any,
     mock_sub_exec: Any,
     mock_exists: Any,
+    mock_execute_build: Any,
 ) -> None:
     """Test the sync command execution logic."""
     import io
@@ -94,5 +99,6 @@ def test_sync_command_compose_fallback(
     result = runner.invoke(app, ["sync"])
     assert result.exit_code == 0
     assert "Autopoietic Healing Complete" in result.stdout
+    mock_execute_build.assert_called_once()
     mock_sub_exec.assert_called_once()
     mock_process.communicate.assert_called_once()

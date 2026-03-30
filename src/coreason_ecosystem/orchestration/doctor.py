@@ -16,12 +16,17 @@ import httpx
 from rich.table import Table
 
 from coreason_ecosystem.cli import console
-from coreason_ecosystem.orchestration.registry import calculate_epistemic_root, read_registry_lock
+from coreason_ecosystem.orchestration.registry import (
+    calculate_epistemic_root,
+    read_registry_lock,
+)
 
 
 async def execute_doctor() -> None:
     """Prove Ontological Isomorphism across the Tripartite Manifold."""
-    base_url = os.environ.get("COREASON_RUNTIME_URL", "http://localhost:8000").rstrip("/")
+    base_url = os.environ.get("COREASON_RUNTIME_URL", "http://localhost:8000").rstrip(
+        "/"
+    )
 
     table = Table(title="[bold blue]Ontological Isomorphism Diagnostic[/bold blue]")
     table.add_column("System Boundary", style="cyan", no_wrap=True)
@@ -38,7 +43,7 @@ async def execute_doctor() -> None:
             else:
                 status_a = f"[red]✗ ERROR {resp.status_code}[/red]"
                 latency_a = "N/A"
-        except (httpx.RequestError, httpx.TimeoutException):
+        except httpx.RequestError, httpx.TimeoutException:
             status_a = "[red]✗ OFFLINE[/red]"
             latency_a = "N/A"
 
@@ -57,7 +62,7 @@ async def execute_doctor() -> None:
                 else:
                     status_b = f"[red]✗ ERROR {resp.status_code}[/red]"
                     latency_b = "N/A"
-        except (httpx.RequestError, httpx.TimeoutException):
+        except httpx.RequestError, httpx.TimeoutException:
             status_b = "[red]✗ TIMEOUT/OFFLINE[/red]"
             latency_b = "N/A"
 
@@ -105,7 +110,7 @@ async def execute_doctor() -> None:
                 else:
                     status_d = f"[yellow]⚠ HTTP {resp.status_code}[/yellow]"
                     latency_d = "Check Daemon"
-            except (httpx.RequestError, httpx.TimeoutException):
+            except httpx.RequestError, httpx.TimeoutException:
                 status_d = "[yellow]⚠ UNREACHABLE[/yellow]"
                 latency_d = "Check Daemon"
 
