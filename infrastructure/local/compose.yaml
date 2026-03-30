@@ -16,7 +16,9 @@ services:
       - swarm-mesh
 
   coreason-runtime:
-    image: ghcr.io/coreason/coreason-runtime:latest
+    build:
+      context: ${COREASON_RUNTIME_PATH}
+    image: coreason-runtime:local
     deploy:
       resources:
         limits:

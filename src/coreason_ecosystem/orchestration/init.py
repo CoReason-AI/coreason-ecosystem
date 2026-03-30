@@ -32,8 +32,12 @@ async def execute_init(project_name: str, topology: str = "base") -> None:
     package_name = project_name.replace("-", "_")
     package_dir = project_path / "src" / package_name
     (package_dir / "agents").mkdir(parents=True, exist_ok=True)
+    (package_dir / "agents" / "__init__.py").touch()
     (package_dir / "capabilities").mkdir(parents=True, exist_ok=True)
+    (package_dir / "capabilities" / "__init__.py").touch()
     (package_dir / "intents").mkdir(parents=True, exist_ok=True)
+    (package_dir / "intents" / "__init__.py").touch()
+    (package_dir / "__init__.py").touch()
 
     # 2. Dependency Locking
     def get_version(pkg_name: str) -> str:
@@ -58,15 +62,24 @@ requires-python = ">=3.14"
 dependencies = [
     "coreason-runtime>={runtime_version}",
     "coreason-manifest>={manifest_version}",
-    "coreason-ecosystem>={ecosystem_version}",
-    "componentize-py",
-    "extism-pdk"
+    "componentize-py<0.14",
+    "python-pdk"
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/{package_name}"]
 
 [dependency-groups]
 dev = [
     "pre-commit"
 ]
+
+[tool.uv]
+required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+[tool.uv.sources]
+coreason-ecosystem = {{ path = ".." }}
+python-pdk = {{ git = "https://github.com/extism/python-pdk" }}
 """
     (project_path / "pyproject.toml").write_text(pyproject_toml_content)
 
@@ -86,15 +99,11 @@ dev = [
 import json
 import sys
 
-
-def main() -> None:
-    \"\"\"Entry point for the Extism capability.\"\"\"
-    # Capability logic goes here
-    pass
-
-
-if __name__ == "__main__":
-    main()
+class ExampleWorld:
+    def main(self) -> None:
+        \"\"\"Entry point for the WASM capability.\"\"\"
+        # Capability logic goes here
+        pass
 """
     if topology == "medallion":
         (cap_dir / "bronze_ingest.py").write_text(cap_template)
@@ -143,6 +152,17 @@ if __name__ == "__main__":
         pass_filenames: false
 """
     (project_path / ".pre-commit-config.yaml").write_text(pre_commit_config)
+
+    # 7. WASM Interface (WIT)
+    wit_dir = project_path / "wit"
+    wit_dir.mkdir(parents=True, exist_ok=True)
+    wit_content = """package coreason:capability;
+
+world example-world {
+    export main: func();
+}
+"""
+    (wit_dir / "world.wit").write_text(wit_content)
 
     process = await asyncio.create_subprocess_exec("git", "init", cwd=str(project_path))
     await process.communicate()
