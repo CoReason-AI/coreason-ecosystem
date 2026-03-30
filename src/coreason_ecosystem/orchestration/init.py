@@ -173,6 +173,7 @@ requires-python = ">=3.14"
 dependencies = [
     "coreason-runtime>={runtime_version}",
     "coreason-manifest>={manifest_version}",
+    "coreason-ecosystem>={ecosystem_version}",
     "componentize-py<0.14",
     "python-pdk"
 ]
@@ -189,7 +190,6 @@ dev = [
 required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
 
 [tool.uv.sources]
-coreason-ecosystem = {{ path = ".." }}
 python-pdk = {{ git = "https://github.com/extism/python-pdk" }}
 """
         (project_path / "pyproject.toml").write_text(pyproject_toml_content)

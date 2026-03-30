@@ -110,7 +110,6 @@ async def execute_up() -> None:
 
         env = os.environ.copy()
         env["EPISTEMIC_MERKLE_ROOT"] = root_hash
-        env["COREASON_RUNTIME_PATH"] = str((Path(__file__).parents[4] / "coreason-runtime").resolve())
 
         proc = await asyncio.create_subprocess_exec(
             "docker",
