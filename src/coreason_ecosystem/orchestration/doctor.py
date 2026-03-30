@@ -82,7 +82,7 @@ async def execute_doctor() -> None:
         if local_root is None:
             local_root = "0" * 64
 
-        current_root = calculate_epistemic_root(Path.cwd())
+        current_root = await calculate_epistemic_root(Path.cwd())
 
         if current_root != local_root:
             status_d = "[red]✗ LOCAL DRIFT DETECTED[/red]"

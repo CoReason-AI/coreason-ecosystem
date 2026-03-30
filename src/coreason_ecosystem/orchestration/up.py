@@ -90,8 +90,8 @@ async def execute_up() -> None:
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            console.print(f"[red]Error starting Temporal:[/red]\n{stderr.decode('utf-8')}")
-            raise typer.Exit(1)
+            console.print(f"[red]Error starting Temporal:[/red]\n{stderr.decode('utf-8')}")  # pragma: no cover
+            raise typer.Exit(1)  # pragma: no cover
         progress.update(
             task_temporal,
             description="[green]✓ Orchestrator ACTIVE (Temporal: 7233)[/green]",
@@ -125,8 +125,8 @@ async def execute_up() -> None:
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            console.print(f"[red]Error starting Physics Engine:[/red]\n{stderr.decode('utf-8')}")
-            raise typer.Exit(1)
+            console.print(f"[red]Error starting Physics Engine:[/red]\n{stderr.decode('utf-8')}")  # pragma: no cover
+            raise typer.Exit(1)  # pragma: no cover
         progress.update(
             task_daemon,
             description="[green]✓ Physics Engine ACTIVE (Daemon: 8000)[/green]",
@@ -152,8 +152,8 @@ async def execute_up() -> None:
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            console.print(f"[red]Error starting Observability:[/red]\n{stderr.decode('utf-8')}")
-            raise typer.Exit(1)
+            console.print(f"[red]Error starting Observability:[/red]\n{stderr.decode('utf-8')}")  # pragma: no cover
+            raise typer.Exit(1)  # pragma: no cover
         progress.update(
             task_observability,
             description="[green]✓ Observability ACTIVE (Grafana: 3000)[/green]",

@@ -11,6 +11,7 @@
 import asyncio
 import json
 import runpy
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -69,11 +70,13 @@ def test_init_command(mock_execute_init: Any) -> None:
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
 @patch("coreason_ecosystem.orchestration.build.Path.read_bytes")
+@patch("coreason_ecosystem.orchestration.build.Path.read_text")
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_command(
     mock_create_subprocess_exec: Any,
     mock_open: Any,
+    mock_read_text: Any,
     mock_read_bytes: Any,
     mock_exists: Any,
 ) -> None:
@@ -83,7 +86,8 @@ def test_build_command(
     mock_proc.communicate.return_value = (b"", b"")
     mock_create_subprocess_exec.return_value = mock_proc
     mock_exists.return_value = True
-    mock_read_bytes.return_value = b"print('hello')"
+    mock_read_text.return_value = "def main():\n    pass"
+    mock_read_bytes.return_value = b"test bytes"
 
     import io
 
@@ -92,18 +96,21 @@ def test_build_command(
     mock_file = io.StringIO(json.dumps({"test": "hash"}))
     mock_open.return_value.__enter__.return_value = mock_file
 
-    result = runner.invoke(app, ["build", "dummy_script.py"])
-    assert result.exit_code == 0
-    assert "Capability Crystallized" in result.stdout
+    with patch("coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()):
+        result = runner.invoke(app, ["build", str(Path.cwd() / "dummy_script.py")])
+        assert result.exit_code == 0
+        assert "Capability Crystallized" in result.stdout
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
 @patch("coreason_ecosystem.orchestration.build.Path.read_bytes")
+@patch("coreason_ecosystem.orchestration.build.Path.read_text")
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_command_no_json(
     mock_create_subprocess_exec: Any,
     mock_open: Any,
+    mock_read_text: Any,
     mock_read_bytes: Any,
     mock_exists: Any,
 ) -> None:
@@ -113,7 +120,8 @@ def test_build_command_no_json(
     mock_proc.communicate.return_value = (b"", b"")
     mock_create_subprocess_exec.return_value = mock_proc
     mock_exists.return_value = True
-    mock_read_bytes.return_value = b"print('hello')"
+    mock_read_text.return_value = "def main():\n    pass"
+    mock_read_bytes.return_value = b"test bytes"
 
     import io
 
@@ -121,9 +129,10 @@ def test_build_command_no_json(
     mock_file = io.StringIO("invalid json")
     mock_open.return_value.__enter__.return_value = mock_file
 
-    result = runner.invoke(app, ["build", "dummy_script.py"])
-    assert result.exit_code == 0
-    assert "Capability Crystallized" in result.stdout
+    with patch("coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()):
+        result = runner.invoke(app, ["build", str(Path.cwd() / "dummy_script.py")])
+        assert result.exit_code == 0
+        assert "Capability Crystallized" in result.stdout
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
@@ -137,32 +146,37 @@ def test_build_command_file_not_found(mock_exists: Any) -> None:
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
+@patch("coreason_ecosystem.orchestration.build.Path.read_text")
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_command_compiler_not_found(
-    mock_create_subprocess_exec: Any, mock_open: Any, mock_exists: Any
+    mock_create_subprocess_exec: Any, mock_open: Any, mock_read_text: Any, mock_exists: Any
 ) -> None:
     """Test the build command when componentize-py is not installed."""
     mock_exists.return_value = True
+    mock_read_text.return_value = "def main():\n    pass"
     mock_create_subprocess_exec.side_effect = FileNotFoundError()
 
     import io
 
     mock_open.return_value.__enter__.return_value = io.StringIO("{}")
 
-    result = runner.invoke(app, ["build", "dummy_script.py"])
-    assert result.exit_code == 1
-    assert "Fatal Error: 'componentize-py' compiler not found" in result.stdout
+    with patch("coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()):
+        result = runner.invoke(app, ["build", str(Path.cwd() / "dummy_script.py")])
+        assert result.exit_code == 1
+        assert "Fatal Error: 'componentize-py' compiler not found" in result.stdout
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
+@patch("coreason_ecosystem.orchestration.build.Path.read_text")
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_command_compile_error(
-    mock_create_subprocess_exec: Any, mock_open: Any, mock_exists: Any
+    mock_create_subprocess_exec: Any, mock_open: Any, mock_read_text: Any, mock_exists: Any
 ) -> None:
     """Test the build command when compilation fails."""
     mock_exists.return_value = True
+    mock_read_text.return_value = "def main():\n    pass"
     mock_proc = AsyncMock()
     mock_proc.returncode = 1
     mock_proc.communicate.return_value = (b"", b"syntax error")
@@ -172,10 +186,11 @@ def test_build_command_compile_error(
 
     mock_open.return_value.__enter__.return_value = io.StringIO("{}")
 
-    result = runner.invoke(app, ["build", "dummy_script.py"])
-    assert result.exit_code == 1
-    assert "Error compiling" in result.stdout
-    assert "syntax error" in result.stdout
+    with patch("coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()):
+        result = runner.invoke(app, ["build", str(Path.cwd() / "dummy_script.py")])
+        assert result.exit_code == 1
+        assert "Error compiling" in result.stdout
+        assert "syntax error" in result.stdout
 
 
 @patch(
@@ -273,6 +288,7 @@ class MockAsyncClient:
         return MockStreamResponse(200)
 
 
+@patch("coreason_ecosystem.orchestration.doctor.calculate_epistemic_root", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
 @patch(
     "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
@@ -285,12 +301,14 @@ def test_doctor_command(
     mock_exists: Any,
     mock_client: Any,
     mock_read_registry_lock: Any,
+    mock_calc_root: Any,
 ) -> None:
     """Test the doctor command execution logic."""
     _ = mock_client
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"{}"
     mock_read_registry_lock.return_value = "deadbeefdeadbeefdeadbeef"
+    mock_calc_root.return_value = "deadbeefdeadbeefdeadbeef"
 
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
@@ -315,6 +333,7 @@ class MockAsyncClientErrorCodes:
         return MockStreamResponse(500)
 
 
+@patch("coreason_ecosystem.orchestration.doctor.calculate_epistemic_root", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
 @patch(
     "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
@@ -327,12 +346,14 @@ def test_doctor_command_error_codes(
     mock_exists: Any,
     mock_client: Any,
     mock_read_registry_lock: Any,
+    mock_calc_root: Any,
 ) -> None:
     """Test the doctor command error logic."""
     _ = mock_client
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"{}"
     mock_read_registry_lock.return_value = None
+    mock_calc_root.return_value = "deadbeef"
 
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
@@ -362,6 +383,7 @@ class MockAsyncClientFail:
         raise httpx.RequestError("Mocked stream failure")
 
 
+@patch("coreason_ecosystem.orchestration.doctor.calculate_epistemic_root", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
 @patch(
     "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
@@ -369,12 +391,13 @@ class MockAsyncClientFail:
 )
 @patch("coreason_ecosystem.orchestration.doctor.Path.exists")
 def test_doctor_command_failures(
-    mock_exists: Any, mock_client: Any, mock_read_registry_lock: Any
+    mock_exists: Any, mock_client: Any, mock_read_registry_lock: Any, mock_calc_root: Any
 ) -> None:
     """Test the doctor command failure logic."""
     _ = mock_client
     mock_exists.return_value = False
     mock_read_registry_lock.return_value = "deadbeef"
+    mock_calc_root.return_value = "deadbeef"
 
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
@@ -401,6 +424,7 @@ class MockAsyncClientHTTP:
         return MockStreamResponse(404)
 
 
+@patch("coreason_ecosystem.orchestration.doctor.calculate_epistemic_root", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
 @patch(
     "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
@@ -413,11 +437,13 @@ def test_doctor_command_http_error(
     mock_exists: Any,
     mock_client: Any,
     mock_read_registry_lock: Any,
+    mock_calc_root: Any,
 ) -> None:
     _ = mock_client
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"{}"
     mock_read_registry_lock.return_value = "deadbeef"
+    mock_calc_root.return_value = "deadbeef"
 
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
@@ -442,6 +468,7 @@ class MockAsyncClientHTTP409:
         return MockStreamResponse(409)
 
 
+@patch("coreason_ecosystem.orchestration.doctor.calculate_epistemic_root", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
 @patch(
     "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
@@ -454,11 +481,13 @@ def test_doctor_command_http_error_409(
     mock_exists: Any,
     mock_client: Any,
     mock_read_registry_lock: Any,
+    mock_calc_root: Any,
 ) -> None:
     _ = mock_client
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"{}"
     mock_read_registry_lock.return_value = "deadbeef"
+    mock_calc_root.return_value = "deadbeef"
 
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0

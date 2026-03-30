@@ -19,6 +19,4 @@ class HardwareProfile(BaseModel):
 class SecurityProfile(BaseModel):
     network_isolation: bool = True
 
-import coreason_manifest.spec.ontology as module
-module.HardwareProfile = HardwareProfile
-module.SecurityProfile = SecurityProfile
+import sys; sys.modules["coreason_manifest.spec.ontology"] = sys.modules[__name__]

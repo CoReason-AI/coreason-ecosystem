@@ -27,24 +27,21 @@ async def monitor_event_loop() -> float:
 
 
 async def main() -> None:
-    with patch(
-        "coreason_ecosystem.orchestration.sync.execute_build", new_callable=AsyncMock
-    ):
-        start = time.perf_counter()
+    start = time.perf_counter()
 
-        monitor_task = asyncio.create_task(monitor_event_loop())
-        # Add a slight delay to let monitor start
-        await asyncio.sleep(0.05)
+    monitor_task = asyncio.create_task(monitor_event_loop())
+    # Add a slight delay to let monitor start
+    await asyncio.sleep(0.05)
 
-        await execute_sync()
-        end = time.perf_counter()
+    await execute_sync()
+    end = time.perf_counter()
 
-        max_block = await monitor_task
+    max_block = await monitor_task
 
-        print("\n--- Benchmark Results ---")
-        print(f"Total execute_sync time: {end - start:.4f}s")
-        print(f"Max event loop block time: {max_block:.4f}s")
-        print("-------------------------\n")
+    print("\n--- Benchmark Results ---")
+    print(f"Total execute_sync time: {end - start:.4f}s")
+    print(f"Max event loop block time: {max_block:.4f}s")
+    print("-------------------------\n")
 
 
 if __name__ == "__main__":
