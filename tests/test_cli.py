@@ -161,7 +161,7 @@ def test_build_command_compiler_not_found(
     ):
         result = runner.invoke(app, ["build", str(Path.cwd() / "dummy_script.py")])
         assert result.exit_code == 1
-        assert "Fatal Error: 'componentize-py' compiler not found" in result.stdout
+        assert "Missing compiler for toolchain" in result.stdout
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")

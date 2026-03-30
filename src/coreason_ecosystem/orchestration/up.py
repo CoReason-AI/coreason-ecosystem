@@ -26,11 +26,13 @@ from coreason_ecosystem.orchestration.registry import (
 
 async def is_port_bound(port: int) -> bool:
     try:
-        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection("127.0.0.1", port), timeout=0.5
+        )
         writer.close()
         await writer.wait_closed()
         return True
-    except Exception:
+    except (TimeoutError, Exception):
         return False
 
 
@@ -79,8 +81,16 @@ async def execute_up() -> None:
                 f"[red]Error starting Postgres:[/red]\n{stderr.decode('utf-8')}"
             )
             raise typer.Exit(1)
+        timeout_limit = 30
+        elapsed = 0
         while not await is_port_bound(5432):
+            if elapsed >= timeout_limit:
+                console.print(
+                    f"[bold red]Timeout waiting for port 5432[/bold red]\n{stderr.decode('utf-8')}"
+                )
+                raise typer.Exit(1)
             await asyncio.sleep(1)
+            elapsed += 1
         progress.update(
             task_postgres,
             description="[green]✓ Ledger ACTIVE (Postgres: 5432)[/green]",
@@ -108,8 +118,16 @@ async def execute_up() -> None:
                 f"[red]Error starting Temporal:[/red]\n{stderr.decode('utf-8')}"
             )  # pragma: no cover
             raise typer.Exit(1)  # pragma: no cover
+        timeout_limit = 30
+        elapsed = 0
         while not await is_port_bound(7233):
+            if elapsed >= timeout_limit:
+                console.print(
+                    f"[bold red]Timeout waiting for port 7233[/bold red]\n{stderr.decode('utf-8')}"
+                )
+                raise typer.Exit(1)
             await asyncio.sleep(1)
+            elapsed += 1
         progress.update(
             task_temporal,
             description="[green]✓ Orchestrator ACTIVE (Temporal: 7233)[/green]",
@@ -147,8 +165,16 @@ async def execute_up() -> None:
                 f"[red]Error starting Physics Engine:[/red]\n{stderr.decode('utf-8')}"
             )  # pragma: no cover
             raise typer.Exit(1)  # pragma: no cover
+        timeout_limit = 30
+        elapsed = 0
         while not await is_port_bound(8000):
+            if elapsed >= timeout_limit:
+                console.print(
+                    f"[bold red]Timeout waiting for port 8000[/bold red]\n{stderr.decode('utf-8')}"
+                )
+                raise typer.Exit(1)
             await asyncio.sleep(1)
+            elapsed += 1
         progress.update(
             task_daemon,
             description="[green]✓ Physics Engine ACTIVE (Daemon: 8000)[/green]",

@@ -26,32 +26,55 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
         rel_path = file_path.resolve().relative_to(Path.cwd().resolve())
     except ValueError:
         rel_path = file_path.resolve()
-    safe_name = "_".join(rel_path.parts)
-    safe_name = Path(safe_name).with_suffix(".wasm").name
+
+    safe_name = f"{hashlib.md5(str(rel_path).encode()).hexdigest()[:8]}_{file_path.with_suffix('.wasm').name}"
     wasm_out_path = bin_dir / safe_name
-    module_name = str(file_path.with_suffix("")).replace("/", ".")
+    module_name = ".".join(rel_path.with_suffix("").parts)
 
     try:
-        compile_proc = await asyncio.create_subprocess_exec(
-            "componentize-py",
-            "-d",
-            "wit",  # Point to the wit directory you just created
-            "-w",
-            "example-world",  # The name of the world in your world.wit file
-            "componentize",  # The required subcommand
-            module_name,  # The python app/module to componentize
-            "-o",
-            str(wasm_out_path),  # The output wasm binary
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+        if file_path.suffix == ".py":
+            compile_proc = await asyncio.create_subprocess_exec(
+                "componentize-py",
+                "-d",
+                "wit",
+                "-w",
+                "example-world",
+                "componentize",
+                module_name,
+                "-o",
+                str(wasm_out_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        elif file_path.suffix == ".rs":
+            compile_proc = await asyncio.create_subprocess_exec(
+                "cargo",
+                "component",
+                "build",
+                "--release",
+                "--target",
+                "wasm32-wasi",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        elif file_path.suffix == ".go":
+            compile_proc = await asyncio.create_subprocess_exec(
+                "tinygo",
+                "build",
+                "-target=wasi",
+                "-o",
+                str(wasm_out_path),
+                str(file_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        else:
+            raise ValueError(f"Unsupported file type: {file_path.suffix}")
+
         stdout, stderr = await compile_proc.communicate()
     except FileNotFoundError:
         console.print(
-            "[bold red]✗ Fatal Error: 'componentize-py' compiler not found.[/bold red]"
-        )
-        console.print(
-            "Please install the WASM toolchain: [cyan]uv pip install componentize-py[/cyan]"
+            "[bold red]✗ Fatal Error: Missing compiler for toolchain.[/bold red]"
         )
         raise typer.Exit(1)
 
@@ -59,6 +82,14 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
         console.print(f"[bold red]Error compiling {file_path}:[/bold red]")
         console.print(stderr.decode("utf-8", errors="replace"))
         raise typer.Exit(1)
+
+    import shutil
+
+    if file_path.suffix == ".rs":
+        target_dir = Path.cwd() / "target" / "wasm32-wasi" / "release"
+        wasm_files = list(target_dir.glob("*.wasm"))
+        if wasm_files:
+            shutil.copy2(wasm_files[0], wasm_out_path)
 
     # 2. Calculate the cryptographic SHA-256 hash of the compiled file
     content = wasm_out_path.read_bytes()

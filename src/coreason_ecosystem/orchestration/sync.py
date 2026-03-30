@@ -30,6 +30,17 @@ async def execute_sync() -> None:
     project_path = Path.cwd()
 
     with Status("[cyan]Detecting Drift...[/cyan]", console=console) as status:
+        status.update("[yellow]Regenerating Ontology...[/yellow]")
+        schema = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "title": "Swarm Ontology",
+        }
+        schema_path = project_path / "coreason_ontology.schema.json"
+        with schema_path.open("w", encoding="utf-8") as f:
+            import json
+
+            json.dump(schema, f, indent=4)
+
         status.update("[magenta]Re-crystallizing Capabilities...[/magenta]")
         await execute_build(str(project_path))
 
