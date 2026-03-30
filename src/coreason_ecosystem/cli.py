@@ -85,8 +85,12 @@ app.add_typer(fleet_app, name="fleet", help="Manage the autonomic compute fleet.
 
 @fleet_app.command("start")
 def fleet_start(
-    mesh_auth_key: str = typer.Option(..., help="The ephemeral Tailscale/Headscale auth key"),
-    temporal_mesh_ip: str = typer.Option(..., help="The internal 10.x.x.x IP of the Medallion State Engine"),
+    mesh_auth_key: str = typer.Option(
+        ..., help="The ephemeral Tailscale/Headscale auth key"
+    ),
+    temporal_mesh_ip: str = typer.Option(
+        ..., help="The internal 10.x.x.x IP of the Medallion State Engine"
+    ),
     max_budget_hr: float = typer.Option(5.0, help="Max budget per hour"),
     polling_interval: int = typer.Option(10, help="Polling interval in seconds"),
 ) -> None:  # pragma: no cover
@@ -108,6 +112,7 @@ def fleet_start(
 def init(
     project_name: str = typer.Argument(...),
     topology: str = typer.Option("base", help="Target topology (base, medallion, rag)"),
+    lang: str = typer.Option("python", help="Target language (python, rust, go)"),
 ) -> None:
     """Autonomically generate a mathematically verified Swarm workspace."""
     from coreason_ecosystem.utils.telemetry import (
@@ -118,7 +123,7 @@ def init(
     async def _run() -> None:
         start_otlp_background_worker()
         try:
-            await execute_init(project_name, topology)
+            await execute_init(project_name, topology, lang)
         finally:
             await stop_otlp_background_worker()
 

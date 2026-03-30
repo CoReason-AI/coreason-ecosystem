@@ -10,7 +10,7 @@
 
 from typing import TYPE_CHECKING
 
-from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile  # type: ignore[attr-defined]
+from coreason_manifest.spec.ontology import HardwareProfile
 
 if TYPE_CHECKING:
     from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
@@ -21,6 +21,7 @@ class PricingOracle:
         self, hardware_profile: HardwareProfile, max_budget_hr: float
     ) -> "ComputeNodeTarget | None":
         from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
+
         # Mock order book for available nodes
         order_book = [
             ComputeNodeTarget(

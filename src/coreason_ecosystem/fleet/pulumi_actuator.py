@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from pulumi import automation as auto
 
 from coreason_ecosystem.fleet.mesh_injector import MeshInjector
-from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile  # type: ignore[attr-defined]
+from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
 
 
 class ComputeNodeTarget(BaseModel):
@@ -52,7 +52,12 @@ class PulumiFleetDriver:
 
         stack.set_config("provider", auto.ConfigValue(target.provider))
 
-        if target.hardware_profile and target.security_profile and target.mesh_auth_key and target.temporal_mesh_ip:
+        if (
+            target.hardware_profile
+            and target.security_profile
+            and target.mesh_auth_key
+            and target.temporal_mesh_ip
+        ):
             payload_b64 = self.injector.compile_payload(
                 provider=target.provider,
                 hardware=target.hardware_profile,

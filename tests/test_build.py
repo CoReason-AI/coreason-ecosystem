@@ -40,9 +40,13 @@ def test_build_command_dir(
 ) -> None:
     """Test the build command execution logic."""
     mock_exists.return_value = True
-    mock_read_bytes.return_value = b"print('hello')"
+    mock_read_bytes.return_value = b"test bytes"
     mock_is_dir.return_value = True
-    mock_rglob.return_value = [Path("test1.py"), Path("test2.py")]
+    mock_rglob.side_effect = [
+        [Path.cwd() / "test1.py", Path.cwd() / "test2.py"],  # .py
+        [],  # .rs
+        [],  # .go
+    ]
 
     mock_process = AsyncMock()
     mock_process.returncode = 0
@@ -56,9 +60,12 @@ def test_build_command_dir(
     mock_file = io.StringIO(json.dumps({"test": "hash"}))
     mock_open.return_value.__enter__.return_value = mock_file
 
-    result = runner.invoke(app, ["build", "dummy_dir"])
-    assert result.exit_code == 0
-    assert "Capability Crystallized" in result.stdout
+    with patch(
+        "coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()
+    ):
+        result = runner.invoke(app, ["build", str(Path.cwd() / "dummy_dir")])
+        assert result.exit_code == 0
+        assert "Capability Crystallized" in result.stdout
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
@@ -111,11 +118,13 @@ def test_build_compiler_not_found(
     # Mock open for ledger reading
     mock_open.return_value.__enter__.return_value = io.StringIO("{}")
 
-    result = runner.invoke(app, ["build", "test.py"])
+    with patch(
+        "coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()
+    ):
+        result = runner.invoke(app, ["build", str(Path.cwd() / "test.py")])
 
-    assert result.exit_code == 1
-    assert "Fatal Error: 'componentize-py' compiler not found" in result.stdout
-    assert "uv pip install componentize-py" in result.stdout
+        assert result.exit_code == 1
+        assert "Missing compiler for toolchain" in result.stdout
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
