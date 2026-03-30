@@ -36,9 +36,9 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
             compile_proc = await asyncio.create_subprocess_exec(
                 "componentize-py",
                 "-d",
-                "wit",
+                str(Path.cwd() / "coreason-bindings.wit"),
                 "-w",
-                "example-world",
+                "agent",
                 "componentize",
                 module_name,
                 "-o",
@@ -165,10 +165,10 @@ async def execute_build(target_path: str) -> None:
     results = await asyncio.gather(*tasks)
 
     # Load existing ledger
-    ledger_path = coreason_dir / "capability_ledger.json"
-    lock_path = coreason_dir / "capability_ledger.json.lock"
+    ledger_path = coreason_dir / "registry.lock"
+    sys_lock_path = coreason_dir / ".registry.syslock"
 
-    with FileLock(lock_path, timeout=10):
+    with FileLock(str(sys_lock_path), timeout=2):
         ledger_data: dict[str, str] = {}
         if ledger_path.exists():
             try:
@@ -183,6 +183,6 @@ async def execute_build(target_path: str) -> None:
         for rel_path_str, file_hash in results:
             ledger_data[rel_path_str] = file_hash
 
-        # 4. Register the hash into .coreason/capability_ledger.json
+        # 4. Register the hash into .coreason/registry.lock
         with ledger_path.open("w", encoding="utf-8") as f:
             json.dump(ledger_data, f, indent=4)
