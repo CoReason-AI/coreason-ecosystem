@@ -108,6 +108,7 @@ def fleet_start(
 def init(
     project_name: str = typer.Argument(...),
     topology: str = typer.Option("base", help="Target topology (base, medallion, rag)"),
+    lang: str = typer.Option("python", help="Target language (python, rust, go)"),
 ) -> None:
     """Autonomically generate a mathematically verified Swarm workspace."""
     from coreason_ecosystem.utils.telemetry import (
@@ -118,7 +119,7 @@ def init(
     async def _run() -> None:
         start_otlp_background_worker()
         try:
-            await execute_init(project_name, topology)
+            await execute_init(project_name, topology, lang)
         finally:
             await stop_otlp_background_worker()
 

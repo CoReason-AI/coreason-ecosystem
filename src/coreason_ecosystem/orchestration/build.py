@@ -22,17 +22,23 @@ from coreason_ecosystem.cli import console
 
 
 async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
-    rel_path = file_path.relative_to(Path.cwd())
+    try:
+        rel_path = file_path.resolve().relative_to(Path.cwd().resolve())
+    except ValueError:
+        rel_path = file_path.resolve()
     safe_name = "_".join(rel_path.parts)
     safe_name = Path(safe_name).with_suffix(".wasm").name
     wasm_out_path = bin_dir / safe_name
+    module_name = str(file_path.with_suffix("")).replace("/", ".")
 
     try:
         compile_proc = await asyncio.create_subprocess_exec(
             "componentize-py",
-            str(file_path),
-            "-o",
-            str(wasm_out_path),
+            "-d", "wit",                 # Point to the wit directory you just created
+            "-w", "example-world",       # The name of the world in your world.wit file
+            "componentize",              # The required subcommand
+            module_name,                 # The python app/module to componentize
+            "-o", str(wasm_out_path),    # The output wasm binary
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -122,12 +128,14 @@ async def execute_build(target_path: str) -> None:
     lock_path = coreason_dir / "capability_ledger.json.lock"
 
     with FileLock(lock_path, timeout=10):
-        ledger_data = {}
+        ledger_data: dict[str, str] = {}
         if ledger_path.exists():
             try:
                 with ledger_path.open("r", encoding="utf-8") as f:
-                    ledger_data = json.load(f)
-            except json.JSONDecodeError:
+                    loaded = json.load(f)
+                    if isinstance(loaded, dict):
+                        ledger_data.update({str(k): str(v) for k, v in loaded.items()})
+            except (json.JSONDecodeError, IOError):
                 ledger_data = {}
 
         # 3. Store the hash using target path as key
