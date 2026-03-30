@@ -49,6 +49,13 @@ world example-world {
 """
     (wit_dir / "world.wit").write_text(wit_content)
 
+    # Common: Coreason Bindings WIT
+    bindings_content = """package coreason:bindings;
+
+world agent { }
+"""
+    (project_path / "coreason-bindings.wit").write_text(bindings_content)
+
     vscode_dir = project_path / ".vscode"
     vscode_dir.mkdir(parents=True, exist_ok=True)
     settings = {
@@ -173,10 +180,11 @@ version = "0.1.0"
 description = "Autopoietically generated CoReason Swarm Workspace"
 requires-python = ">=3.14"
 dependencies = [
-    "coreason-runtime>={runtime_version}",
-    "coreason-manifest>={manifest_version}",
-    "coreason-ecosystem>={ecosystem_version}",
-    "componentize-py<0.14",
+    "coreason-runtime",
+    "coreason-manifest",
+    "coreason-ecosystem",
+    "componentize-py",
+    "extism-pdk",
     "python-pdk"
 ]
 
