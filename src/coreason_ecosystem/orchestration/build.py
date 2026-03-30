@@ -21,6 +21,105 @@ from rich.panel import Panel
 from coreason_ecosystem.cli import console
 
 
+async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
+    try:
+        rel_path = file_path.resolve().relative_to(Path.cwd().resolve())
+    except ValueError:
+        rel_path = file_path.resolve()
+
+    safe_name = f"{hashlib.md5(str(rel_path).encode()).hexdigest()[:8]}_{file_path.with_suffix('.wasm').name}"
+    wasm_out_path = bin_dir / safe_name
+    module_name = ".".join(rel_path.with_suffix("").parts)
+
+    try:
+        if file_path.suffix == ".py":
+            compile_proc = await asyncio.create_subprocess_exec(
+                "componentize-py",
+                "-d",
+                "wit",
+                "-w",
+                "example-world",
+                "componentize",
+                module_name,
+                "-o",
+                str(wasm_out_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        elif file_path.suffix == ".rs":
+            compile_proc = await asyncio.create_subprocess_exec(
+                "cargo",
+                "component",
+                "build",
+                "--release",
+                "--target",
+                "wasm32-wasi",
+                cwd=str(file_path.parent),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        elif file_path.suffix == ".go":
+            compile_proc = await asyncio.create_subprocess_exec(
+                "tinygo",
+                "build",
+                "-target=wasi",
+                "-o",
+                str(wasm_out_path),
+                str(file_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        else:
+            raise ValueError(f"Unsupported file type: {file_path.suffix}")
+
+        stdout, stderr = await compile_proc.communicate()
+    except FileNotFoundError:
+        console.print(
+            "[bold red]✗ Fatal Error: Missing compiler for toolchain.[/bold red]"
+        )
+        raise typer.Exit(1)
+
+    if compile_proc.returncode != 0:
+        console.print(f"[bold red]Error compiling {file_path}:[/bold red]")
+        console.print(stderr.decode("utf-8", errors="replace"))
+        raise typer.Exit(1)
+
+    import shutil
+
+    if file_path.suffix == ".rs":
+        target_wasm = (
+            file_path.parent
+            / "target"
+            / "wasm32-wasi"
+            / "release"
+            / f"{file_path.stem}.wasm"
+        )
+        if target_wasm.exists():
+            shutil.copy2(target_wasm, wasm_out_path)
+        else:
+            console.print(
+                f"[bold red]Error: Could not locate compiled WASM for {file_path}[/bold red]"
+            )
+            raise typer.Exit(1)
+
+    # 2. Calculate the cryptographic SHA-256 hash of the compiled file
+    content = wasm_out_path.read_bytes()
+
+    # 3. Store the hash using target path as key
+    file_hash = hashlib.sha256(content).hexdigest()
+
+    # Output the calculated Epistemic Seal (hash) to the terminal
+    panel = Panel(
+        f"[green]Capability Crystallized:[/green]\n[cyan]{rel_path}[/cyan]\n\n"
+        f"[bold]Epistemic Seal (SHA-256):[/bold]\n[yellow]{file_hash}[/yellow]",
+        title="[bold blue]Build Complete[/bold blue]",
+        expand=False,
+    )
+    console.print(panel)
+
+    return (str(rel_path), file_hash)
+
+
 async def execute_build(target_path: str) -> None:
     """
     Compile human-readable Python capabilities into WASM boundaries and calculate their Epistemic Seals.
@@ -36,9 +135,15 @@ async def execute_build(target_path: str) -> None:
     if target.is_dir():
         cap_dir = target / "src" / "capabilities"
         if cap_dir.exists():
-            files_to_build = list(cap_dir.rglob("*.py"))
+            files_to_build: list[Path] = []
+            files_to_build.extend(cap_dir.rglob("*.py"))
+            files_to_build.extend(cap_dir.rglob("*.rs"))
+            files_to_build.extend(cap_dir.rglob("*.go"))
         else:
-            files_to_build = list(target.rglob("*.py"))
+            files_to_build = []
+            files_to_build.extend(target.rglob("*.py"))
+            files_to_build.extend(target.rglob("*.rs"))
+            files_to_build.extend(target.rglob("*.go"))
     else:
         files_to_build = [target]
 
@@ -52,65 +157,31 @@ async def execute_build(target_path: str) -> None:
     coreason_dir = Path.cwd() / ".coreason"
     coreason_dir.mkdir(parents=True, exist_ok=True)
 
+    bin_dir = coreason_dir / "bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+
+    # Compile files concurrently
+    tasks = [compile_and_hash(file_path, bin_dir) for file_path in files_to_build]
+    results = await asyncio.gather(*tasks)
+
     # Load existing ledger
     ledger_path = coreason_dir / "capability_ledger.json"
     lock_path = coreason_dir / "capability_ledger.json.lock"
 
     with FileLock(lock_path, timeout=10):
-        ledger_data = {}
+        ledger_data: dict[str, str] = {}
         if ledger_path.exists():
             try:
                 with ledger_path.open("r", encoding="utf-8") as f:
-                    ledger_data = json.load(f)
-            except json.JSONDecodeError:
+                    loaded = json.load(f)
+                    if isinstance(loaded, dict):
+                        ledger_data.update({str(k): str(v) for k, v in loaded.items()})
+            except (json.JSONDecodeError, IOError):
                 ledger_data = {}
 
-        for file_path in files_to_build:
-            wasm_out_path = file_path.with_suffix(".wasm")
-
-            try:
-                compile_proc = await asyncio.create_subprocess_exec(
-                    "componentize-py",
-                    "-d",
-                    "coreason-bindings",
-                    "-w",
-                    "extism",
-                    str(file_path),
-                    "-o",
-                    str(wasm_out_path),
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                stdout, stderr = await compile_proc.communicate()
-            except FileNotFoundError:
-                console.print(
-                    "[bold red]✗ Fatal Error: 'componentize-py' compiler not found.[/bold red]"
-                )
-                console.print(
-                    "Please install the WASM toolchain: [cyan]uv pip install componentize-py[/cyan]"
-                )
-                raise typer.Exit(1)
-
-            if compile_proc.returncode != 0:
-                console.print(f"[bold red]Error compiling {file_path}:[/bold red]")
-                console.print(stderr.decode("utf-8", errors="replace"))
-                raise typer.Exit(1)
-
-            # 2. Calculate the cryptographic SHA-256 hash of the compiled file
-            content = wasm_out_path.read_bytes()
-
-            # 3. Store the hash using target path as key
-            file_hash = hashlib.sha256(content).hexdigest()
-            ledger_data[str(file_path.resolve())] = file_hash
-
-            # Output the calculated Epistemic Seal (hash) to the terminal
-            panel = Panel(
-                f"[green]Capability Crystallized:[/green]\n[cyan]{file_path.resolve()}[/cyan]\n\n"
-                f"[bold]Epistemic Seal (SHA-256):[/bold]\n[yellow]{file_hash}[/yellow]",
-                title="[bold blue]Build Complete[/bold blue]",
-                expand=False,
-            )
-            console.print(panel)
+        # 3. Store the hash using target path as key
+        for rel_path_str, file_hash in results:
+            ledger_data[rel_path_str] = file_hash
 
         # 4. Register the hash into .coreason/capability_ledger.json
         with ledger_path.open("w", encoding="utf-8") as f:

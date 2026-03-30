@@ -45,9 +45,11 @@ async def test_execute_init_base_topology(
     await execute_init(project_name, topology="base")
 
     # Verify directories
-    assert (project_path / "src" / "agents").is_dir()
-    assert (project_path / "src" / "capabilities").is_dir()
-    assert (project_path / "src" / "intents").is_dir()
+    package_name = project_name.replace("-", "_")
+    package_dir = project_path / "src" / package_name
+    assert (package_dir / "agents").is_dir()
+    assert (package_dir / "capabilities").is_dir()
+    assert (package_dir / "intents").is_dir()
     assert (project_path / ".vscode").is_dir()
 
     # Verify files
@@ -59,7 +61,7 @@ async def test_execute_init_base_topology(
     assert schema["title"] == "Swarm Ontology"
 
     # Verify Base topology capabilities
-    cap_dir = project_path / "src" / "capabilities"
+    cap_dir = package_dir / "capabilities"
     assert (cap_dir / "example_tool.py").is_file()
 
     # Verify Visual Cortex
@@ -96,7 +98,8 @@ async def test_execute_init_medallion_topology(
     mock_exec.return_value = mock_process
 
     await execute_init(project_name, topology="medallion")
-    cap_dir = project_path / "src" / "capabilities"
+    package_name = project_name.replace("-", "_")
+    cap_dir = project_path / "src" / package_name / "capabilities"
     assert (cap_dir / "bronze_ingest.py").is_file()
     assert (cap_dir / "silver_cleanse.py").is_file()
     assert (cap_dir / "gold_route.py").is_file()
@@ -113,7 +116,8 @@ async def test_execute_init_rag_topology(
     mock_exec.return_value = mock_process
 
     await execute_init(project_name, topology="rag")
-    cap_dir = project_path / "src" / "capabilities"
+    package_name = project_name.replace("-", "_")
+    cap_dir = project_path / "src" / package_name / "capabilities"
     assert (cap_dir / "embed_document.py").is_file()
     assert (cap_dir / "retrieve_context.py").is_file()
 
@@ -136,8 +140,11 @@ async def test_execute_init_package_not_found(
 
     assert (project_path / "pyproject.toml").is_file()
     toml_content = (project_path / "pyproject.toml").read_text()
-    assert "coreason-runtime==0.1.0" in toml_content
-    assert "coreason-manifest==0.1.0" in toml_content
+    assert "coreason-runtime>=0.1.0" in toml_content
+    assert "coreason-manifest>=0.1.0" in toml_content
+    assert "coreason-ecosystem>=0.1.0" in toml_content
+    assert "componentize-py" in toml_content
+    assert "python-pdk" in toml_content
 
 
 @pytest.mark.asyncio

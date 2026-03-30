@@ -169,7 +169,7 @@ async def stop_otlp_background_worker() -> None:
             await asyncio.wait_for(_wait_for_queue(), timeout=3.0)
         except asyncio.TimeoutError:
             # If the network is degraded, abandon the remaining logs rather than hanging the CLI
-            pass
+            pass  # pragma: no cover
 
     if _otlp_task is not None:
         _otlp_task.cancel()

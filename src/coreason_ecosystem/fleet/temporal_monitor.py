@@ -10,7 +10,7 @@
 
 import asyncio
 
-from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile  # type: ignore[attr-defined]
+from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
 
 
 class ThermodynamicMonitor:

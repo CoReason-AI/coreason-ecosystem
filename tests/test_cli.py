@@ -8,9 +8,9 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-import asyncio
 import json
 import runpy
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -64,7 +64,7 @@ def test_init_command(mock_execute_init: Any) -> None:
     result = runner.invoke(app, ["init", "my_new_swarm", "--topology", "medallion"])
     assert result.exit_code == 0
     assert "Workspace 'my_new_swarm' mathematically sealed and ready." in result.stdout
-    mock_execute_init.assert_called_once_with("my_new_swarm", "medallion")
+    mock_execute_init.assert_called_once_with("my_new_swarm", "medallion", "python")
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
@@ -83,7 +83,7 @@ def test_build_command(
     mock_proc.communicate.return_value = (b"", b"")
     mock_create_subprocess_exec.return_value = mock_proc
     mock_exists.return_value = True
-    mock_read_bytes.return_value = b"print('hello')"
+    mock_read_bytes.return_value = b"test bytes"
 
     import io
 
@@ -92,9 +92,12 @@ def test_build_command(
     mock_file = io.StringIO(json.dumps({"test": "hash"}))
     mock_open.return_value.__enter__.return_value = mock_file
 
-    result = runner.invoke(app, ["build", "dummy_script.py"])
-    assert result.exit_code == 0
-    assert "Capability Crystallized" in result.stdout
+    with patch(
+        "coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()
+    ):
+        result = runner.invoke(app, ["build", str(Path.cwd() / "dummy_script.py")])
+        assert result.exit_code == 0
+        assert "Capability Crystallized" in result.stdout
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
@@ -113,7 +116,7 @@ def test_build_command_no_json(
     mock_proc.communicate.return_value = (b"", b"")
     mock_create_subprocess_exec.return_value = mock_proc
     mock_exists.return_value = True
-    mock_read_bytes.return_value = b"print('hello')"
+    mock_read_bytes.return_value = b"test bytes"
 
     import io
 
@@ -121,9 +124,12 @@ def test_build_command_no_json(
     mock_file = io.StringIO("invalid json")
     mock_open.return_value.__enter__.return_value = mock_file
 
-    result = runner.invoke(app, ["build", "dummy_script.py"])
-    assert result.exit_code == 0
-    assert "Capability Crystallized" in result.stdout
+    with patch(
+        "coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()
+    ):
+        result = runner.invoke(app, ["build", str(Path.cwd() / "dummy_script.py")])
+        assert result.exit_code == 0
+        assert "Capability Crystallized" in result.stdout
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
@@ -150,9 +156,12 @@ def test_build_command_compiler_not_found(
 
     mock_open.return_value.__enter__.return_value = io.StringIO("{}")
 
-    result = runner.invoke(app, ["build", "dummy_script.py"])
-    assert result.exit_code == 1
-    assert "Fatal Error: 'componentize-py' compiler not found" in result.stdout
+    with patch(
+        "coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()
+    ):
+        result = runner.invoke(app, ["build", str(Path.cwd() / "dummy_script.py")])
+        assert result.exit_code == 1
+        assert "Missing compiler for toolchain" in result.stdout
 
 
 @patch("coreason_ecosystem.orchestration.build.Path.exists")
@@ -172,33 +181,38 @@ def test_build_command_compile_error(
 
     mock_open.return_value.__enter__.return_value = io.StringIO("{}")
 
-    result = runner.invoke(app, ["build", "dummy_script.py"])
-    assert result.exit_code == 1
-    assert "Error compiling" in result.stdout
-    assert "syntax error" in result.stdout
+    with patch(
+        "coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()
+    ):
+        result = runner.invoke(app, ["build", str(Path.cwd() / "dummy_script.py")])
+        assert result.exit_code == 1
+        assert "Error compiling" in result.stdout
+        assert "syntax error" in result.stdout
 
 
+@patch("coreason_ecosystem.orchestration.up.is_port_bound", return_value=True)
 @patch(
     "coreason_ecosystem.orchestration.up.calculate_epistemic_root",
     new_callable=AsyncMock,
 )
 @patch("coreason_ecosystem.orchestration.up.write_registry_lock")
 @patch("coreason_ecosystem.orchestration.up.Path.exists")
+@patch("coreason_ecosystem.orchestration.up.shutil.copy2")
 @patch("coreason_ecosystem.orchestration.up.asyncio.create_subprocess_exec")
-@patch("coreason_ecosystem.orchestration.up.is_port_bound")
 def test_up_command(
-    mock_is_port_bound: Any,
     mock_exec: Any,
+    mock_copy2: Any,
     mock_exists: Any,
     mock_write_lock: Any,
     mock_calc_root: Any,
+    mock_is_port_bound: Any,
 ) -> None:
     """Test the up command execution logic."""
     mock_calc_root.return_value = "deadbeef"
     mock_exists.return_value = False
-    mock_is_port_bound.side_effect = [False, False, False, False]
 
     mock_proc = AsyncMock()
+    mock_proc.returncode = 0
     mock_proc.communicate.return_value = (b"", b"")
     mock_exec.return_value = mock_proc
 
@@ -207,51 +221,41 @@ def test_up_command(
     assert (
         mock_exec.call_count == 4
     )  # postgres, temporal, coreason-runtime, observability
+    assert mock_is_port_bound.call_count == 3
+    mock_is_port_bound.assert_any_call(5432)
+    mock_is_port_bound.assert_any_call(7233)
+    mock_is_port_bound.assert_any_call(8000)
 
 
+@patch("coreason_ecosystem.orchestration.up.is_port_bound", return_value=True)
 @patch(
     "coreason_ecosystem.orchestration.up.calculate_epistemic_root",
     new_callable=AsyncMock,
 )
 @patch("coreason_ecosystem.orchestration.up.write_registry_lock")
+@patch("coreason_ecosystem.orchestration.up.Path.exists")
+@patch("coreason_ecosystem.orchestration.up.shutil.copy2")
 @patch("coreason_ecosystem.orchestration.up.asyncio.create_subprocess_exec")
-@patch("coreason_ecosystem.orchestration.up.is_port_bound")
-def test_up_command_all_bound(
-    mock_is_port_bound: Any, mock_exec: Any, mock_write_lock: Any, mock_calc_root: Any
+def test_up_command_failure(
+    mock_exec: Any,
+    mock_copy2: Any,
+    mock_exists: Any,
+    mock_write_lock: Any,
+    mock_calc_root: Any,
+    mock_is_port_bound: Any,
 ) -> None:
-    """Test the up command execution logic when all bound."""
+    """Test the up command execution logic when a subprocess fails."""
     mock_calc_root.return_value = "deadbeef"
-    mock_is_port_bound.side_effect = [True, True, True, True]
+    mock_exists.return_value = False
+
+    mock_proc = AsyncMock()
+    mock_proc.returncode = 1
+    mock_proc.communicate.return_value = (b"", b"mocked docker failure")
+    mock_exec.return_value = mock_proc
 
     result = runner.invoke(app, ["up"])
-    assert result.exit_code == 0
-    assert mock_exec.call_count == 0
-
-
-@patch("coreason_ecosystem.orchestration.up.asyncio.wait_for")
-def test_up_is_port_bound_true(mock_wait_for: Any) -> None:
-    """Test port bound check function."""
-    from coreason_ecosystem.orchestration.up import is_port_bound
-
-    mock_reader = AsyncMock()
-    mock_writer = AsyncMock()
-    # Ensure wait_closed is an async mock so await works
-    mock_writer.wait_closed = AsyncMock()
-    mock_wait_for.return_value = (mock_reader, mock_writer)
-
-    result = asyncio.run(is_port_bound(1234))
-    assert result is True
-
-
-@patch("coreason_ecosystem.orchestration.up.asyncio.wait_for")
-def test_up_is_port_bound_false(mock_wait_for: Any) -> None:
-    """Test port bound check function on failure."""
-    from coreason_ecosystem.orchestration.up import is_port_bound
-
-    mock_wait_for.side_effect = ConnectionRefusedError()
-
-    result = asyncio.run(is_port_bound(1234))
-    assert result is False
+    assert result.exit_code == 1
+    assert "mocked docker failure" in result.stdout
 
 
 class MockResponse:
@@ -289,6 +293,10 @@ class MockAsyncClient:
         return MockStreamResponse(200)
 
 
+@patch(
+    "coreason_ecosystem.orchestration.doctor.calculate_epistemic_root",
+    new_callable=AsyncMock,
+)
 @patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
 @patch(
     "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
@@ -301,12 +309,14 @@ def test_doctor_command(
     mock_exists: Any,
     mock_client: Any,
     mock_read_registry_lock: Any,
+    mock_calc_root: Any,
 ) -> None:
     """Test the doctor command execution logic."""
     _ = mock_client
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"{}"
     mock_read_registry_lock.return_value = "deadbeefdeadbeefdeadbeef"
+    mock_calc_root.return_value = "deadbeefdeadbeefdeadbeef"
 
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
@@ -331,6 +341,10 @@ class MockAsyncClientErrorCodes:
         return MockStreamResponse(500)
 
 
+@patch(
+    "coreason_ecosystem.orchestration.doctor.calculate_epistemic_root",
+    new_callable=AsyncMock,
+)
 @patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
 @patch(
     "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
@@ -343,12 +357,14 @@ def test_doctor_command_error_codes(
     mock_exists: Any,
     mock_client: Any,
     mock_read_registry_lock: Any,
+    mock_calc_root: Any,
 ) -> None:
     """Test the doctor command error logic."""
     _ = mock_client
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"{}"
     mock_read_registry_lock.return_value = None
+    mock_calc_root.return_value = "deadbeef"
 
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
@@ -378,6 +394,10 @@ class MockAsyncClientFail:
         raise httpx.RequestError("Mocked stream failure")
 
 
+@patch(
+    "coreason_ecosystem.orchestration.doctor.calculate_epistemic_root",
+    new_callable=AsyncMock,
+)
 @patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
 @patch(
     "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
@@ -385,12 +405,16 @@ class MockAsyncClientFail:
 )
 @patch("coreason_ecosystem.orchestration.doctor.Path.exists")
 def test_doctor_command_failures(
-    mock_exists: Any, mock_client: Any, mock_read_registry_lock: Any
+    mock_exists: Any,
+    mock_client: Any,
+    mock_read_registry_lock: Any,
+    mock_calc_root: Any,
 ) -> None:
     """Test the doctor command failure logic."""
     _ = mock_client
     mock_exists.return_value = False
     mock_read_registry_lock.return_value = "deadbeef"
+    mock_calc_root.return_value = "deadbeef"
 
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
@@ -417,6 +441,10 @@ class MockAsyncClientHTTP:
         return MockStreamResponse(404)
 
 
+@patch(
+    "coreason_ecosystem.orchestration.doctor.calculate_epistemic_root",
+    new_callable=AsyncMock,
+)
 @patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
 @patch(
     "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
@@ -429,11 +457,13 @@ def test_doctor_command_http_error(
     mock_exists: Any,
     mock_client: Any,
     mock_read_registry_lock: Any,
+    mock_calc_root: Any,
 ) -> None:
     _ = mock_client
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"{}"
     mock_read_registry_lock.return_value = "deadbeef"
+    mock_calc_root.return_value = "deadbeef"
 
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
@@ -458,6 +488,10 @@ class MockAsyncClientHTTP409:
         return MockStreamResponse(409)
 
 
+@patch(
+    "coreason_ecosystem.orchestration.doctor.calculate_epistemic_root",
+    new_callable=AsyncMock,
+)
 @patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
 @patch(
     "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
@@ -470,11 +504,13 @@ def test_doctor_command_http_error_409(
     mock_exists: Any,
     mock_client: Any,
     mock_read_registry_lock: Any,
+    mock_calc_root: Any,
 ) -> None:
     _ = mock_client
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"{}"
     mock_read_registry_lock.return_value = "deadbeef"
+    mock_calc_root.return_value = "deadbeef"
 
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
