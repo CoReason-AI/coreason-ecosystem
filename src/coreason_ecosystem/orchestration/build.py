@@ -23,9 +23,9 @@ from coreason_ecosystem.cli import console
 
 async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
     try:
-        rel_path = file_path.resolve().relative_to(Path.cwd().resolve())
+        rel_path = file_path.relative_to(Path.cwd())
     except ValueError:
-        rel_path = file_path.resolve()
+        rel_path = file_path
 
     safe_name = f"{hashlib.md5(str(rel_path).encode()).hexdigest()[:8]}_{file_path.with_suffix('.wasm').name}"
     wasm_out_path = bin_dir / safe_name
