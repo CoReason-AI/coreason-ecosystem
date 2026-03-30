@@ -17,7 +17,7 @@ services:
 
   coreason-runtime:
     build:
-      context: ${COREASON_RUNTIME_PATH}
+      context: ${COREASON_RUNTIME_PATH:-../../../coreason-runtime}
     image: coreason-runtime:local
     deploy:
       resources:
