@@ -47,14 +47,18 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
                 stderr=asyncio.subprocess.PIPE,
             )
         elif file_path.suffix == ".rs":
+            cargo_dir = file_path.parent
+            while not (cargo_dir / "Cargo.toml").exists() and cargo_dir != cargo_dir.parent:
+                cargo_dir = cargo_dir.parent
+
             compile_proc = await asyncio.create_subprocess_exec(
                 "cargo",
                 "component",
                 "build",
                 "--release",
                 "--target",
-                "wasm32-wasi",
-                cwd=str(file_path.parent),
+                "wasm32-wasip1",
+                cwd=str(cargo_dir),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -87,18 +91,31 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
     import shutil
 
     if file_path.suffix == ".rs":
+        cargo_dir = file_path.parent
+        while not (cargo_dir / "Cargo.toml").exists() and cargo_dir != cargo_dir.parent:
+            cargo_dir = cargo_dir.parent
+
+        # Attempt to locate the exact wasm output based on the directory name
+        expected_stem = cargo_dir.name.replace("-", "_")
         target_wasm = (
-            file_path.parent
+            cargo_dir
             / "target"
-            / "wasm32-wasi"
+            / "wasm32-wasip1"
             / "release"
-            / f"{file_path.stem}.wasm"
+            / f"{expected_stem}.wasm"
         )
+
+        if not target_wasm.exists():
+            # Fallback to recursively searching the release folder just in case the crate name differs
+            found = list((cargo_dir / "target" / "wasm32-wasip1" / "release").glob("*.wasm"))
+            if found:
+                target_wasm = found[0]
+
         if target_wasm.exists():
             shutil.copy2(target_wasm, wasm_out_path)
         else:
             console.print(
-                f"[bold red]Error: Could not locate compiled WASM for {file_path}[/bold red]"
+                f"[bold red]Error: Could not locate compiled WASM for {file_path}[/bold red]\nExpected at: {target_wasm}"
             )
             raise typer.Exit(1)
 
@@ -146,6 +163,8 @@ async def execute_build(target_path: str) -> None:
             files_to_build.extend(target.rglob("*.go"))
     else:
         files_to_build = [target]
+    # Filter out generated files from Rust build caches or Python virtual environments
+    files_to_build = [f for f in files_to_build if "target" not in f.parts and ".venv" not in f.parts]
 
     if not files_to_build:
         console.print(
