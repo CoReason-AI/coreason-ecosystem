@@ -21,5 +21,10 @@ class HardwareProfile(BaseModel):
 class SecurityProfile(BaseModel):
     network_isolation: bool = True
 
+from pydantic import ConfigDict
+
+class CoreasonBaseState(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
 
 sys.modules["coreason_manifest.spec.ontology"] = sys.modules[__name__]
