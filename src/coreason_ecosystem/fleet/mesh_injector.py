@@ -14,7 +14,11 @@ from typing import Any, Literal
 
 from pydantic import field_validator
 
-from coreason_manifest.spec.ontology import CoreasonBaseState, HardwareProfile, SecurityProfile
+from coreason_manifest.spec.ontology import (
+    CoreasonBaseState,
+    HardwareProfile,
+    SecurityProfile,
+)
 
 
 class FederatedCapabilityAttestationReceipt(CoreasonBaseState):

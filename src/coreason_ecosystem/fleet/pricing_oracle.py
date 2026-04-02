@@ -26,18 +26,70 @@ class PricingOracle:
         valid_nodes = []
 
         if "aws" in hardware_profile.provider_whitelist:
-            # Stub AWS Spot pricing as it requires complex boto3 auth natively
-            aws_stub = [
-                ComputeNodeTarget(provider="aws", instance_id="t3.micro", hourly_cost=0.01, vram_gb=0.0),
-                ComputeNodeTarget(provider="aws", instance_id="p3.2xlarge", hourly_cost=3.06, vram_gb=16.0),
-            ]
-            valid_nodes.extend(aws_stub)
+            import asyncio
+            from datetime import datetime, timezone
+
+            def fetch_aws_spot() -> list["ComputeNodeTarget"]:
+                instance_vram_map = {
+                    "g4dn.xlarge": 16.0,
+                    "g4dn.2xlarge": 16.0,
+                    "g4dn.4xlarge": 16.0,
+                    "g4dn.8xlarge": 16.0,
+                    "g4dn.12xlarge": 16.0,
+                    "g5.xlarge": 24.0,
+                    "g5.2xlarge": 24.0,
+                    "p3.2xlarge": 16.0,
+                    "p3.8xlarge": 64.0,
+                    "p4d.24xlarge": 320.0,
+                }
+                valid_instances = [
+                    k
+                    for k, v in instance_vram_map.items()
+                    if v >= hardware_profile.min_vram_gb
+                ]
+                if not valid_instances:
+                    return []
+                try:
+                    import boto3
+
+                    client = boto3.client("ec2", region_name="us-east-1")
+                    response = client.describe_spot_price_history(
+                        InstanceTypes=valid_instances,
+                        ProductDescriptions=["Linux/UNIX"],
+                        StartTime=datetime.now(timezone.utc),
+                        MaxResults=len(valid_instances) * 2,
+                    )
+                    aws_nodes = []
+                    for spot in response.get("SpotPriceHistory", []):
+                        itype = spot["InstanceType"]
+                        price = float(spot["SpotPrice"])
+                        aws_nodes.append(
+                            ComputeNodeTarget(
+                                provider="aws",
+                                instance_id=itype,
+                                hourly_cost=price,
+                                vram_gb=instance_vram_map[itype],
+                            )
+                        )
+                    return aws_nodes
+                except Exception as e:
+                    import logging
+
+                    logging.getLogger(__name__).warning(
+                        f"AWS Boto3 API oracle failed: {e}"
+                    )
+                    return []
+
+            aws_nodes = await asyncio.to_thread(fetch_aws_spot)
+            valid_nodes.extend(aws_nodes)
 
         if "vast" in hardware_profile.provider_whitelist:
             try:
                 async with httpx.AsyncClient() as client:
                     # Query live order book from Vast.ai
-                    resp = await client.get("https://offers.vast.ai/v1/machine_offers", timeout=15.0)
+                    resp = await client.get(
+                        "https://offers.vast.ai/v1/machine_offers", timeout=15.0
+                    )
                     resp.raise_for_status()
                     data = resp.json()
                     offers = data.get("offers", [])
@@ -56,6 +108,7 @@ class PricingOracle:
                         )
             except Exception as e:
                 import logging
+
                 logging.getLogger(__name__).warning(f"Vast.ai API oracle failed: {e}")
 
         # Filter nodes based on constraints

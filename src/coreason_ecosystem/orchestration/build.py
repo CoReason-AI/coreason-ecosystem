@@ -48,7 +48,10 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
             )
         elif file_path.suffix == ".rs":
             cargo_dir = file_path.parent
-            while not (cargo_dir / "Cargo.toml").exists() and cargo_dir != cargo_dir.parent:
+            while (
+                not (cargo_dir / "Cargo.toml").exists()
+                and cargo_dir != cargo_dir.parent
+            ):
                 cargo_dir = cargo_dir.parent
 
             compile_proc = await asyncio.create_subprocess_exec(
@@ -98,16 +101,14 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
         # Attempt to locate the exact wasm output based on the directory name
         expected_stem = cargo_dir.name.replace("-", "_")
         target_wasm = (
-            cargo_dir
-            / "target"
-            / "wasm32-wasip1"
-            / "release"
-            / f"{expected_stem}.wasm"
+            cargo_dir / "target" / "wasm32-wasip1" / "release" / f"{expected_stem}.wasm"
         )
 
         if not target_wasm.exists():
             # Fallback to recursively searching the release folder just in case the crate name differs
-            found = list((cargo_dir / "target" / "wasm32-wasip1" / "release").glob("*.wasm"))
+            found = list(
+                (cargo_dir / "target" / "wasm32-wasip1" / "release").glob("*.wasm")
+            )
             if found:
                 target_wasm = found[0]
 
@@ -164,7 +165,9 @@ async def execute_build(target_path: str) -> None:
     else:
         files_to_build = [target]
     # Filter out generated files from Rust build caches or Python virtual environments
-    files_to_build = [f for f in files_to_build if "target" not in f.parts and ".venv" not in f.parts]
+    files_to_build = [
+        f for f in files_to_build if "target" not in f.parts and ".venv" not in f.parts
+    ]
 
     if not files_to_build:
         console.print(
@@ -195,7 +198,7 @@ async def execute_build(target_path: str) -> None:
                     loaded = json.load(f)
                     if isinstance(loaded, dict):
                         ledger_data.update({str(k): str(v) for k, v in loaded.items()})
-            except (json.JSONDecodeError, IOError):
+            except json.JSONDecodeError, IOError:
                 ledger_data = {}
 
         # 3. Store the hash using target path as key
