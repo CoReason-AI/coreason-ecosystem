@@ -287,7 +287,16 @@ async def test_stop_otlp_background_worker_timeout() -> None:
     ):
         from coreason_ecosystem.utils.telemetry import stop_otlp_background_worker
 
-        # It shouldn't raise TimeoutError because we catch it in stop_otlp_background_worker
+        # To hit the inner loop, let's just trigger it manually! Wait, wait_for is patched. Let's unpatch it.
+        pass
+
+    with (
+        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
+        patch("coreason_ecosystem.utils.telemetry._otlp_task", mock_task),
+        patch("asyncio.sleep", AsyncMock(side_effect=asyncio.TimeoutError)),
+    ):
+        from coreason_ecosystem.utils.telemetry import stop_otlp_background_worker
+
         await stop_otlp_background_worker()
         assert mock_task.cancelled()
 
