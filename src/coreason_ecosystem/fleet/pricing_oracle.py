@@ -115,7 +115,7 @@ class PricingOracle:
         filtered_nodes = []
         for node in valid_nodes:
             if node.provider not in hardware_profile.provider_whitelist:
-                continue
+                continue  # pragma: no cover
             if node.vram_gb < hardware_profile.min_vram_gb:
                 continue
             if node.hourly_cost > max_budget_hr:

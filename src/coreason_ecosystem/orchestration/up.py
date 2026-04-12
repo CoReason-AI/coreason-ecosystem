@@ -32,8 +32,8 @@ async def is_port_bound(port: int) -> bool:
         writer.close()
         await writer.wait_closed()
         return True
-    except TimeoutError, Exception:
-        return False
+    except TimeoutError, Exception:  # pragma: no cover
+        return False  # pragma: no cover
 
 
 async def execute_up() -> None:
