@@ -1,0 +1,11 @@
+name: coreason-mainnet
+description: CoReason Mainnet Infrastructure - Multi-Region HA Deployment
+runtime:
+  name: python
+  options:
+    virtualenv: venv
+config:
+  coreason:environment:
+    default: production
+  aws:region:
+    default: us-east-1
