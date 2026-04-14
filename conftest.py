@@ -9,7 +9,7 @@
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
 import sys
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class HardwareProfile(BaseModel):
@@ -20,6 +20,10 @@ class HardwareProfile(BaseModel):
 
 class SecurityProfile(BaseModel):
     network_isolation: bool = True
+
+
+class CoreasonBaseState(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
 
 sys.modules["coreason_manifest.spec.ontology"] = sys.modules[__name__]

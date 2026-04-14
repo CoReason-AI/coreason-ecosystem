@@ -8,7 +8,6 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-import importlib.metadata
 import asyncio
 import json
 from pathlib import Path
@@ -160,16 +159,7 @@ func main() {}
         (package_dir / "__init__.py").touch()
 
         # 2. Dependency Locking
-        def get_version(pkg_name: str) -> str:
-            try:
-                return importlib.metadata.version(pkg_name)
-            except importlib.metadata.PackageNotFoundError:
-                return "0.1.0"  # Fallback
-
-        runtime_version = get_version("coreason-runtime")
-        manifest_version = get_version("coreason-manifest")
-        ecosystem_version = get_version("coreason-ecosystem")
-
+        # Versions not needed any more
         pyproject_toml_content = f"""[build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
