@@ -9,17 +9,25 @@
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
 import sys
-from pydantic import BaseModel
+from unittest.mock import MagicMock
+from pydantic_core import core_schema
+
+class _MockOntologyModel(MagicMock):
+    """Dynamic constructor for mocked ontology parameters to fix test duck-typing faults."""
+    
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        return core_schema.any_schema()
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
 
-class HardwareProfile(BaseModel):
-    min_vram_gb: float = 16.0
-    provider_whitelist: list[str] = ["aws", "vast"]
-    accelerator_type: str = "ampere"
+mock_ontology = MagicMock()
+mock_ontology.HardwareProfile = _MockOntologyModel
+mock_ontology.SecurityProfile = _MockOntologyModel
+mock_ontology.CoreasonBaseState = _MockOntologyModel
 
-
-class SecurityProfile(BaseModel):
-    network_isolation: bool = True
-
-
-sys.modules["coreason_manifest.spec.ontology"] = sys.modules[__name__]
+sys.modules["coreason_manifest.spec.ontology"] = mock_ontology

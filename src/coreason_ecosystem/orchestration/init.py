@@ -8,16 +8,13 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-import importlib.metadata
 import asyncio
 import json
 from pathlib import Path
 
 
-async def execute_init(
-    project_name: str, topology: str = "base", lang: str = "python"
-) -> None:
-    """Synthesize a mathematically verified Swarm workspace."""
+async def execute_init(project_name: str) -> None:
+    """Synthesize a mathematically verified Swarm workspace scaffolding."""
     if "/" in project_name or "\\" in project_name:
         raise ValueError("Project name cannot contain path separators")
 
@@ -30,25 +27,6 @@ async def execute_init(
 
     project_path.mkdir(parents=True, exist_ok=True)
 
-    # Common: Ontological Seed
-    schema = {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "title": "Swarm Ontology",
-    }
-    with (project_path / "coreason_ontology.schema.json").open("w") as f:
-        json.dump(schema, f, indent=4)
-
-    # Common: WASM Interface (WIT)
-    wit_dir = project_path / "wit"
-    wit_dir.mkdir(parents=True, exist_ok=True)
-    wit_content = """package coreason:capability;
-
-world example-world {
-    export main: func();
-}
-"""
-    (wit_dir / "world.wit").write_text(wit_content)
-
     vscode_dir = project_path / ".vscode"
     vscode_dir.mkdir(parents=True, exist_ok=True)
     settings = {
@@ -59,25 +37,52 @@ world example-world {
     with (vscode_dir / "settings.json").open("w") as f:
         json.dump(settings, f, indent=4)
 
-    if lang == "rust":
-        # Rust Scaffolding
-        cargo_toml = f"""[package]
+    # 1. Directory Genesis
+    package_name = project_name.replace("-", "_")
+    package_dir = project_path / "src" / package_name
+    package_dir.mkdir(parents=True, exist_ok=True)
+    (package_dir / "__init__.py").touch()
+
+    # 2. Dependency Locking
+    pyproject_toml_content = f"""[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
 name = "{project_name}"
 version = "0.1.0"
-edition = "2021"
+description = "Autopoietically generated CoReason Swarm Workspace"
+requires-python = ">=3.14"
+dependencies = [
+    "coreason-runtime",
+    "coreason-ecosystem"
+]
 
-[lib]
-crate-type = ["cdylib"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/{package_name}"]
 
-[dependencies]
-extism-pdk = "1.0"
+[dependency-groups]
+dev = [
+    "pre-commit"
+]
+
+[tool.uv]
+required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
 """
-        (project_path / "Cargo.toml").write_text(cargo_toml)
+    (project_path / "pyproject.toml").write_text(pyproject_toml_content)
 
-        src_dir = project_path / "src"
-        src_dir.mkdir(parents=True, exist_ok=True)
-
-        rust_template = """use extism_pdk::*;
+    tasks = {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "Ignite Swarm",
+                "command": "coreason deploy up",
+                "type": "shell",
+            },
+        ],
+    }
+    with (vscode_dir / "tasks.json").open("w") as f:
+        json.dump(tasks, f, indent=4)
 
 #[plugin_fn]
 pub fn execute(input: String) -> FnResult<String> {
@@ -239,7 +244,7 @@ def execute():
     hooks:
       - id: epistemic-seal-check
         name: Epistemic Seal Check
-        entry: coreason build
+        entry: coreason registry audit
         language: system
         pass_filenames: false
 """

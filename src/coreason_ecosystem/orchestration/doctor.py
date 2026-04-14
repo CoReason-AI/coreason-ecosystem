@@ -110,7 +110,7 @@ async def execute_doctor() -> None:
                 else:
                     status_d = f"[yellow]⚠ HTTP {resp.status_code}[/yellow]"
                     latency_d = "Check Daemon"
-            except (httpx.RequestError, httpx.TimeoutException):
+            except httpx.RequestError, httpx.TimeoutException:
                 status_d = "[yellow]⚠ UNREACHABLE[/yellow]"
                 latency_d = "Check Daemon"
 
