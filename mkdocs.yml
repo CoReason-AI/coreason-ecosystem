@@ -15,12 +15,3 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Architecture:
-      - The Manifesto: manifesto.md
-      - Lexical Architecture: lexical_architecture.md
-      - Ecosystem Blueprint: engineering_blueprint.md
-  - Operator Manuals:
-      - Workspace Genesis & Ignition: guides/ignition.md
-      - Capability Crystallization: guides/crystallization.md
-      - The Visual Cortex & Oracle Loop: guides/oracle_loop.md
-      - Maintenance & Autopoietic Healing: guides/healing.md

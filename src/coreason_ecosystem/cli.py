@@ -215,6 +215,20 @@ def sync() -> None:
     asyncio.run(_run())
 
 
+docs_app = typer.Typer(help="Epistemic Documentation Pipeline")
+app.add_typer(docs_app, name="docs")
+
+
+@docs_app.command(name="build")
+def build_docs_cmd() -> None:
+    """Generate dynamic MkDocs documentation from the ontological schema and ledger."""
+    try:
+        from coreason_ecosystem.docs_generator import generate_dynamic_docs
+        generate_dynamic_docs()
+    except Exception as e:
+        console.print(f"[bold red]Documentation Pipeline Failed:[/bold red] {e}")
+
+
 def main() -> None:  # pragma: no cover
     """Entry point for the CLI."""
     app()
