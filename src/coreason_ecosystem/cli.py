@@ -111,8 +111,6 @@ def fleet_start(
 )
 def init(
     project_name: str = typer.Argument(...),
-    topology: str = typer.Option("base", help="Target topology (base, medallion, rag)"),
-    lang: str = typer.Option("python", help="Target language (python, rust, go)"),
 ) -> None:
     """Autonomically generate a mathematically verified Swarm workspace."""
     from coreason_ecosystem.utils.telemetry import (
@@ -123,7 +121,7 @@ def init(
     async def _run() -> None:
         start_otlp_background_worker()
         try:
-            await execute_init(project_name, topology, lang)
+            await execute_init(project_name)
         finally:
             await stop_otlp_background_worker()
 
@@ -213,6 +211,20 @@ def sync() -> None:
             await stop_otlp_background_worker()
 
     asyncio.run(_run())
+
+
+docs_app = typer.Typer(help="Epistemic Documentation Pipeline")
+app.add_typer(docs_app, name="docs")
+
+
+@docs_app.command(name="build")
+def build_docs_cmd() -> None:
+    """Generate dynamic MkDocs documentation from the ontological schema and ledger."""
+    try:
+        from coreason_ecosystem.docs_generator import generate_dynamic_docs
+        generate_dynamic_docs()
+    except Exception as e:
+        console.print(f"[bold red]Documentation Pipeline Failed:[/bold red] {e}")
 
 
 def main() -> None:  # pragma: no cover
