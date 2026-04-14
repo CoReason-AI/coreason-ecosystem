@@ -84,8 +84,162 @@ required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_6
     with (vscode_dir / "tasks.json").open("w") as f:
         json.dump(tasks, f, indent=4)
 
-    # 6. Local Immunological System
-    pre_commit_config = """repos:
+#[plugin_fn]
+pub fn execute(input: String) -> FnResult<String> {
+    Ok("Capability Executed Successfully!".to_string())
+}
+"""
+        (src_dir / "lib.rs").write_text(rust_template)
+
+        tasks = {
+            "version": "2.0.0",
+            "tasks": [
+                {
+                    "label": "Crystallize Capabilities",
+                    "command": "cargo build --target wasm32-unknown-unknown --release && cp target/wasm32-unknown-unknown/release/*.wasm .coreason/bin/",
+                    "type": "shell",
+                },
+                {"label": "Ignite Swarm", "command": "coreason up", "type": "shell"},
+            ],
+        }
+        with (vscode_dir / "tasks.json").open("w") as f:
+            json.dump(tasks, f, indent=4)
+
+    elif lang == "go":
+        # Go Scaffolding
+        go_mod = f"""module {project_name}
+
+go 1.21
+
+require github.com/extism/go-pdk v1.0.0
+"""
+        (project_path / "go.mod").write_text(go_mod)
+
+        go_template = """package main
+
+import (
+	"github.com/extism/go-pdk"
+)
+
+//export execute
+func execute() int32 {
+	pdk.OutputString("Capability Executed Successfully!")
+	return 0
+}
+
+func main() {}
+"""
+        (project_path / "main.go").write_text(go_template)
+
+        tasks = {
+            "version": "2.0.0",
+            "tasks": [
+                {
+                    "label": "Crystallize Capabilities",
+                    "command": "tinygo build -o .coreason/bin/capability.wasm -target wasi main.go",
+                    "type": "shell",
+                },
+                {"label": "Ignite Swarm", "command": "coreason up", "type": "shell"},
+            ],
+        }
+        with (vscode_dir / "tasks.json").open("w") as f:
+            json.dump(tasks, f, indent=4)
+
+    else:
+        # 1. Directory Genesis
+        package_name = project_name.replace("-", "_")
+        package_dir = project_path / "src" / package_name
+        (package_dir / "agents").mkdir(parents=True, exist_ok=True)
+        (package_dir / "agents" / "__init__.py").touch()
+        (package_dir / "capabilities").mkdir(parents=True, exist_ok=True)
+        (package_dir / "capabilities" / "__init__.py").touch()
+        (package_dir / "intents").mkdir(parents=True, exist_ok=True)
+        (package_dir / "intents" / "__init__.py").touch()
+        (package_dir / "__init__.py").touch()
+
+        # 2. Dependency Locking
+        def get_version(pkg_name: str) -> str:
+            try:
+                return importlib.metadata.version(pkg_name)
+            except importlib.metadata.PackageNotFoundError:
+                return "0.1.0"  # Fallback
+
+        runtime_version = get_version("coreason-runtime")
+        manifest_version = get_version("coreason-manifest")
+        ecosystem_version = get_version("coreason-ecosystem")
+
+        pyproject_toml_content = f"""[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "{project_name}"
+version = "0.1.0"
+description = "Autopoietically generated CoReason Swarm Workspace"
+requires-python = ">=3.14"
+dependencies = [
+    "coreason-runtime>={runtime_version}",
+    "coreason-manifest>={manifest_version}",
+    "coreason-ecosystem>={ecosystem_version}",
+    "componentize-py<0.14",
+    "python-pdk"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/{package_name}"]
+
+[dependency-groups]
+dev = [
+    "pre-commit"
+]
+
+[tool.uv]
+required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+[tool.uv.sources]
+python-pdk = {{ git = "https://github.com/extism/python-pdk" }}
+"""
+        (project_path / "pyproject.toml").write_text(pyproject_toml_content)
+
+        # 4. Topological Routing
+        cap_dir = package_dir / "capabilities"
+        cap_template = """# Copyright (c) 2026 CoReason, Inc.
+# Licensed under the Prosperity Public License 3.0
+
+import extism_pdk
+import json
+
+@extism_pdk.plugin_fn
+def execute():
+    input_data = extism_pdk.input()
+    extism_pdk.output("Capability Executed Successfully!")
+"""
+        if topology == "medallion":
+            (cap_dir / "bronze_ingest.py").write_text(cap_template)
+            (cap_dir / "silver_cleanse.py").write_text(cap_template)
+            (cap_dir / "gold_route.py").write_text(cap_template)
+        elif topology == "rag":
+            (cap_dir / "embed_document.py").write_text(cap_template)
+            (cap_dir / "retrieve_context.py").write_text(cap_template)
+        else:  # base
+            (cap_dir / "example_tool.py").write_text(cap_template)
+
+        tasks = {
+            "version": "2.0.0",
+            "tasks": [
+                {
+                    "label": "Crystallize Capabilities",
+                    "command": "coreason build",
+                    "type": "shell",
+                },
+                {"label": "Ignite Swarm", "command": "coreason up", "type": "shell"},
+            ],
+        }
+        with (vscode_dir / "tasks.json").open("w") as f:
+            json.dump(tasks, f, indent=4)
+
+        # 6. Local Immunological System
+        pre_commit_config = """repos:
   - repo: local
     hooks:
       - id: epistemic-seal-check
@@ -94,7 +248,7 @@ required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_6
         language: system
         pass_filenames: false
 """
-    (project_path / ".pre-commit-config.yaml").write_text(pre_commit_config)
+        (project_path / ".pre-commit-config.yaml").write_text(pre_commit_config)
 
     process = await asyncio.create_subprocess_exec("git", "init", cwd=str(project_path))
     await process.communicate()
