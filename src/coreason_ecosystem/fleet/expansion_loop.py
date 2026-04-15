@@ -43,7 +43,7 @@ class PulumiActuatorMock:
 async def von_neumann_expansion_daemon() -> None:
     """Continuous daemon loop assessing capital scaling capabilities."""
     logger.info(
-        "[ExpansionLoop] Initated Von Neumann daemon. Monitoring TreasuryState."
+        "[ExpansionLoop] Initiated Von Neumann daemon. Monitoring TreasuryState."
     )
 
     actuator = PulumiActuatorMock()

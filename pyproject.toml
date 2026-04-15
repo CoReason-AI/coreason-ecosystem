@@ -149,6 +149,9 @@ ignore_missing_imports = true
 module = "pyarrow.*"
 ignore_missing_imports = true
 
+[tool.ruff.lint.isort]
+known-first-party = ["coreason_ecosystem"]
+
 [tool.pytest.ini_options]
 addopts = "-n auto --cov=coreason_ecosystem --cov-report=term-missing --cov-report=html --cov-fail-under=100"
 testpaths = ["tests"]

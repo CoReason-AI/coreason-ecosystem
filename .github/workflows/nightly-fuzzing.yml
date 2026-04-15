@@ -1,0 +1,52 @@
+
+name: Nightly Fuzzing
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  hypothesis-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+          allow-prereleases: true
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+        shell: bash
+
+      - name: Run Hypothesis deep fuzzing
+        run: uv run pytest tests/ --hypothesis-profile=ci-deep -x -q
+        shell: bash
+
+      - name: Upload Hypothesis artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hypothesis-examples
+          path: .hypothesis/
+          retention-days: 7

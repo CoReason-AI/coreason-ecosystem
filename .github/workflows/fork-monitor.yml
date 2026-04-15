@@ -1,0 +1,71 @@
+
+name: Fork Monitor
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  monitor-forks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@v4
+
+      - name: Check for new forks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          REPO="CoReason-AI/coreason-ecosystem"
+          CACHE_FILE=".github/.fork-cache"
+
+          # Fetch current forks
+          FORKS=$(curl -s \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/forks?sort=newest&per_page=100" \
+            | jq -r '.[].full_name' | sort)
+
+          # Load cached forks (if any)
+          if [ -f "${CACHE_FILE}" ]; then
+            CACHED=$(cat "${CACHE_FILE}" | sort)
+          else
+            CACHED=""
+          fi
+
+          # Diff
+          NEW_FORKS=$(comm -23 <(echo "${FORKS}") <(echo "${CACHED}") || true)
+
+          if [ -n "${NEW_FORKS}" ]; then
+            echo "🚨 New forks detected:"
+            echo "${NEW_FORKS}"
+
+            BODY="## 🍴 New Fork(s) Detected\n\nThe following new fork(s) of \`${REPO}\` were detected:\n\n"
+            while IFS= read -r fork; do
+              BODY="${BODY}- [\`${fork}\`](https://github.com/${fork})\n"
+            done <<< "${NEW_FORKS}"
+            BODY="${BODY}\n---\n*Automated by Fork Monitor workflow.*"
+
+            gh issue create \
+              --repo "${REPO}" \
+              --title "🍴 New fork(s) detected — $(date +%Y-%m-%d)" \
+              --body "$(echo -e "${BODY}")" \
+              --label "security"
+          else
+            echo "✅ No new forks detected."
+          fi
+        shell: bash

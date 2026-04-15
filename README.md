@@ -7,7 +7,7 @@
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/coreason_ecosystem.svg)](https://pypi.org/project/coreason_ecosystem)
 [![Downloads](https://img.shields.io/pypi/dm/coreason_ecosystem.svg)](https://pypi.org/project/coreason_ecosystem/)
 [![License: Prosperity 3.0](https://img.shields.io/badge/License-Prosperity_3.0-blue.svg)](https://prosperitylicense.com/versions/3.0.0)
-[![SOTA: 2026](https://img.shields.io/badge/Architecture-OEP_Manifold-purple.svg)]()
+![SOTA: 2026](https://img.shields.io/badge/Architecture-OEP_Manifold-purple.svg)
 <br>
 [![Code Coverage](https://img.shields.io/codecov/c/github/CoReason-AI/coreason-ecosystem/main.svg)](https://codecov.io/gh/CoReason-AI/coreason-ecosystem)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
@@ -26,6 +26,9 @@
 [![Signed by Sigstore](https://img.shields.io/badge/Signed_by-Sigstore-blueviolet?style=flat-square&logo=sigstore)](https://sigstore.dev/)
 [![SBOM](https://img.shields.io/badge/SBOM-SPDX_Included-brightgreen?style=flat-square&logo=databricks)](https://spdx.dev/)
 [![Security Policy](https://img.shields.io/badge/Security-Policy-green?style=flat-square)](./SECURITY.md)
+[![Advanced Security](https://img.shields.io/github/actions/workflow/status/CoReason-AI/coreason-ecosystem/advanced-security.yml?branch=main&style=flat-square&logo=github&label=Advanced%20Security)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/advanced-security.yml)
+![OSS-Fuzz](https://img.shields.io/badge/OSS--Fuzz-Pending-lightgray?style=flat-square)
+![CII Best Practices](https://img.shields.io/badge/CII_Best_Practices-Pending-lightgray?style=flat-square)
 
 In Cognitive Systems Engineering, autonomous Swarms require absolute mathematical and physical boundaries. `coreason-ecosystem` is the **Autonomous Nervous System** (Governance Layer) of the Tripartite Cybernetic Manifold.
 
