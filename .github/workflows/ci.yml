@@ -61,6 +61,8 @@ jobs:
             --accept 200,204,301,429
             '*.md'
             'docs/**/*.md'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-ubuntu:
     needs: [lint-and-audit]
