@@ -22,6 +22,11 @@ jobs:
   lint-and-audit:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -39,6 +44,23 @@ jobs:
       - name: Run pre-commit
         run: uv run pre-commit run --all-files
         shell: bash
+      - name: Ruff Format Check
+        run: uvx ruff format --check .
+        shell: bash
+      - name: Mypy Check
+        run: uv run mypy src/ tests/
+        shell: bash
+      - name: Deptry Check
+        run: uv run deptry src/
+        shell: bash
+      - name: Docs Link Validation
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --exclude-loopback
+            --accept 200,204,301,429
+            '*.md'
+            'docs/**/*.md'
 
   test-ubuntu:
     needs: [lint-and-audit]
@@ -48,6 +70,11 @@ jobs:
       matrix:
         python-version: ["3.14-dev", "3.14t-dev"]
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -100,6 +127,11 @@ jobs:
         - os: macos-latest
           python-version: "3.14t-dev"
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -131,6 +163,11 @@ jobs:
     needs: [test-ubuntu, test-extended]
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -142,9 +179,30 @@ jobs:
         with:
           python-version-file: "pyproject.toml"
           allow-prereleases: true
-      - name: Build wheel
-        run: uv build
+
+      - name: Build wheel (attempt 1)
+        run: |
+          uv build --out-dir dist1
+          sha256sum dist1/*.whl | tee /tmp/hash1.txt
         shell: bash
-      - name: Verify SHA256
-        run: sha256sum dist/*.whl
+
+      - name: Build wheel (attempt 2)
+        run: |
+          uv build --out-dir dist2
+          sha256sum dist2/*.whl | tee /tmp/hash2.txt
+        shell: bash
+
+      - name: Verify deterministic build
+        run: |
+          HASH1=$(awk '{print $1}' /tmp/hash1.txt)
+          HASH2=$(awk '{print $1}' /tmp/hash2.txt)
+          echo "Build 1 SHA256: $HASH1"
+          echo "Build 2 SHA256: $HASH2"
+          if [ "$HASH1" != "$HASH2" ]; then
+            echo "::error::CRITICAL: Non-deterministic build detected! Hashes do not match."
+            echo "  Attempt 1: $HASH1"
+            echo "  Attempt 2: $HASH2"
+            exit 1
+          fi
+          echo "✅ Deterministic build verified. SHA256: $HASH1"
         shell: bash
