@@ -24,6 +24,14 @@ class CapabilityRegistry:
                 "endpoint": "http://svc-weapons-mcp.internal:8000",
                 "clearance": "RESTRICTED",
             },
+            "urn:coreason:oracle:milvus": {
+                "endpoint": "http://coreason-milvus-mcp:8000",
+                "clearance": "CONFIDENTIAL",
+            },
+            "urn:coreason:oracle:neo4j": {
+                "endpoint": "http://coreason-neo4j-mcp:8000",
+                "clearance": "CONFIDENTIAL",
+            },
         }
 
     async def discover_active_substrates(
