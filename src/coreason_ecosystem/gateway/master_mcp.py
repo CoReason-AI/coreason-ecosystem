@@ -12,8 +12,12 @@ from coreason_ecosystem.gateway.models import (
 )
 
 import time
+import contextvars
+import json
+import base64
 
 from starlette.requests import Request
+from fastapi import Depends, HTTPException
 from mcp.server.sse import SseServerTransport
 import mcp.types as types
 
@@ -23,10 +27,33 @@ mcp_server = mcp.server.Server("coreason-master-gateway")
 registry = CapabilityRegistry()
 identity_broker = IdentityBroker()
 
+current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
+
+
+async def extract_and_verify_identity(request: Request) -> None:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        current_clearance.set("PUBLIC")
+        return
+
+    try:
+        if not auth_header.startswith("Bearer "):
+            raise ValueError("Invalid format")
+
+        encoded_payload = auth_header[7:]
+        decoded_bytes = base64.b64decode(encoded_payload)
+        payload = json.loads(decoded_bytes.decode("utf-8"))
+
+        profile = await identity_broker.verify_connection_handshake(payload)
+        current_clearance.set(profile["clearance"])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid identity sequence")
+
+
 sse_transport = SseServerTransport("/messages")
 
 
-@app.get("/sse")
+@app.get("/sse", dependencies=[Depends(extract_and_verify_identity)])
 async def handle_sse(request: Request) -> None:
     async with sse_transport.connect_sse(
         request.scope, request.receive, request._send
@@ -39,7 +66,7 @@ async def handle_sse(request: Request) -> None:
             pass
 
 
-@app.post("/messages")
+@app.post("/messages", dependencies=[Depends(extract_and_verify_identity)])
 async def handle_messages(request: Request) -> None:
     await sse_transport.handle_post_message(
         request.scope, request.receive, request._send
@@ -53,8 +80,10 @@ async def list_tools() -> list[types.Tool]:
     We assume the identity is verified upstream or implicitly authorized here.
     For this implementation, we will query substrates without hardcoded clearance unless provided.
     """
-    # Without an explicit payload envelope, we discover PUBLIC endpoints or all.
-    discovered_capabilities = await registry.discover_active_substrates()
+    clearance = current_clearance.get()
+    discovered_capabilities = await registry.discover_active_substrates(
+        agent_clearance=clearance
+    )
 
     tool_objects: list[types.Tool] = []
 

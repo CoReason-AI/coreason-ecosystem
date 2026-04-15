@@ -5,51 +5,65 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from coreason_ecosystem.gateway.master_mcp import app, list_tools, call_tool
+from coreason_ecosystem.gateway.master_mcp import (
+    app,
+    list_tools,
+    call_tool,
+    current_clearance,
+)
 from mcp.types import Tool, TextContent
 from fastapi.testclient import TestClient
-
+from unittest.mock import MagicMock, patch
 
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(app)
 
 
-from unittest.mock import MagicMock, patch
-
 @pytest.mark.asyncio
 async def test_sse_endpoint_direct() -> None:
     from coreason_ecosystem.gateway.master_mcp import handle_sse
-    
+
     request = MagicMock()
     request.scope = {}
     request.receive = AsyncMock()
     request._send = AsyncMock()
 
-    with patch("coreason_ecosystem.gateway.master_mcp.sse_transport.connect_sse") as mock_connect:
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.sse_transport.connect_sse"
+    ) as mock_connect:
         mock_ctx = AsyncMock()
         mock_ctx.__aenter__.return_value = (AsyncMock(), AsyncMock())
         mock_connect.return_value = mock_ctx
-        
-        with patch("coreason_ecosystem.gateway.master_mcp.mcp_server.run", new_callable=AsyncMock) as mock_run:
+
+        with patch(
+            "coreason_ecosystem.gateway.master_mcp.mcp_server.run",
+            new_callable=AsyncMock,
+        ) as mock_run:
             await handle_sse(request)
             mock_run.assert_called_once()
+
 
 @pytest.mark.asyncio
 async def test_sse_endpoint_direct_exception() -> None:
     from coreason_ecosystem.gateway.master_mcp import handle_sse
-    
+
     request = MagicMock()
     request.scope = {}
     request.receive = AsyncMock()
     request._send = AsyncMock()
 
-    with patch("coreason_ecosystem.gateway.master_mcp.sse_transport.connect_sse") as mock_connect:
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.sse_transport.connect_sse"
+    ) as mock_connect:
         mock_ctx = AsyncMock()
         mock_ctx.__aenter__.return_value = (AsyncMock(), AsyncMock())
         mock_connect.return_value = mock_ctx
-        
-        with patch("coreason_ecosystem.gateway.master_mcp.mcp_server.run", new_callable=AsyncMock) as mock_run:
+
+        with patch(
+            "coreason_ecosystem.gateway.master_mcp.mcp_server.run",
+            new_callable=AsyncMock,
+        ) as mock_run:
             mock_run.side_effect = Exception("test fault")
             await handle_sse(request)
             mock_run.assert_called_once()
@@ -58,13 +72,16 @@ async def test_sse_endpoint_direct_exception() -> None:
 @pytest.mark.asyncio
 async def test_messages_endpoint_direct() -> None:
     from coreason_ecosystem.gateway.master_mcp import handle_messages
-    
+
     request = MagicMock()
     request.scope = {}
     request.receive = AsyncMock()
     request._send = AsyncMock()
 
-    with patch("coreason_ecosystem.gateway.master_mcp.sse_transport.handle_post_message", new_callable=AsyncMock) as mock_handle:
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.sse_transport.handle_post_message",
+        new_callable=AsyncMock,
+    ) as mock_handle:
         await handle_messages(request)
         mock_handle.assert_called_once()
 
@@ -85,7 +102,8 @@ async def test_list_tools() -> None:
     ) as mock_get:
         mock_get.return_value = mock_response
 
-        # list_tools has no parameters and fetches all registered
+        # list_tools has no parameters and fetches all registered based on context
+        current_clearance.set("PUBLIC")
         tools = await list_tools()
 
         assert len(tools) >= 1
@@ -110,6 +128,7 @@ async def test_list_tools_request_error() -> None:
     ) as mock_get:
         mock_get.side_effect = raise_request_error
 
+        current_clearance.set("PUBLIC")
         tools = await list_tools()
 
         assert len(tools) >= 1
@@ -196,3 +215,53 @@ async def test_the_guillotine() -> None:
 
     with pytest.raises(ValueError, match="Geometrical topology fault"):
         await call_tool(name=unregistered_tool, arguments=arguments)
+
+
+@pytest.mark.asyncio
+async def test_extract_and_verify_identity_missing_header() -> None:
+    from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
+    request = MagicMock()
+    request.headers = {}
+    await extract_and_verify_identity(request)
+    assert current_clearance.get() == "PUBLIC"
+
+
+@pytest.mark.asyncio
+async def test_extract_and_verify_identity_invalid_format() -> None:
+    from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
+    from fastapi import HTTPException
+    request = MagicMock()
+    request.headers = {"Authorization": "Basic 1234"}
+    with pytest.raises(HTTPException) as exc:
+        await extract_and_verify_identity(request)
+    assert exc.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_extract_and_verify_identity_invalid_json() -> None:
+    from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
+    from fastapi import HTTPException
+    request = MagicMock()
+    request.headers = {"Authorization": "Bearer not-base64!"}
+    
+    with pytest.raises(HTTPException) as exc:
+        await extract_and_verify_identity(request)
+    assert exc.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_extract_and_verify_identity_valid_token() -> None:
+    from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
+    request = MagicMock()
+    import base64
+    import json
+    
+    payload = {"user": "test"}
+    encoded = base64.b64encode(json.dumps(payload).encode("utf-8")).decode("utf-8")
+    request.headers = {"Authorization": f"Bearer {encoded}"}
+    
+    with patch("coreason_ecosystem.gateway.master_mcp.identity_broker.verify_connection_handshake", new_callable=AsyncMock) as mock_verify:
+        mock_verify.return_value = {"clearance": "SECRET"}
+        await extract_and_verify_identity(request)
+        assert current_clearance.get() == "SECRET"
+        mock_verify.assert_called_once_with(payload)
