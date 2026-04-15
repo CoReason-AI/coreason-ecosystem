@@ -8,18 +8,18 @@ from coreason_ecosystem.fleet.mesh_injector import (
 )
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
 from coreason_ecosystem.fleet.temporal_monitor import ThermodynamicMonitor
-from coreason_manifest.spec.ontology import HardwareProfile
+from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile
 
 
-def test_mesh_injector_jwt_validation():
+def test_mesh_injector_jwt_validation() -> None:
     # Lines 31-33
     with pytest.raises(ValidationError):
         FederatedCapabilityAttestationReceipt(token="invalid_token", payload="data")
 
 
-def test_mesh_injector_epistemic_bounding():
+def test_mesh_injector_epistemic_bounding() -> None:
     # Lines 38-47
-    def build_nested_dict(depth: int) -> dict:
+    def build_nested_dict(depth: int) -> dict[str, object]:
         if depth == 0:
             return {}
         return {"k": build_nested_dict(depth - 1)}
@@ -32,7 +32,7 @@ def test_mesh_injector_epistemic_bounding():
         )
 
 
-def test_mesh_injector_middleware():
+def test_mesh_injector_middleware() -> None:
     # Lines 59-60
     injector = MeshInjector()
     payload = {"query": "resolve"}
@@ -41,7 +41,7 @@ def test_mesh_injector_middleware():
 
 
 @pytest.mark.asyncio
-async def test_temporal_monitor_security_profile():
+async def test_temporal_monitor_security_profile() -> None:
     # Line 40
     monitor = ThermodynamicMonitor()
     sec_profile = await monitor.get_active_task_security_profile()
@@ -50,7 +50,7 @@ async def test_temporal_monitor_security_profile():
 
 
 @pytest.mark.asyncio
-async def test_pricing_oracle_vast():
+async def test_pricing_oracle_vast() -> None:
     # Lines 87-112, 118, 120
     hardware = HardwareProfile(
         min_vram_gb=16.0, provider_whitelist=["vast"], accelerator_type="ampere"
@@ -83,7 +83,7 @@ async def test_pricing_oracle_vast():
 
 
 @pytest.mark.asyncio
-async def test_pricing_oracle_vast_failure():
+async def test_pricing_oracle_vast_failure() -> None:
     hardware = HardwareProfile(
         min_vram_gb=16.0, provider_whitelist=["vast"], accelerator_type="ampere"
     )
@@ -95,7 +95,7 @@ async def test_pricing_oracle_vast_failure():
 
 
 @pytest.mark.asyncio
-async def test_pricing_oracle_aws_boto_failure():
+async def test_pricing_oracle_aws_boto_failure() -> None:
     # Lines 51, 75-81
     hardware = HardwareProfile(
         min_vram_gb=16.0, provider_whitelist=["aws"], accelerator_type="ampere"
@@ -112,7 +112,7 @@ async def test_pricing_oracle_aws_boto_failure():
 
 
 @pytest.mark.asyncio
-async def test_pricing_oracle_aws_no_instances():
+async def test_pricing_oracle_aws_no_instances() -> None:
     # Line 51 -> empty valid instances
     hardware = HardwareProfile(
         min_vram_gb=9999.0, provider_whitelist=["aws"], accelerator_type="ampere"

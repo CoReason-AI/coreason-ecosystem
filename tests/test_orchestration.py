@@ -1,5 +1,6 @@
 import pytest
 import asyncio
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 import typer
 
@@ -10,7 +11,7 @@ from coreason_ecosystem.orchestration.up import execute_up, is_port_bound
 
 
 @pytest.mark.asyncio
-async def test_build_path_value_error(tmp_path):
+async def test_build_path_value_error(tmp_path: Path) -> None:
     # build.py Lines 27-28
     with patch("pathlib.Path.relative_to", side_effect=ValueError):
         with patch("asyncio.create_subprocess_exec") as mock_exec:
@@ -35,7 +36,7 @@ async def test_build_path_value_error(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_build_rust_path(tmp_path):
+async def test_build_rust_path(tmp_path: Path) -> None:
     # build.py Lines 49-67 and 97-121
     with patch("asyncio.create_subprocess_exec") as mock_exec:
         mock_proc = AsyncMock()
@@ -65,7 +66,7 @@ async def test_build_rust_path(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_build_rust_missing_wasm(tmp_path):
+async def test_build_rust_missing_wasm(tmp_path: Path) -> None:
     # build.py Lines 118-121
     with patch("asyncio.create_subprocess_exec") as mock_exec:
         mock_proc = AsyncMock()
@@ -84,7 +85,7 @@ async def test_build_rust_missing_wasm(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_build_go_path(tmp_path):
+async def test_build_go_path(tmp_path: Path) -> None:
     # build.py Lines 68-78
     with patch("asyncio.create_subprocess_exec") as mock_exec:
         mock_proc = AsyncMock()
@@ -108,7 +109,7 @@ async def test_build_go_path(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_build_unsupported_type(tmp_path):
+async def test_build_unsupported_type(tmp_path: Path) -> None:
     # build.py Lines 80
     test_txt = tmp_path / "test.txt"
     test_txt.touch()
@@ -117,7 +118,7 @@ async def test_build_unsupported_type(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_init_rust_go_fallback(tmp_path, monkeypatch):
+async def test_init_rust_go_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # init.py Lines 71-108, 112-148, 164-167
     monkeypatch.chdir(tmp_path)
     # Happy path version resolution line 165
@@ -138,7 +139,7 @@ async def test_init_rust_go_fallback(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_sync_compose_fallback(tmp_path, monkeypatch):
+async def test_sync_compose_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # sync.py Lines 63-66 => missing compose.yaml throws Exit(1)
     # 89-92 => process.returncode != 0
     monkeypatch.chdir(tmp_path)
@@ -162,7 +163,7 @@ async def test_sync_compose_fallback(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_up_is_port_bound():
+async def test_up_is_port_bound() -> None:
     # up.py Lines 28-36
     with patch("asyncio.open_connection", side_effect=Exception("network down")):
         res = await is_port_bound(8000)
@@ -179,7 +180,7 @@ async def test_up_is_port_bound():
 
 
 @pytest.mark.asyncio
-async def test_up_timeout_fallbacks(tmp_path, monkeypatch):
+async def test_up_timeout_fallbacks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # up.py Lines 87-93, 124-130, 171-177
     monkeypatch.chdir(tmp_path)
 
@@ -203,7 +204,7 @@ async def test_up_timeout_fallbacks(tmp_path, monkeypatch):
 
         with patch("asyncio.sleep", AsyncMock()):
             # Test Temporal timeout by letting Postgres pass once
-            def port_check(port):
+            def port_check(port: int) -> bool:
                 return port == 5432
 
             with patch(
@@ -216,7 +217,7 @@ async def test_up_timeout_fallbacks(tmp_path, monkeypatch):
 
         with patch("asyncio.sleep", AsyncMock()):
             # Test Daemon timeout by letting Postgres and Temporal pass but Daemon 8000 fail
-            def port_check_daemon(port):
+            def port_check_daemon(port: int) -> bool:
                 return port in (5432, 7233)
 
             with patch(

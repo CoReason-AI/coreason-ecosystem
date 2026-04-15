@@ -7,11 +7,11 @@ from coreason_ecosystem.fleet.pulumi_actuator import (
     PulumiFleetDriver,
     ComputeNodeTarget,
 )
-from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
+from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile, EpistemicSecurityProfile as SecurityProfile
 
 
 @pytest.mark.asyncio
-async def test_pulumi_actuator_compile_payload():
+async def test_pulumi_actuator_compile_payload() -> None:
     # Covers lines 61-68 in pulumi_actuator
     driver = PulumiFleetDriver(templates_dir=Path("/tmp/templates"))
 
@@ -45,7 +45,7 @@ async def test_pulumi_actuator_compile_payload():
 
 
 @pytest.mark.asyncio
-async def test_daemon_no_viable_bid():
+async def test_daemon_no_viable_bid() -> None:
     # Covers line 72 in daemon.py
     manager = AutonomicFleetManager(
         max_budget_hr=1.0,
@@ -56,7 +56,7 @@ async def test_daemon_no_viable_bid():
     )
 
     # We explicitly throw a cancel error to jump out of the infinite while true loop after 1 pass
-    async def get_q():
+    async def get_q() -> float:
         manager._running = False
         return 1.5
 

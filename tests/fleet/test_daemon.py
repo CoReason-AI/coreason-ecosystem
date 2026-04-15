@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from coreason_ecosystem.fleet.daemon import AutonomicFleetManager
-from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
+from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile, EpistemicSecurityProfile as SecurityProfile
 from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
 
 

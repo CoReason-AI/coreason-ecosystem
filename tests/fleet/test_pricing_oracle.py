@@ -9,11 +9,12 @@
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
 import sys
+from collections.abc import Generator
 from unittest.mock import MagicMock
 import pytest
 
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
-from coreason_manifest.spec.ontology import HardwareProfile
+from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile
 
 
 @pytest.fixture
@@ -22,7 +23,7 @@ def oracle() -> PricingOracle:
 
 
 @pytest.fixture
-def mock_boto3():
+def mock_boto3() -> Generator[MagicMock, None, None]:
     mock_boto = MagicMock()
     sys.modules["boto3"] = mock_boto
     mock_client = MagicMock()
@@ -39,7 +40,7 @@ def mock_boto3():
 
 
 @pytest.mark.asyncio
-async def test_calculate_optimal_bid_valid(oracle: PricingOracle, mock_boto3) -> None:
+async def test_calculate_optimal_bid_valid(oracle: PricingOracle, mock_boto3: MagicMock) -> None:
     profile = HardwareProfile(
         min_vram_gb=10.0, provider_whitelist=["aws"], accelerator_type="ampere"
     )
@@ -51,7 +52,7 @@ async def test_calculate_optimal_bid_valid(oracle: PricingOracle, mock_boto3) ->
 
 @pytest.mark.asyncio
 async def test_calculate_optimal_bid_exceeds_budget(
-    oracle: PricingOracle, mock_boto3
+    oracle: PricingOracle, mock_boto3: MagicMock
 ) -> None:
     profile = HardwareProfile(
         min_vram_gb=10.0, provider_whitelist=["aws"], accelerator_type="ampere"
@@ -62,7 +63,7 @@ async def test_calculate_optimal_bid_exceeds_budget(
 
 @pytest.mark.asyncio
 async def test_calculate_optimal_bid_provider_not_whitelisted(
-    oracle: PricingOracle, mock_boto3
+    oracle: PricingOracle, mock_boto3: MagicMock
 ) -> None:
     profile = HardwareProfile(
         min_vram_gb=10.0,
@@ -75,7 +76,7 @@ async def test_calculate_optimal_bid_provider_not_whitelisted(
 
 @pytest.mark.asyncio
 async def test_calculate_optimal_bid_lowest_price(
-    oracle: PricingOracle, mock_boto3
+    oracle: PricingOracle, mock_boto3: MagicMock
 ) -> None:
     profile = HardwareProfile(
         min_vram_gb=0.0, provider_whitelist=["aws"], accelerator_type="any"

@@ -73,7 +73,7 @@ async def mint_genesis_block(
     Raises:
         RuntimeError: If a ledger already exists (genesis already happened).
     """
-    import pyarrow as pa  # type: ignore
+    import pyarrow as pa
 
     receipt: dict[str, Any] = {
         "genesis_id": f"genesis-{uuid.uuid4()}",
@@ -84,7 +84,7 @@ async def mint_genesis_block(
 
     # ── Guard: Exactly-Once Execution ──────────────────────────────
     try:
-        import lancedb  # type: ignore
+        import lancedb
 
         db = lancedb.connect(lancedb_uri)
     except Exception as e:

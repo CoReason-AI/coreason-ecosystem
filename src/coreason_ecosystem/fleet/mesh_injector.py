@@ -16,12 +16,12 @@ from pydantic import field_validator
 
 from coreason_manifest.spec.ontology import (
     CoreasonBaseState,
-    HardwareProfile,
-    SecurityProfile,
+    SpatialHardwareProfile as HardwareProfile,
+    EpistemicSecurityProfile as SecurityProfile,
 )
 
 
-class FederatedCapabilityAttestationReceipt(CoreasonBaseState):
+class FederatedCapabilityAttestationReceipt(CoreasonBaseState):  # type: ignore[misc]
     token: str
     payload: Any
 

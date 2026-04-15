@@ -10,7 +10,7 @@
 
 import base64
 from coreason_ecosystem.fleet.mesh_injector import MeshInjector
-from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
+from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile, EpistemicSecurityProfile as SecurityProfile
 
 
 def test_mesh_injector_aws_isolated() -> None:

@@ -15,7 +15,7 @@ from loguru import logger
 from prometheus_client import Counter, Gauge, start_http_server
 from temporalio.client import Client
 
-from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
+from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile, EpistemicSecurityProfile as SecurityProfile
 
 
 # Prometheus metrics

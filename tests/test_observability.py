@@ -72,7 +72,7 @@ def test_intercept_handler() -> None:
 def test_patch_record() -> None:
     record: dict[str, Any] = {"extra": {}}
     with bind_epistemic_context("test_workflow", "test_root"):
-        _patch_record(record)  # type: ignore
+        _patch_record(record)  # type: ignore[arg-type]
     assert record["extra"]["workflow_id"] == "test_workflow"
     assert record["extra"]["epistemic_root"] == "test_root"
 
@@ -84,7 +84,7 @@ def test_redaction_filter_dev() -> None:
         "extra": {},
     }
     with bind_epistemic_context("", ""):
-        _patch_record(record)  # type: ignore
+        _patch_record(record)  # type: ignore[arg-type]
     assert "email@example.com" in record["message"]
     assert "123-45-6789" in record["message"]
 
@@ -96,7 +96,7 @@ def test_redaction_filter_prod() -> None:
         "extra": {},
     }
     with bind_epistemic_context("", ""):
-        _patch_record(record)  # type: ignore
+        _patch_record(record)  # type: ignore[arg-type]
     assert "<REDACTED_EMAIL>" in record["message"]
     assert "<REDACTED_SSN>" in record["message"]
 
@@ -188,7 +188,7 @@ def test_otlp_log_sink() -> None:
         record = {"test": "data"}
 
     with patch("coreason_ecosystem.utils.telemetry._otlp_queue", q):
-        otlp_log_sink(MockMessage())  # type: ignore
+        otlp_log_sink(MockMessage())  # type: ignore[arg-type]
 
     assert q.get_nowait() == {"test": "data"}
 
@@ -204,7 +204,7 @@ def test_otlp_log_sink_exception() -> None:
             raise Exception("error")
 
     with patch("coreason_ecosystem.utils.telemetry._otlp_queue", q):
-        otlp_log_sink(MockMessage())  # type: ignore
+        otlp_log_sink(MockMessage())  # type: ignore[arg-type]
 
     assert q.empty()
 
@@ -351,6 +351,6 @@ def test_start_otlp_background_worker_no_loop(mock_get_running_loop: Any) -> Non
 def test_logger_patch_record_none() -> None:
     record: dict[str, Any] = {"message": "Test message", "extra": {}}
     # Do not bind context to test the path where variables are not set
-    _patch_record(record)  # type: ignore
+    _patch_record(record)  # type: ignore[arg-type]
     assert "workflow_id" not in record["extra"]
     assert "epistemic_root" not in record["extra"]
