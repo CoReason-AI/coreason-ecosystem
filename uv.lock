@@ -233,7 +233,6 @@ dependencies = [
     { name = "cryptography" },
     { name = "filelock" },
     { name = "httpx" },
-    { name = "lancedb" },
     { name = "loguru" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
@@ -248,6 +247,11 @@ dependencies = [
     { name = "rich" },
     { name = "temporalio" },
     { name = "typer" },
+]
+
+[package.optional-dependencies]
+vectordb = [
+    { name = "lancedb" },
 ]
 
 [package.dev-dependencies]
@@ -279,7 +283,7 @@ requires-dist = [
     { name = "cryptography", specifier = ">=44.0.0" },
     { name = "filelock", specifier = ">=3.25.2" },
     { name = "httpx", specifier = ">=0.27.0" },
-    { name = "lancedb", specifier = ">=0.20.0" },
+    { name = "lancedb", marker = "extra == 'vectordb'", specifier = ">=0.20.0" },
     { name = "loguru", specifier = ">=0.7.2" },
     { name = "opentelemetry-api", specifier = ">=1.20.0" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.20.0" },
@@ -295,6 +299,7 @@ requires-dist = [
     { name = "temporalio", specifier = ">=1.9.0" },
     { name = "typer", specifier = ">=0.9.0" },
 ]
+provides-extras = ["vectordb"]
 
 [package.metadata.requires-dev]
 dev = [

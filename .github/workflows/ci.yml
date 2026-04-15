@@ -121,8 +121,14 @@ jobs:
         run: echo "PYTHON_GIL=0" >> $GITHUB_ENV
         shell: bash
 
-      - name: Install dependencies
+      - name: Install dependencies (standard)
+        if: matrix.python-version != '3.14t-dev'
         run: uv sync --all-extras --dev
+        shell: bash
+
+      - name: Install dependencies (free-threaded, skip lancedb)
+        if: matrix.python-version == '3.14t-dev'
+        run: uv sync --dev
         shell: bash
 
       - name: Run tests
