@@ -142,16 +142,16 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
 
     # Actually, we should just find the matching URN in registry caching
     discovered = await registry.discover_active_substrates()
-    action_space_id = None
-    real_urn = None
+    endpoint_url: str | None = None
+    real_urn: str | None = None
     for urn in discovered.keys():
         sanitized = urn.replace(":", "_")
         if name.startswith(sanitized):
-            action_space_id = discovered[urn]
+            endpoint_url = discovered[urn]
             real_urn = urn
             break
 
-    if not action_space_id:
+    if not endpoint_url or not real_urn:
         raise ValueError(
             f"Geometrical topology fault: unregistered URN for tool {name}"
         )
@@ -160,7 +160,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
 
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(f"{action_space_id}/execute", json=payload)
+            response = await client.post(f"{endpoint_url}/execute", json=payload)
             response.raise_for_status()
             result_data = response.json()
         except httpx.HTTPStatusError as e:
@@ -172,10 +172,13 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
     raw_payload_str = str(payload) + str(timestamp)
     event_cid = hashlib.sha256(raw_payload_str.encode("utf-8")).hexdigest()
 
+    # Derive a pattern-compliant action_space_id from the URN.
+    receipt_action_space_id = real_urn.replace(":", "_")
+
     # Generate receipt (historical coordinate, no result field)
     _receipt = OracleExecutionReceipt(
         executed_urn=real_urn,
-        action_space_id=action_space_id,
+        action_space_id=receipt_action_space_id,
         event_cid=event_cid,
         timestamp=timestamp,
         prior_event_hash=None,

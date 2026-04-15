@@ -15,6 +15,7 @@ from mcp.types import Tool, TextContent
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, patch
 
+
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(app)
@@ -220,6 +221,7 @@ async def test_the_guillotine() -> None:
 @pytest.mark.asyncio
 async def test_extract_and_verify_identity_missing_header() -> None:
     from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
+
     request = MagicMock()
     request.headers = {}
     await extract_and_verify_identity(request)
@@ -230,6 +232,7 @@ async def test_extract_and_verify_identity_missing_header() -> None:
 async def test_extract_and_verify_identity_invalid_format() -> None:
     from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
     from fastapi import HTTPException
+
     request = MagicMock()
     request.headers = {"Authorization": "Basic 1234"}
     with pytest.raises(HTTPException) as exc:
@@ -241,9 +244,10 @@ async def test_extract_and_verify_identity_invalid_format() -> None:
 async def test_extract_and_verify_identity_invalid_json() -> None:
     from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
     from fastapi import HTTPException
+
     request = MagicMock()
     request.headers = {"Authorization": "Bearer not-base64!"}
-    
+
     with pytest.raises(HTTPException) as exc:
         await extract_and_verify_identity(request)
     assert exc.value.status_code == 401
@@ -252,15 +256,19 @@ async def test_extract_and_verify_identity_invalid_json() -> None:
 @pytest.mark.asyncio
 async def test_extract_and_verify_identity_valid_token() -> None:
     from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
+
     request = MagicMock()
     import base64
     import json
-    
+
     payload = {"user": "test"}
     encoded = base64.b64encode(json.dumps(payload).encode("utf-8")).decode("utf-8")
     request.headers = {"Authorization": f"Bearer {encoded}"}
-    
-    with patch("coreason_ecosystem.gateway.master_mcp.identity_broker.verify_connection_handshake", new_callable=AsyncMock) as mock_verify:
+
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.identity_broker.verify_connection_handshake",
+        new_callable=AsyncMock,
+    ) as mock_verify:
         mock_verify.return_value = {"clearance": "SECRET"}
         await extract_and_verify_identity(request)
         assert current_clearance.get() == "SECRET"
