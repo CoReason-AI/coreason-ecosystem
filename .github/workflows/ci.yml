@@ -61,6 +61,7 @@ jobs:
         with:
           args: >-
             --exclude-loopback
+            --exclude scorecard.dev
             --accept 200,204,301,429
             '*.md'
             'docs/**/*.md'
