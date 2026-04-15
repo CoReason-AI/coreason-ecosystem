@@ -57,7 +57,6 @@ class ThermodynamicMonitor:
         self._mock_hardware_profile = HardwareProfile(
             min_vram_gb=16.0,
             provider_whitelist=["aws", "vast"],
-            accelerator_type="ampere",
         )
         self._mock_security_profile = SecurityProfile(network_isolation=True)
 

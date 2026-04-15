@@ -41,7 +41,7 @@ async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
     setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=1.5))
 
     profile = HardwareProfile(
-        min_vram_gb=16.0, provider_whitelist=["aws"], accelerator_type="ampere"
+        min_vram_gb=16.0, provider_whitelist=["aws"]
     )
     security_profile = SecurityProfile(network_isolation=True)
     setattr(
@@ -171,7 +171,7 @@ async def test_daemon_start_no_bid_found(manager: AutonomicFleetManager) -> None
     setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=1.5))
 
     profile = HardwareProfile(
-        min_vram_gb=16.0, provider_whitelist=["aws"], accelerator_type="ampere"
+        min_vram_gb=16.0, provider_whitelist=["aws"]
     )
     setattr(
         manager.monitor,

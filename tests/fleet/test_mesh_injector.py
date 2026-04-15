@@ -16,7 +16,7 @@ from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwarePr
 def test_mesh_injector_aws_isolated() -> None:
     injector = MeshInjector()
     hw = HardwareProfile(
-        min_vram_gb=16.0, provider_whitelist=["aws"], accelerator_type="ampere"
+        min_vram_gb=16.0, provider_whitelist=["aws"]
     )
     sec = SecurityProfile(network_isolation=True)
     payload_b64 = injector.compile_payload("aws", hw, sec, "test_auth_key", "10.0.0.5")
@@ -32,7 +32,7 @@ def test_mesh_injector_aws_isolated() -> None:
 def test_mesh_injector_vast_not_isolated() -> None:
     injector = MeshInjector()
     hw = HardwareProfile(
-        min_vram_gb=16.0, provider_whitelist=["vast"], accelerator_type="ampere"
+        min_vram_gb=16.0, provider_whitelist=["vast"]
     )
     sec = SecurityProfile(network_isolation=False)
     payload_b64 = injector.compile_payload("vast", hw, sec, "test_auth_key", "10.0.0.5")

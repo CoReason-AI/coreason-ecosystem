@@ -21,7 +21,7 @@ async def test_pulumi_actuator_compile_payload() -> None:
         hourly_cost=0.5,
         vram_gb=16.0,
         hardware_profile=HardwareProfile(
-            min_vram_gb=16.0, provider_whitelist=["aws"], accelerator_type="ampere"
+            min_vram_gb=16.0, provider_whitelist=["aws"]
         ),
         security_profile=SecurityProfile(network_isolation=True),
         mesh_auth_key="ts-12345",

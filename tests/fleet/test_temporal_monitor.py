@@ -10,6 +10,8 @@
 
 import pytest
 
+from coreason_manifest.spec.ontology import AcceleratorProfile
+
 from coreason_ecosystem.fleet.temporal_monitor import ThermodynamicMonitor
 
 
@@ -31,4 +33,4 @@ async def test_get_active_task_hardware_profile(monitor: ThermodynamicMonitor) -
     assert profile.min_vram_gb == 16.0
     assert "aws" in profile.provider_whitelist
     assert "vast" in profile.provider_whitelist
-    assert profile.accelerator_type == "ampere"
+    assert profile.accelerator_type == AcceleratorProfile.BF16_TENSOR
