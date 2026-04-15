@@ -46,7 +46,9 @@ def test_generate_dynamic_docs_schema_missing(tmp_path: Path) -> None:
     assert not (output_dir / "index.md").exists()
 
 
-def test_generate_dynamic_docs_defaults(tmp_path: Path, monkeypatch: "pytest.MonkeyPatch") -> None:
+def test_generate_dynamic_docs_defaults(
+    tmp_path: Path, monkeypatch: "pytest.MonkeyPatch"
+) -> None:
     """Test docs generation with default paths (CWD-based)."""
     monkeypatch.chdir(tmp_path)
 

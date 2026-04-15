@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
-import pytest
 
 from coreason_ecosystem.orchestration.curriculum import compile_dpo_dataset
 

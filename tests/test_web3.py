@@ -48,9 +48,7 @@ async def test_treasury_manager_disburse() -> None:
 @pytest.mark.asyncio
 async def test_treasury_manager_disburse_defaults() -> None:
     """Test TreasuryManager handles missing keys in receipt."""
-    manager = TreasuryManager(
-        treasury_contract_address="0xCustomContract"
-    )
+    manager = TreasuryManager(treasury_contract_address="0xCustomContract")
     assert manager.contract_address == "0xCustomContract"
 
     receipt: dict[str, object] = {}
