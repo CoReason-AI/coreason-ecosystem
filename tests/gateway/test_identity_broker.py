@@ -1,79 +1,89 @@
-import unittest.mock
-from unittest.mock import AsyncMock
-
 import pytest
-from fastapi.testclient import TestClient
-
-from coreason_ecosystem.gateway.master_mcp import app
-
-
-@pytest.fixture
-def client() -> TestClient:
-    return TestClient(app)
+import typing
+from fastapi import HTTPException
+from coreason_ecosystem.gateway.identity_broker import IdentityBroker
+from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
 
 
-def test_sybil_rejection(client: TestClient) -> None:
+@pytest.mark.asyncio
+async def test_sybil_rejection() -> None:
     """A fraudulent payload bearing did:web:hack.com must mathematically fail."""
-    payload = {
+    broker = IdentityBroker()
+    payload: dict[str, typing.Any] = {
         "domain_filter": [],
         "receipt": {
             "issuer_did": "did:web:hack.com",
             "authorization_claims": {"clearance": "PUBLIC"},
         },
     }
-    response = client.post("/discover", json=payload)
-
-    assert response.status_code == 401
-    assert "Invalid issuer_did" in response.json()["detail"]
-
-
-def test_missing_receipt(client: TestClient) -> None:
-    """Test payload lacking cryptographic receipt fails."""
-    payload = {"domain_filter": []}
-    response = client.post("/discover", json=payload)
-    assert response.status_code == 401
-    assert "Missing cryptographic receipt" in response.json()["detail"]
-
-
-def test_missing_clearance(client: TestClient) -> None:
-    """Test payload lacking semantic clearance fails."""
-    payload = {
-        "domain_filter": [],
-        "receipt": {"issuer_did": "did:coreason:oracle:empty"},
-    }
-    response = client.post("/discover", json=payload)
-    assert response.status_code == 401
-    assert "Missing semantic clearance" in response.json()["detail"]
+    with pytest.raises(HTTPException) as exc:
+        await broker.verify_connection_handshake(payload)
+    assert exc.value.status_code == 401
+    assert "Invalid issuer_did" in exc.value.detail
 
 
 @pytest.mark.asyncio
-async def test_lbac_masking(client: TestClient) -> None:
+async def test_missing_receipt() -> None:
+    """Test payload lacking cryptographic receipt fails."""
+    broker = IdentityBroker()
+    payload: dict[str, typing.Any] = {"domain_filter": []}
+    with pytest.raises(HTTPException) as exc:
+        await broker.verify_connection_handshake(payload)
+    assert exc.value.status_code == 401
+    assert "Missing cryptographic receipt" in exc.value.detail
+
+
+@pytest.mark.asyncio
+async def test_missing_clearance() -> None:
+    """Test payload lacking semantic clearance fails."""
+    broker = IdentityBroker()
+    payload: dict[str, typing.Any] = {
+        "domain_filter": [],
+        "receipt": {"issuer_did": "did:coreason:oracle:empty"},
+    }
+    with pytest.raises(HTTPException) as exc:
+        await broker.verify_connection_handshake(payload)
+    assert exc.value.status_code == 401
+    assert "Missing semantic clearance" in exc.value.detail
+
+
+@pytest.mark.asyncio
+async def test_successful_handshake() -> None:
+    """Test payload passing successfully."""
+    broker = IdentityBroker()
+    payload: dict[str, typing.Any] = {
+        "domain_filter": [],
+        "receipt": {
+            "issuer_did": "did:coreason:oracle:test",
+            "authorization_claims": {"clearance": "PUBLIC"},
+        },
+    }
+    result = await broker.verify_connection_handshake(payload)
+    assert result["issuer_did"] == "did:coreason:oracle:test"
+    assert result["clearance"] == "PUBLIC"
+
+
+@pytest.mark.asyncio
+async def test_registry_resolve() -> None:
+    """Test registry direct resolution."""
+    registry = CapabilityRegistry()
+    assert (
+        registry.resolve_urn("urn:coreason:oracle:clinical_extractor")
+        == "http://svc-pubmed-mcp.internal:8000"
+    )
+    with pytest.raises(KeyError):
+        registry.resolve_urn("urn:coreason:oracle:fake")
+
+
+@pytest.mark.asyncio
+async def test_lbac_masking() -> None:
     """An agent possessing PUBLIC clearance only discovers PUBLIC endpoints."""
-    mock_response = unittest.mock.Mock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = [{"name": "fake_tool"}]
+    registry = CapabilityRegistry()
+    # Mock finding endpoints based on PUBLIC clearance
+    masked_endpoints = await registry.discover_active_substrates(
+        agent_clearance="PUBLIC"
+    )
 
-    with unittest.mock.patch(
-        "httpx.AsyncClient.get", new_callable=AsyncMock
-    ) as mock_get:
-        mock_get.return_value = mock_response
-
-        payload = {
-            "domain_filter": [],
-            "receipt": {
-                "issuer_did": "did:coreason:agent:public1",
-                "authorization_claims": {"clearance": "PUBLIC"},
-            },
-        }
-        response = client.post("/discover", json=payload)
-
-        assert response.status_code == 200
-        data = response.json()
-        assert "tools" in data
-
-        calls = mock_get.call_args_list
-        urls = [call[0][0] for call in calls]
-
-        assert "http://svc-pubmed-mcp.internal:8000/tools" in urls
-        assert "http://svc-math-mcp.internal:8000/tools" not in urls
-        assert "http://svc-weapons-mcp.internal:8000/tools" not in urls
+    assert "urn:coreason:oracle:clinical_extractor" in masked_endpoints
+    assert "urn:coreason:oracle:mathematics" not in masked_endpoints
+    assert "urn:coreason:oracle:weapon_systems" not in masked_endpoints

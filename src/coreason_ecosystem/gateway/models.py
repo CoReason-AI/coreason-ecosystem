@@ -1,5 +1,3 @@
-from typing import Any
-
 from pydantic import BaseModel, Field
 
 
@@ -19,8 +17,9 @@ class OracleExecutionReceipt(BaseModel):
     Cryptographic lineage container for executing an MCP capability.
     """
 
+    topology_class: str = "oracle_execution_receipt"
     executed_urn: str
     action_space_id: str
     event_cid: str
-    timestamp: str
-    result: Any
+    timestamp: float
+    prior_event_hash: str | None = None
