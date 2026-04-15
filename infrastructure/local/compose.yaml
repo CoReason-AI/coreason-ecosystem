@@ -42,6 +42,18 @@ services:
     networks:
       - swarm-mesh
 
+  envoy:
+    image: envoyproxy/envoy:v1.30-latest
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
+    ports:
+      - "80:80"
+    networks:
+      - swarm-mesh
+      - sensory-gateway
+    depends_on:
+      - coreason-runtime
+
 networks:
   swarm-mesh:
     internal: true

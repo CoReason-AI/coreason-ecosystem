@@ -7,6 +7,7 @@ import mcp.server
 from fastapi import FastAPI, HTTPException
 
 from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
+from coreason_ecosystem.gateway.identity_broker import IdentityBroker
 from coreason_ecosystem.gateway.models import (
     FederatedDiscoveryIntent,
     OracleExecutionReceipt,
@@ -16,14 +17,22 @@ app = FastAPI(title="coreason-master-gateway")
 mcp_server = mcp.server.Server("coreason-master-gateway")
 
 registry = CapabilityRegistry()
+identity_broker = IdentityBroker()
 
 
 @app.post("/discover")
-async def federated_discovery(intent: FederatedDiscoveryIntent) -> dict[str, Any]:
+async def federated_discovery(payload: dict[str, Any]) -> dict[str, Any]:
     """
     Absorb a FederatedDiscoveryIntent and perform discovery against the registry.
     """
-    discovered_capabilities = await registry.discover_active_substrates()
+    agent_profile = await identity_broker.verify_connection_handshake(payload)
+
+    intent_data = payload.get("intent", payload)
+    intent = FederatedDiscoveryIntent(**intent_data)
+
+    discovered_capabilities = await registry.discover_active_substrates(
+        agent_clearance=agent_profile["clearance"]
+    )
 
     # Filter bounds
     if intent.domain_filter:
