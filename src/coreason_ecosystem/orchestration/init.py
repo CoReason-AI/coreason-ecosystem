@@ -8,16 +8,18 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-import importlib.metadata
 import asyncio
+import importlib.metadata
 import json
 from pathlib import Path
 
 
 async def execute_init(
-    project_name: str, topology: str = "base", lang: str = "python"
+    project_name: str,
+    topology: str = "base",
+    lang: str = "python",
 ) -> None:
-    """Synthesize a mathematically verified Swarm workspace."""
+    """Synthesize a mathematically verified Swarm workspace scaffolding."""
     if "/" in project_name or "\\" in project_name:
         raise ValueError("Project name cannot contain path separators")
 
@@ -29,25 +31,6 @@ async def execute_init(
         )
 
     project_path.mkdir(parents=True, exist_ok=True)
-
-    # Common: Ontological Seed
-    schema = {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "title": "Swarm Ontology",
-    }
-    with (project_path / "coreason_ontology.schema.json").open("w") as f:
-        json.dump(schema, f, indent=4)
-
-    # Common: WASM Interface (WIT)
-    wit_dir = project_path / "wit"
-    wit_dir.mkdir(parents=True, exist_ok=True)
-    wit_content = """package coreason:capability;
-
-world example-world {
-    export main: func();
-}
-"""
-    (wit_dir / "world.wit").write_text(wit_content)
 
     vscode_dir = project_path / ".vscode"
     vscode_dir.mkdir(parents=True, exist_ok=True)
@@ -61,7 +44,10 @@ world example-world {
 
     if lang == "rust":
         # Rust Scaffolding
-        cargo_toml = f"""[package]
+        src_dir = project_path / "src"
+        src_dir.mkdir(parents=True, exist_ok=True)
+
+        cargo_toml_content = f"""[package]
 name = "{project_name}"
 version = "0.1.0"
 edition = "2021"
@@ -72,10 +58,7 @@ crate-type = ["cdylib"]
 [dependencies]
 extism-pdk = "1.0"
 """
-        (project_path / "Cargo.toml").write_text(cargo_toml)
-
-        src_dir = project_path / "src"
-        src_dir.mkdir(parents=True, exist_ok=True)
+        (project_path / "Cargo.toml").write_text(cargo_toml_content)
 
         rust_template = """use extism_pdk::*;
 
@@ -113,13 +96,13 @@ require github.com/extism/go-pdk v1.0.0
         go_template = """package main
 
 import (
-	"github.com/extism/go-pdk"
+\t"github.com/extism/go-pdk"
 )
 
 //export execute
 func execute() int32 {
-	pdk.OutputString("Capability Executed Successfully!")
-	return 0
+\tpdk.OutputString("Capability Executed Successfully!")
+\treturn 0
 }
 
 func main() {}
@@ -239,7 +222,7 @@ def execute():
     hooks:
       - id: epistemic-seal-check
         name: Epistemic Seal Check
-        entry: coreason build
+        entry: coreason registry audit
         language: system
         pass_filenames: false
 """

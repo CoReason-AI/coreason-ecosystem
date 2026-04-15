@@ -12,7 +12,7 @@ authors = [
     { name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" },
 ]
 dependencies = [
-    "coreason-manifest>=0.36.0",
+    "coreason-manifest>=0.37.0",
     "click>=8.1.7",
     "loguru>=0.7.2",
     "typer>=0.9.0",
@@ -27,12 +27,22 @@ dependencies = [
     "pulumi>=3.149.0",
     "pulumi-aws>=6.66.0",
     "pulumi-command>=1.0.1",
+    "cryptography>=44.0.0",
+    "boto3>=1.38.0",
+    "prometheus-client>=0.21.0",
+    "temporalio>=1.9.0",
+    "pyarrow>=19.0.0",
 ]
 
 license = { file = "LICENSE" }
 classifiers = [
     "License :: Other/Proprietary License",
     "Operating System :: OS Independent",
+]
+
+[project.optional-dependencies]
+vectordb = [
+    "lancedb>=0.20.0",
 ]
 
 [project.scripts]
@@ -56,15 +66,16 @@ dev = [
     "mkdocs-material",
     "types-pyyaml>=6.0.12.20250915",
     "tzdata>=2025.3",
-    "pytest-xdist>=3.6.1"
+    "pytest-xdist>=3.6.1",
+    "pandas-stubs>=3.0.0.260204",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/coreason_ecosystem"]
 
-
 [tool.deptry]
-ignore = ["DEP002"]
+per_rule_ignores = {"DEP002" = ["click", "pulumi-aws", "pulumi-command"]}
+
 
 [project.urls]
 Homepage = "https://github.com/CoReason-AI/coreason_ecosystem"
@@ -89,21 +100,11 @@ disallow_incomplete_defs = true
 check_untyped_defs = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
-exclude = [
-    "infrastructure/.*",
-]
-
-[[tool.mypy.overrides]]
-module = "click.*"
-disallow_untyped_decorators = false
-
-[[tool.mypy.overrides]]
-module = "typer.*"
-disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
 module = "coreason_manifest.*"
 ignore_missing_imports = true
+follow_imports = "skip"
 
 [[tool.mypy.overrides]]
 module = "opentelemetry.*"
@@ -116,6 +117,45 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "pulumi.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pulumi_command.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pulumi_aws.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pulumi_proxmoxve.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "boto3.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "botocore.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "prometheus_client.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "temporalio.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "lancedb.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pyarrow.*"
+ignore_missing_imports = true
+
+[tool.ruff.lint.isort]
+known-first-party = ["coreason_ecosystem"]
 
 [tool.pytest.ini_options]
 addopts = "-n auto --cov=coreason_ecosystem --cov-report=term-missing --cov-report=html --cov-fail-under=100"

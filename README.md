@@ -7,7 +7,7 @@
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/coreason_ecosystem.svg)](https://pypi.org/project/coreason_ecosystem)
 [![Downloads](https://img.shields.io/pypi/dm/coreason_ecosystem.svg)](https://pypi.org/project/coreason_ecosystem/)
 [![License: Prosperity 3.0](https://img.shields.io/badge/License-Prosperity_3.0-blue.svg)](https://prosperitylicense.com/versions/3.0.0)
-[![SOTA: 2026](https://img.shields.io/badge/Architecture-OEP_Manifold-purple.svg)]()
+![SOTA: 2026](https://img.shields.io/badge/Architecture-OEP_Manifold-purple.svg)
 <br>
 [![Code Coverage](https://img.shields.io/codecov/c/github/CoReason-AI/coreason-ecosystem/main.svg)](https://codecov.io/gh/CoReason-AI/coreason-ecosystem)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
@@ -18,6 +18,17 @@
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Forks](https://img.shields.io/github/forks/CoReason-AI/coreason-ecosystem.svg)](https://github.com/CoReason-AI/coreason-ecosystem/network/members)
 [![Powered By: AI](https://img.shields.io/badge/Powered%20By-CoReason%20AI-FF4500.svg)](https://coreason.ai)
+<br>
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/CoReason-AI/coreason-ecosystem/codeql.yml?branch=main&style=flat-square&logo=github&label=CodeQL)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/CoReason-AI/coreason-ecosystem?style=flat-square&label=OpenSSF)](https://scorecard.dev/viewer/?uri=github.com/CoReason-AI/coreason-ecosystem)
+![Egress Filtered](https://img.shields.io/badge/Egress_Filtered-Step--Security-blue?style=flat-square)
+[![SLSA Level 3](https://img.shields.io/badge/SLSA-Level%203-blue?style=flat-square&logo=slsa)](https://slsa.dev/spec/v1.0/levels)
+[![Signed by Sigstore](https://img.shields.io/badge/Signed_by-Sigstore-blueviolet?style=flat-square&logo=sigstore)](https://sigstore.dev/)
+[![SBOM](https://img.shields.io/badge/SBOM-SPDX_Included-brightgreen?style=flat-square&logo=databricks)](https://spdx.dev/)
+[![Security Policy](https://img.shields.io/badge/Security-Policy-green?style=flat-square)](./SECURITY.md)
+[![Advanced Security](https://img.shields.io/github/actions/workflow/status/CoReason-AI/coreason-ecosystem/advanced-security.yml?branch=main&style=flat-square&logo=github&label=Advanced%20Security)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/advanced-security.yml)
+![OSS-Fuzz](https://img.shields.io/badge/OSS--Fuzz-Pending-lightgray?style=flat-square)
+![CII Best Practices](https://img.shields.io/badge/CII_Best_Practices-Pending-lightgray?style=flat-square)
 
 In Cognitive Systems Engineering, autonomous Swarms require absolute mathematical and physical boundaries. `coreason-ecosystem` is the **Autonomous Nervous System** (Governance Layer) of the Tripartite Cybernetic Manifold.
 
@@ -108,6 +119,14 @@ uv run coreason-ecosystem monitor trace <workflow-id>
 If you are an AI reasoning agent operating within this repository, you must immediately read and internalize `AGENTS.md`.
 
 **The Principle of Non-Interference:** You are operating in the Macro-Orchestration boundary. You are strictly forbidden from modifying Pydantic models (`coreason-manifest`) or workflow execution logic (`coreason-runtime`). Your domain is Docker, Typer CLI routing, SSE aggregation, and MkDocs static generation.
+
+---
+
+## 🔒 Security
+
+The CoReason ecosystem implements **military-grade supply chain security** across every layer — from CodeQL SAST to Sigstore artifact signing and SLSA Level 3 provenance.
+
+Please report vulnerabilities **privately** — do not open a public GitHub Issue. See [`SECURITY.md`](./SECURITY.md) for our full disclosure process.
 
 ---
 

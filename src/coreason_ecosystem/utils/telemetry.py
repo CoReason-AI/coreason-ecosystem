@@ -123,7 +123,7 @@ async def _otlp_worker(endpoint: str) -> None:
                     pass
             except asyncio.CancelledError:
                 break
-            except Exception:  # pragma: no cover
+            except Exception:  # nosec B110 - pragma: no cover
                 pass
 
 
@@ -134,7 +134,7 @@ def otlp_log_sink(message: "Message") -> None:
     if _otlp_queue is not None:
         try:
             _otlp_queue.put_nowait(dict(message.record))
-        except Exception:  # pragma: no cover
+        except Exception:  # nosec B110 - pragma: no cover
             pass
 
 

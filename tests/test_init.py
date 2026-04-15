@@ -34,7 +34,7 @@ def temp_project_dir(
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.orchestration.init.asyncio.create_subprocess_exec")
-async def test_execute_init_base_topology(
+async def test_execute_init_scaffolding(
     mock_exec: MagicMock, temp_project_dir: tuple[str, Path]
 ) -> None:
     project_name, project_path = temp_project_dir
@@ -42,29 +42,19 @@ async def test_execute_init_base_topology(
     mock_process.communicate = AsyncMock(return_value=(b"", b""))
     mock_exec.return_value = mock_process
 
-    await execute_init(project_name, topology="base")
+    await execute_init(project_name)
 
-    # Verify directories
+    # Verify generic package genesis structure
     package_name = project_name.replace("-", "_")
     package_dir = project_path / "src" / package_name
-    assert (package_dir / "agents").is_dir()
-    assert (package_dir / "capabilities").is_dir()
-    assert (package_dir / "intents").is_dir()
+    assert package_dir.is_dir()
     assert (project_path / ".vscode").is_dir()
 
-    # Verify files
+    # Verify dependencies
     assert (project_path / "pyproject.toml").is_file()
     assert "coreason-runtime" in (project_path / "pyproject.toml").read_text()
 
-    assert (project_path / "coreason_ontology.schema.json").is_file()
-    schema = json.loads((project_path / "coreason_ontology.schema.json").read_text())
-    assert schema["title"] == "Swarm Ontology"
-
-    # Verify Base topology capabilities
-    cap_dir = package_dir / "capabilities"
-    assert (cap_dir / "example_tool.py").is_file()
-
-    # Verify Visual Cortex
+    # Verify Visual Cortex settings without capabilities logic
     vscode_dir = project_path / ".vscode"
     assert (vscode_dir / "settings.json").is_file()
     settings = json.loads((vscode_dir / "settings.json").read_text())
@@ -72,9 +62,7 @@ async def test_execute_init_base_topology(
 
     assert (vscode_dir / "tasks.json").is_file()
     tasks = json.loads((vscode_dir / "tasks.json").read_text())
-    assert any(
-        "Crystallize Capabilities" in task.get("label", "") for task in tasks["tasks"]
-    )
+    assert any("Ignite Swarm" in task.get("label", "") for task in tasks["tasks"])
 
     # Verify Immunological Hooks
     assert (project_path / ".pre-commit-config.yaml").is_file()
@@ -85,66 +73,6 @@ async def test_execute_init_base_topology(
     # Verify git init call
     mock_exec.assert_called_once_with("git", "init", cwd=str(project_path))
     mock_process.communicate.assert_called_once()
-
-
-@pytest.mark.asyncio
-@patch("coreason_ecosystem.orchestration.init.asyncio.create_subprocess_exec")
-async def test_execute_init_medallion_topology(
-    mock_exec: MagicMock, temp_project_dir: tuple[str, Path]
-) -> None:
-    project_name, project_path = temp_project_dir
-    mock_process = MagicMock()
-    mock_process.communicate = AsyncMock(return_value=(b"", b""))
-    mock_exec.return_value = mock_process
-
-    await execute_init(project_name, topology="medallion")
-    package_name = project_name.replace("-", "_")
-    cap_dir = project_path / "src" / package_name / "capabilities"
-    assert (cap_dir / "bronze_ingest.py").is_file()
-    assert (cap_dir / "silver_cleanse.py").is_file()
-    assert (cap_dir / "gold_route.py").is_file()
-
-
-@pytest.mark.asyncio
-@patch("coreason_ecosystem.orchestration.init.asyncio.create_subprocess_exec")
-async def test_execute_init_rag_topology(
-    mock_exec: MagicMock, temp_project_dir: tuple[str, Path]
-) -> None:
-    project_name, project_path = temp_project_dir
-    mock_process = MagicMock()
-    mock_process.communicate = AsyncMock(return_value=(b"", b""))
-    mock_exec.return_value = mock_process
-
-    await execute_init(project_name, topology="rag")
-    package_name = project_name.replace("-", "_")
-    cap_dir = project_path / "src" / package_name / "capabilities"
-    assert (cap_dir / "embed_document.py").is_file()
-    assert (cap_dir / "retrieve_context.py").is_file()
-
-
-@pytest.mark.asyncio
-@patch("coreason_ecosystem.orchestration.init.asyncio.create_subprocess_exec")
-@patch("importlib.metadata.version")
-async def test_execute_init_package_not_found(
-    mock_version: MagicMock, mock_exec: MagicMock, temp_project_dir: tuple[str, Path]
-) -> None:
-    import importlib.metadata
-
-    project_name, project_path = temp_project_dir
-    mock_process = MagicMock()
-    mock_process.communicate = AsyncMock(return_value=(b"", b""))
-    mock_exec.return_value = mock_process
-
-    mock_version.side_effect = importlib.metadata.PackageNotFoundError
-    await execute_init(project_name, topology="base")
-
-    assert (project_path / "pyproject.toml").is_file()
-    toml_content = (project_path / "pyproject.toml").read_text()
-    assert "coreason-runtime>=0.1.0" in toml_content
-    assert "coreason-manifest>=0.1.0" in toml_content
-    assert "coreason-ecosystem>=0.1.0" in toml_content
-    assert "componentize-py" in toml_content
-    assert "python-pdk" in toml_content
 
 
 @pytest.mark.asyncio

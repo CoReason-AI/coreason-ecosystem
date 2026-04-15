@@ -8,10 +8,16 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
+import sys
+from collections.abc import Generator
+from unittest.mock import MagicMock
 import pytest
 
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
-from coreason_manifest.spec.ontology import HardwareProfile
+from coreason_manifest.spec.ontology import (
+    SpatialHardwareProfile as HardwareProfile,
+    AcceleratorProfile,
+)
 
 
 @pytest.fixture
@@ -19,47 +25,62 @@ def oracle() -> PricingOracle:
     return PricingOracle()
 
 
+@pytest.fixture
+def mock_boto3() -> Generator[MagicMock, None, None]:
+    mock_boto = MagicMock()
+    sys.modules["boto3"] = mock_boto
+    mock_client = MagicMock()
+    mock_boto.client.return_value = mock_client
+    mock_client.describe_spot_price_history.return_value = {
+        "SpotPriceHistory": [
+            {"InstanceType": "p3.2xlarge", "SpotPrice": "3.06"},
+            {"InstanceType": "g4dn.xlarge", "SpotPrice": "0.52"},
+        ]
+    }
+    yield mock_boto
+    if "boto3" in sys.modules:
+        del sys.modules["boto3"]
+
+
 @pytest.mark.asyncio
-async def test_calculate_optimal_bid_valid(oracle: PricingOracle) -> None:
-    profile = HardwareProfile(
-        min_vram_gb=10.0, provider_whitelist=["aws"], accelerator_type="ampere"
-    )
-    # AWS p3.2xlarge has 16GB, cost $3.06, AWS t3.micro has 0GB
+async def test_calculate_optimal_bid_valid(
+    oracle: PricingOracle, mock_boto3: MagicMock
+) -> None:
+    profile = HardwareProfile(min_vram_gb=10.0, provider_whitelist=["aws"])
     bid = await oracle.calculate_optimal_bid(profile, max_budget_hr=5.0)
     assert bid is not None
     assert bid.provider == "aws"
-    assert bid.instance_id == "p3.2xlarge"
+    assert bid.instance_id == "g4dn.xlarge"
 
 
 @pytest.mark.asyncio
-async def test_calculate_optimal_bid_exceeds_budget(oracle: PricingOracle) -> None:
-    profile = HardwareProfile(
-        min_vram_gb=10.0, provider_whitelist=["aws"], accelerator_type="ampere"
-    )
-    # AWS p3.2xlarge cost $3.06, which exceeds budget of $2.0
-    bid = await oracle.calculate_optimal_bid(profile, max_budget_hr=2.0)
+async def test_calculate_optimal_bid_exceeds_budget(
+    oracle: PricingOracle, mock_boto3: MagicMock
+) -> None:
+    profile = HardwareProfile(min_vram_gb=10.0, provider_whitelist=["aws"])
+    bid = await oracle.calculate_optimal_bid(profile, max_budget_hr=0.1)
     assert bid is None
 
 
 @pytest.mark.asyncio
 async def test_calculate_optimal_bid_provider_not_whitelisted(
-    oracle: PricingOracle,
+    oracle: PricingOracle, mock_boto3: MagicMock
 ) -> None:
     profile = HardwareProfile(
         min_vram_gb=10.0,
-        provider_whitelist=["gcp"],  # "vast" and "aws" are in the mock order book
-        accelerator_type="ampere",
+        provider_whitelist=["gcp"],
+        accelerator_type=AcceleratorProfile.BF16_TENSOR,
     )
     bid = await oracle.calculate_optimal_bid(profile, max_budget_hr=5.0)
     assert bid is None
 
 
 @pytest.mark.asyncio
-async def test_calculate_optimal_bid_lowest_price(oracle: PricingOracle) -> None:
-    profile = HardwareProfile(
-        min_vram_gb=0.0, provider_whitelist=["aws"], accelerator_type="any"
-    )
-    # Both t3.micro ($0.01) and p3.2xlarge ($3.06) are valid. t3.micro should win.
+async def test_calculate_optimal_bid_lowest_price(
+    oracle: PricingOracle, mock_boto3: MagicMock
+) -> None:
+    profile = HardwareProfile(min_vram_gb=0.1, provider_whitelist=["aws"])
+    # Both g4dn.xlarge ($0.52) and p3.2xlarge ($3.06) are valid. g4dn.xlarge should win.
     bid = await oracle.calculate_optimal_bid(profile, max_budget_hr=5.0)
     assert bid is not None
-    assert bid.instance_id == "t3.micro"
+    assert bid.instance_id == "g4dn.xlarge"
