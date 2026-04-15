@@ -27,7 +27,7 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
     except ValueError:
         rel_path = file_path.resolve()
 
-    safe_name = f"{hashlib.md5(str(rel_path).encode()).hexdigest()[:8]}_{file_path.with_suffix('.wasm').name}"
+    safe_name = f"{hashlib.md5(str(rel_path).encode(), usedforsecurity=False).hexdigest()[:8]}_{file_path.with_suffix('.wasm').name}"  # nosec B324
     wasm_out_path = bin_dir / safe_name
     module_name = ".".join(rel_path.with_suffix("").parts)
 

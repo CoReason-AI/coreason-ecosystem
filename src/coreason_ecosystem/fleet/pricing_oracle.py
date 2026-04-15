@@ -10,7 +10,7 @@
 
 from typing import TYPE_CHECKING
 
-from coreason_manifest.spec.ontology import HardwareProfile
+from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile
 
 if TYPE_CHECKING:
     from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
@@ -30,7 +30,22 @@ class PricingOracle:
             from datetime import datetime, timezone
 
             def fetch_aws_spot() -> list["ComputeNodeTarget"]:
-                instance_vram_map = {
+                from typing import Literal, cast
+
+                AwsInstanceType = Literal[
+                    "g4dn.xlarge",
+                    "g4dn.2xlarge",
+                    "g4dn.4xlarge",
+                    "g4dn.8xlarge",
+                    "g4dn.12xlarge",
+                    "g5.xlarge",
+                    "g5.2xlarge",
+                    "p3.2xlarge",
+                    "p3.8xlarge",
+                    "p4d.24xlarge",
+                ]
+
+                instance_vram_map: dict[AwsInstanceType, float] = {
                     "g4dn.xlarge": 16.0,
                     "g4dn.2xlarge": 16.0,
                     "g4dn.4xlarge": 16.0,
@@ -42,7 +57,7 @@ class PricingOracle:
                     "p3.8xlarge": 64.0,
                     "p4d.24xlarge": 320.0,
                 }
-                valid_instances = [
+                valid_instances: list[AwsInstanceType] = [
                     k
                     for k, v in instance_vram_map.items()
                     if v >= hardware_profile.min_vram_gb
@@ -53,6 +68,7 @@ class PricingOracle:
                     import boto3
 
                     client = boto3.client("ec2", region_name="us-east-1")
+                    # Safe cast to Sequence[str] or explicitly cast so Boto3 stubs accept it without type: ignore
                     response = client.describe_spot_price_history(
                         InstanceTypes=valid_instances,
                         ProductDescriptions=["Linux/UNIX"],
@@ -61,7 +77,7 @@ class PricingOracle:
                     )
                     aws_nodes = []
                     for spot in response.get("SpotPriceHistory", []):
-                        itype = spot["InstanceType"]
+                        itype = cast(AwsInstanceType, spot["InstanceType"])
                         price = float(spot["SpotPrice"])
                         aws_nodes.append(
                             ComputeNodeTarget(

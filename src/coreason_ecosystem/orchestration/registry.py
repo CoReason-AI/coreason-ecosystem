@@ -53,14 +53,23 @@ async def calculate_epistemic_root(project_path: Path) -> str:
 
 def write_registry_lock(project_path: Path, root_hash: str) -> None:
     """Write the registry lock file with the given Merkle root."""
+    import json
+
     lock_path = project_path / ".coreason" / "registry.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    lock_path.write_text(root_hash, encoding="utf-8")
+    out = {"epistemic_root": root_hash}
+    lock_path.write_text(json.dumps(out, indent=2), encoding="utf-8")
 
 
 def read_registry_lock(project_path: Path) -> str | None:
     """Read the registry lock file and return the Merkle root if it exists."""
+    import json
+
     lock_path = project_path / ".coreason" / "registry.lock"
     if lock_path.exists():
-        return lock_path.read_text(encoding="utf-8").strip()
+        try:
+            data = json.loads(lock_path.read_text(encoding="utf-8"))
+            return str(data.get("epistemic_root"))
+        except json.JSONDecodeError, ValueError:
+            return lock_path.read_text(encoding="utf-8").strip()
     return None

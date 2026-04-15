@@ -56,14 +56,16 @@ def test_calculate_epistemic_root_missing_files(
 def test_write_registry_lock(mock_mkdir: Any, mock_write_text: Any) -> None:
     write_registry_lock(Path("/tmp"), "deadbeef")
     mock_mkdir.assert_called_once()
-    mock_write_text.assert_called_once_with("deadbeef", encoding="utf-8")
+    mock_write_text.assert_called_once_with(
+        '{\n  "epistemic_root": "deadbeef"\n}', encoding="utf-8"
+    )
 
 
 @patch("coreason_ecosystem.orchestration.registry.Path.exists")
 @patch("coreason_ecosystem.orchestration.registry.Path.read_text")
 def test_read_registry_lock(mock_read_text: Any, mock_exists: Any) -> None:
     mock_exists.return_value = True
-    mock_read_text.return_value = "deadbeef"
+    mock_read_text.return_value = '{"epistemic_root": "deadbeef"}'
     assert read_registry_lock(Path("/tmp")) == "deadbeef"
 
 
@@ -71,3 +73,11 @@ def test_read_registry_lock(mock_read_text: Any, mock_exists: Any) -> None:
 def test_read_registry_lock_missing(mock_exists: Any) -> None:
     mock_exists.return_value = False
     assert read_registry_lock(Path("/tmp")) is None
+
+
+@patch("coreason_ecosystem.orchestration.registry.Path.exists")
+@patch("coreason_ecosystem.orchestration.registry.Path.read_text")
+def test_read_registry_lock_invalid_json(mock_read_text: Any, mock_exists: Any) -> None:
+    mock_exists.return_value = True
+    mock_read_text.return_value = "deadbeef_non_json"
+    assert read_registry_lock(Path("/tmp")) == "deadbeef_non_json"

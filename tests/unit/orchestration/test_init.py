@@ -62,9 +62,7 @@ async def test_execute_init_scaffolding(
 
     assert (vscode_dir / "tasks.json").is_file()
     tasks = json.loads((vscode_dir / "tasks.json").read_text())
-    assert any(
-        "Ignite Swarm" in task.get("label", "") for task in tasks["tasks"]
-    )
+    assert any("Ignite Swarm" in task.get("label", "") for task in tasks["tasks"])
 
     # Verify Immunological Hooks
     assert (project_path / ".pre-commit-config.yaml").is_file()

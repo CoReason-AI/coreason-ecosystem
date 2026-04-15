@@ -18,7 +18,7 @@ repos:
     rev: v1.18.2
     hooks:
       - id: mypy
-        additional_dependencies: ["pydantic>=2.0", "pydantic-settings>=2.0", "pytest", "types-PyYAML", "click-types", "typer", "rich", "httpx", "loguru", "filelock"]
+        additional_dependencies: ["pydantic>=2.0", "pydantic-settings>=2.0", "pytest", "types-PyYAML", "click-types", "typer", "rich", "httpx", "loguru", "filelock", "pandas-stubs", "coreason-manifest>=0.40.1", "pulumi", "pulumi-aws", "temporalio", "hypothesis", "moto", "boto3-stubs[ec2,s3]", "boto3"]
         args: [--config-file, pyproject.toml]
         exclude: ^infrastructure/
   - repo: https://github.com/AleksaC/hadolint-py

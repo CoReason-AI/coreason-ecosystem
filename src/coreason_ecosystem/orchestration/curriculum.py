@@ -68,7 +68,9 @@ def compile_dpo_dataset(
         }
 
     # Calculate percentile boundaries
-    upper_bound = df["total_advantage_score"].quantile(1.0 - percentile_threshold / 100.0)
+    upper_bound = df["total_advantage_score"].quantile(
+        1.0 - percentile_threshold / 100.0
+    )
     lower_bound = df["total_advantage_score"].quantile(percentile_threshold / 100.0)
 
     chosen_traces = df[df["total_advantage_score"] >= upper_bound]

@@ -128,6 +128,7 @@ site/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+mypy_out*.txt
 
 # Pyre type checker
 .pyre/

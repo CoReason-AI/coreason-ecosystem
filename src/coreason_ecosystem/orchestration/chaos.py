@@ -50,7 +50,7 @@ async def execute_infrastructure_chaos(
     await asyncio.sleep(0.5)
 
     # In actual production, this would poll Docker or Kubernetes states
-    success = random.choice([True, False])  # Simulating varying robustness
+    success = random.choice([True, False])  # nosec B311 - Simulating varying robustness
 
     elapsed_ms = (time.time_ns() - started_at_ns) / 1_000_000
 
@@ -59,9 +59,7 @@ async def execute_infrastructure_chaos(
             f"[Chaos:{experiment_id}] ✅ PASS — Fleet survived {vector} gracefully in {elapsed_ms:.1f}ms."
         )
     else:
-        logger.error(
-            f"[Chaos:{experiment_id}] ❌ FAIL — Fleet degraded upon {vector}."
-        )
+        logger.error(f"[Chaos:{experiment_id}] ❌ FAIL — Fleet degraded upon {vector}.")
 
     return {
         "experiment_id": experiment_id,

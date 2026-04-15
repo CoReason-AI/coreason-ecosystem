@@ -9,11 +9,16 @@
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
 import asyncio
+import importlib.metadata
 import json
 from pathlib import Path
 
 
-async def execute_init(project_name: str) -> None:
+async def execute_init(
+    project_name: str,
+    topology: str = "base",
+    lang: str = "python",
+) -> None:
     """Synthesize a mathematically verified Swarm workspace scaffolding."""
     if "/" in project_name or "\\" in project_name:
         raise ValueError("Project name cannot contain path separators")
@@ -37,52 +42,25 @@ async def execute_init(project_name: str) -> None:
     with (vscode_dir / "settings.json").open("w") as f:
         json.dump(settings, f, indent=4)
 
-    # 1. Directory Genesis
-    package_name = project_name.replace("-", "_")
-    package_dir = project_path / "src" / package_name
-    package_dir.mkdir(parents=True, exist_ok=True)
-    (package_dir / "__init__.py").touch()
+    if lang == "rust":
+        # Rust Scaffolding
+        src_dir = project_path / "src"
+        src_dir.mkdir(parents=True, exist_ok=True)
 
-    # 2. Dependency Locking
-    pyproject_toml_content = f"""[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[project]
+        cargo_toml_content = f"""[package]
 name = "{project_name}"
 version = "0.1.0"
-description = "Autopoietically generated CoReason Swarm Workspace"
-requires-python = ">=3.14"
-dependencies = [
-    "coreason-runtime",
-    "coreason-ecosystem"
-]
+edition = "2021"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/{package_name}"]
+[lib]
+crate-type = ["cdylib"]
 
-[dependency-groups]
-dev = [
-    "pre-commit"
-]
-
-[tool.uv]
-required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+[dependencies]
+extism-pdk = "1.0"
 """
-    (project_path / "pyproject.toml").write_text(pyproject_toml_content)
+        (project_path / "Cargo.toml").write_text(cargo_toml_content)
 
-    tasks = {
-        "version": "2.0.0",
-        "tasks": [
-            {
-                "label": "Ignite Swarm",
-                "command": "coreason deploy up",
-                "type": "shell",
-            },
-        ],
-    }
-    with (vscode_dir / "tasks.json").open("w") as f:
-        json.dump(tasks, f, indent=4)
+        rust_template = """use extism_pdk::*;
 
 #[plugin_fn]
 pub fn execute(input: String) -> FnResult<String> {
@@ -118,13 +96,13 @@ require github.com/extism/go-pdk v1.0.0
         go_template = """package main
 
 import (
-	"github.com/extism/go-pdk"
+\t"github.com/extism/go-pdk"
 )
 
 //export execute
 func execute() int32 {
-	pdk.OutputString("Capability Executed Successfully!")
-	return 0
+\tpdk.OutputString("Capability Executed Successfully!")
+\treturn 0
 }
 
 func main() {}

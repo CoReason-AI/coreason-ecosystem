@@ -13,7 +13,7 @@ Infrastructure as Code (IaC) Scaffolding for the CoReason Swarm Mesh.
 
 This module provisions a bare-metal execution environment dynamically via Factory Pattern.
 Deployments can target Proxmox/Hetzner, AWS, or Vast.ai based on Pulumi configuration.
-It deploys the coreason-runtime Docker images, attaches the Ecosystem Daemon 
+It deploys the coreason-runtime Docker images, attaches the Ecosystem Daemon
 for Fleet-wide Telemetry, and establishes a Zero-Trust WireGuard (wg0) interface.
 """
 
@@ -53,7 +53,9 @@ class AWSProvider(CloudProvider):
 
 class VastAiProvider(CloudProvider):
     def provision_node(self, config: pulumi.Config) -> tuple[Any, Any]:  # type: ignore
-        pulumi.log.info("Provisioning Vast.ai instance tracking limits natively via custom provider.")
+        pulumi.log.info(
+            "Provisioning Vast.ai instance tracking limits natively via custom provider."
+        )
         node_id = pulumi.Output.from_input("vast-ai-instance")
         ip_addr = pulumi.Output.from_input(config.get("vast_ip") or "127.0.0.1")
         return node_id, ip_addr
@@ -64,9 +66,14 @@ class GenericRemoteProvider(CloudProvider):
     Universally supports ANY GPU provider (RunPod, LambdaLabs, Paperspace, anywhere).
     Expects pre-provisioned external infrastructure where we just push our Docker manifold via SSH.
     """
+
     def provision_node(self, config: pulumi.Config) -> tuple[Any, Any]:  # type: ignore
-        pulumi.log.info("Provisioning Arbitrary Remote Node natively bounding constraints dynamically.")
-        node_id = pulumi.Output.from_input(config.get("remote_node_id") or "remote-gpu-node")
+        pulumi.log.info(
+            "Provisioning Arbitrary Remote Node natively bounding constraints dynamically."
+        )
+        node_id = pulumi.Output.from_input(
+            config.get("remote_node_id") or "remote-gpu-node"
+        )
         ip_addr = pulumi.Output.from_input(config.require("remote_ip"))
         return node_id, ip_addr
 
@@ -91,16 +98,23 @@ class ProxmoxProvider(CloudProvider):
             cpu=proxmox.vm.VirtualMachineCpuArgs(cores=cpu_cores, type="host"),
             disks=[
                 proxmox.vm.VirtualMachineDiskArgs(
-                    datastore_id="local-lvm", size=disk_size, file_format="raw", interface="virtio0"
+                    datastore_id="local-lvm",
+                    size=disk_size,
+                    file_format="raw",
+                    interface="virtio0",
                 )
             ],
             network_devices=[
-                proxmox.vm.VirtualMachineNetworkDeviceArgs(bridge="vmbr0", model="virtio")
+                proxmox.vm.VirtualMachineNetworkDeviceArgs(
+                    bridge="vmbr0", model="virtio"
+                )
             ],
         )
 
         vm_ipv4 = vm.ipv4_addresses.apply(
-            lambda ips: ips[1] if ips and len(ips) > 1 else ips[0] if ips else "127.0.0.1"
+            lambda ips: (
+                ips[1] if ips and len(ips) > 1 else ips[0] if ips else "127.0.0.1"
+            )
         )
         return vm.id, vm_ipv4
 
@@ -125,7 +139,7 @@ def provision_dynamic_node() -> tuple[Any, Any]:  # type: ignore
     """Orchestrates provisioning dynamically using the Factory."""
     config = pulumi.Config()
     cloud_provider_name = config.get("cloud_provider") or "proxmox"
-    
+
     provider = ProviderFactory.get_provider(cloud_provider_name)
     return provider.provision_node(config)
 

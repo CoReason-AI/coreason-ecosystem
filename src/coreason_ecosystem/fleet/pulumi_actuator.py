@@ -18,7 +18,10 @@ from pydantic import BaseModel
 from pulumi import automation as auto
 
 from coreason_ecosystem.fleet.mesh_injector import MeshInjector
-from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
+from coreason_manifest.spec.ontology import (
+    SpatialHardwareProfile as HardwareProfile,
+    EpistemicSecurityProfile as SecurityProfile,
+)
 
 
 class ComputeNodeTarget(BaseModel):
@@ -67,15 +70,34 @@ class PulumiFleetDriver:
             )
             stack.set_config("boot_payload_b64", auto.ConfigValue(value=payload_b64))
 
+        import os
+
         if target.provider == "aws":
             stack.set_config("instance_type", auto.ConfigValue(target.instance_id))
-            stack.set_config("ami_id", auto.ConfigValue("ami-0abcdef1234567890"))
-            stack.set_config("ssh_pub_key", auto.ConfigValue("ssh-rsa AAA..."))
-            stack.set_config("aws:region", auto.ConfigValue("us-west-2"))
+            stack.set_config(
+                "ami_id",
+                auto.ConfigValue(os.environ.get("AWS_AMI_ID", "ami-strict-required")),
+            )
+            stack.set_config(
+                "ssh_pub_key",
+                auto.ConfigValue(os.environ.get("SSH_PUB_KEY", "strict-key-required")),
+            )
+            stack.set_config(
+                "aws:region",
+                auto.ConfigValue(os.environ.get("AWS_REGION", "us-east-1")),
+            )
         elif target.provider == "vast":
             stack.set_config("machine_id", auto.ConfigValue(target.instance_id))
-            stack.set_config("gpu_name", auto.ConfigValue("RTX_4090"))
-            stack.set_config("ssh_pub_key", auto.ConfigValue("ssh-rsa AAA..."))
+            accel_type = (
+                target.hardware_profile.accelerator_type
+                if target.hardware_profile
+                else "unknown"
+            )
+            stack.set_config("gpu_name", auto.ConfigValue(accel_type))
+            stack.set_config(
+                "ssh_pub_key",
+                auto.ConfigValue(os.environ.get("SSH_PUB_KEY", "strict-key-required")),
+            )
 
         up_res = stack.up(
             on_output=lambda msg: logger.debug(f"Pulumi [{stack_name}]: {msg.strip()}")

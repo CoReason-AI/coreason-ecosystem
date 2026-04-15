@@ -11,14 +11,25 @@ permissions:
   contents: write
   id-token: write
   pages: write
+  attestations: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment: pypi
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -32,6 +43,10 @@ jobs:
           python-version-file: "pyproject.toml"
           allow-prereleases: true
 
+      - name: Install system dependencies (for temporalio source build)
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        shell: bash
+
       - name: Build Docs
         run: uv run zensical build
         shell: bash
@@ -44,6 +59,13 @@ jobs:
       - name: Build package
         run: uv build
         shell: bash
+
+      - name: Generate SLSA Provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/*.whl
+            dist/*.tar.gz
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -65,6 +87,13 @@ jobs:
             dist/*.tar.gz
             dist/*.whl
 
+      - name: Upload attestations to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.sigstore.json
+            sbom.spdx.json
+
   deploy-pages:
     needs: release
     runs-on: ubuntu-latest
@@ -72,6 +101,11 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

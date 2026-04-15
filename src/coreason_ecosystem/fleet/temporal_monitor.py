@@ -15,7 +15,10 @@ from loguru import logger
 from prometheus_client import Counter, Gauge, start_http_server
 from temporalio.client import Client
 
-from coreason_manifest.spec.ontology import HardwareProfile, SecurityProfile
+from coreason_manifest.spec.ontology import (
+    SpatialHardwareProfile as HardwareProfile,
+    EpistemicSecurityProfile as SecurityProfile,
+)
 
 
 # Prometheus metrics
@@ -44,7 +47,7 @@ class ThermodynamicMonitor:
         self,
         temporal_host: str = "localhost:7233",
         prometheus_port: int = 9090,
-        polling_interval_sec: int = 10,
+        polling_interval_sec: float = 10.0,
     ) -> None:
         self.temporal_host = temporal_host
         self.prometheus_port = prometheus_port
@@ -57,7 +60,6 @@ class ThermodynamicMonitor:
         self._mock_hardware_profile = HardwareProfile(
             min_vram_gb=16.0,
             provider_whitelist=["aws", "vast"],
-            accelerator_type="ampere",
         )
         self._mock_security_profile = SecurityProfile(network_isolation=True)
 
@@ -65,9 +67,13 @@ class ThermodynamicMonitor:
         """Connect to the Temporal cluster."""
         try:
             self._client = await Client.connect(self.temporal_host)
-            logger.info(f"ThermodynamicMonitor connected to Temporal at {self.temporal_host}")
+            logger.info(
+                f"ThermodynamicMonitor connected to Temporal at {self.temporal_host}"
+            )
         except Exception as e:
-            logger.warning(f"Failed to connect to Temporal: {e}. Running in degraded mode.")
+            logger.warning(
+                f"Failed to connect to Temporal: {e}. Running in degraded mode."
+            )
 
     async def _poll_workflows(self) -> None:
         """Poll Temporal for open workflow executions and update Prometheus metrics."""
@@ -76,13 +82,19 @@ class ThermodynamicMonitor:
 
         try:
             active_count = 0
-            async for workflow in self._client.list_workflows("ExecutionStatus = 'Running'"):
+            async for workflow in self._client.list_workflows(
+                "ExecutionStatus = 'Running'"
+            ):
                 active_count += 1
 
                 # Check for circuit breaker signals in search attributes
                 search_attrs = getattr(workflow, "search_attributes", {})
                 if search_attrs:
-                    raw_attrs: dict[str, Any] = dict(search_attrs) if not isinstance(search_attrs, dict) else search_attrs
+                    raw_attrs: dict[str, Any] = (
+                        dict(search_attrs)
+                        if not isinstance(search_attrs, dict)
+                        else search_attrs
+                    )
                     if raw_attrs.get("circuit_breaker_tripped"):
                         coreason_circuit_breakers_tripped.inc()
 
