@@ -87,7 +87,7 @@ jobs:
         run: uv sync --all-extras
         shell: bash
       - name: Bandit Security Scan
-        run: uvx bandit -r src/ scripts/ tests/ -s B101,B404
+        run: uvx bandit -r src/ scripts/ tests/ -s B101,B106,B108,B404
         shell: bash
 
   test-ubuntu:

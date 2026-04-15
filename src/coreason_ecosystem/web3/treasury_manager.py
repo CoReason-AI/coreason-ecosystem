@@ -10,7 +10,7 @@
 
 """Web3 Treasury Manager.
 
-Decentralized on-chain treasury executing smart contract logic 
+Decentralized on-chain treasury executing smart contract logic
 for syndicate payouts and tracking DAO governance parameters.
 """
 
@@ -20,47 +20,59 @@ import asyncio
 from loguru import logger
 from typing import Any
 
+
 class MockWeb3Provider:
     """Mock EVM provider for transaction broadcasting."""
-    
+
     @staticmethod
     async def broadcast_tx(contract_address: str, payload: dict[str, Any]) -> str:
-        tx_hash = f"0x{hash(str(payload)) & 0xffffffffffffffff:016x}"
-        logger.info(f"[Web3] Broadcasting TX payload {payload} to {contract_address} (Hash: {tx_hash})")
+        tx_hash = f"0x{hash(str(payload)) & 0xFFFFFFFFFFFFFFFF:016x}"
+        logger.info(
+            f"[Web3] Broadcasting TX payload {payload} to {contract_address} (Hash: {tx_hash})"
+        )
         await asyncio.sleep(1.0)
         return tx_hash
 
+
 class TreasuryManager:
     """Manages EVM-compatible decentralized on-chain treasury interactions."""
-    
-    def __init__(self, treasury_contract_address: str = "0xCoReasonTreasury0000000000000000000000000") -> None:
+
+    def __init__(
+        self,
+        treasury_contract_address: str = "0xCoReasonTreasury0000000000000000000000000",
+    ) -> None:
         self.contract_address = treasury_contract_address
         self.provider = MockWeb3Provider()
 
     async def disburse_node_rewards(self, award_receipt: dict[str, Any]) -> str:
         """Disburse stablecoin rewards to a decentralized DID/address.
-        
+
         Args:
             award_receipt: Dictionary containing awarded_syndicate DIDs and amounts.
-            
+
         Returns:
             The on-chain transaction hash.
         """
-        logger.info(f"[TreasuryManager] Initiating reward disbursement for receipt: {award_receipt}")
-        
+        logger.info(
+            f"[TreasuryManager] Initiating reward disbursement for receipt: {award_receipt}"
+        )
+
         target_did = award_receipt.get("awarded_syndicate", "unknown_syndicate_did")
         amount_gwei = award_receipt.get("amount_gwei", 0)
-        
+
         # In a real environment, we would load ABIs and form the exact EVM payload
         payload = {
             "function": "disburseRewards",
             "args": [target_did, amount_gwei],
             "gas_limit": 100000,
         }
-        
+
         tx_hash = await self.provider.broadcast_tx(self.contract_address, payload)
-        
-        logger.info(f"[TreasuryManager] Successfully disbursed {amount_gwei} Gwei to {target_did}. TX: {tx_hash}")
+
+        logger.info(
+            f"[TreasuryManager] Successfully disbursed {amount_gwei} Gwei to {target_did}. TX: {tx_hash}"
+        )
         return tx_hash
+
 
 global_web3_treasury = TreasuryManager()

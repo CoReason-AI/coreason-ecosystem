@@ -130,53 +130,73 @@ async def mint_genesis_block(
     receipt["genesis_manifest_cid"] = genesis_manifest["manifest_cid"]
 
     # ── Step 3: Write Gold Ledger (Medallion State Engine) ─────────
-    _gold_schema = pa.schema([
-        pa.field("intent_hash", pa.string()),
-        pa.field("tenant_cid", pa.string()),
-        pa.field("session_cid", pa.string()),
-        pa.field("payload", pa.string()),
-        pa.field("timestamp_ns", pa.int64()),
-        pa.field("is_genesis", pa.bool_()),
-    ])
+    _gold_schema = pa.schema(
+        [
+            pa.field("intent_hash", pa.string()),
+            pa.field("tenant_cid", pa.string()),
+            pa.field("session_cid", pa.string()),
+            pa.field("payload", pa.string()),
+            pa.field("timestamp_ns", pa.int64()),
+            pa.field("is_genesis", pa.bool_()),
+        ]
+    )
 
-    genesis_record = pa.table({
-        "intent_hash": [hashlib.sha256(
-            json.dumps(genesis_manifest, sort_keys=True).encode()
-        ).hexdigest()],
-        "tenant_cid": [root_cid],
-        "session_cid": [genesis_manifest["session_cid"]],
-        "payload": [json.dumps(genesis_manifest, sort_keys=True)],
-        "timestamp_ns": [time.time_ns()],
-        "is_genesis": [True],
-    })
+    genesis_record = pa.table(
+        {
+            "intent_hash": [
+                hashlib.sha256(
+                    json.dumps(genesis_manifest, sort_keys=True).encode()
+                ).hexdigest()
+            ],
+            "tenant_cid": [root_cid],
+            "session_cid": [genesis_manifest["session_cid"]],
+            "payload": [json.dumps(genesis_manifest, sort_keys=True)],
+            "timestamp_ns": [time.time_ns()],
+            "is_genesis": [True],
+        }
+    )
 
     db.create_table("gold_ledger", genesis_record)
     logger.info("[Genesis] Gold Medallion ledger initialized with genesis block.")
 
     # ── Step 4: Create Silver & Bronze tables ──────────────────────
-    _silver_schema = pa.schema([
-        pa.field("event_cid", pa.string()),
-        pa.field("event_type", pa.string()),
-        pa.field("payload", pa.string()),
-        pa.field("timestamp_ns", pa.int64()),
-    ])
-    db.create_table("silver_standardized", pa.table({
-        "event_cid": [f"silver-genesis-{uuid.uuid4()}"],
-        "event_type": ["GENESIS_INIT"],
-        "payload": [json.dumps({"genesis": True})],
-        "timestamp_ns": [time.time_ns()],
-    }))
+    _silver_schema = pa.schema(
+        [
+            pa.field("event_cid", pa.string()),
+            pa.field("event_type", pa.string()),
+            pa.field("payload", pa.string()),
+            pa.field("timestamp_ns", pa.int64()),
+        ]
+    )
+    db.create_table(
+        "silver_standardized",
+        pa.table(
+            {
+                "event_cid": [f"silver-genesis-{uuid.uuid4()}"],
+                "event_type": ["GENESIS_INIT"],
+                "payload": [json.dumps({"genesis": True})],
+                "timestamp_ns": [time.time_ns()],
+            }
+        ),
+    )
 
-    _bronze_schema = pa.schema([
-        pa.field("raw_cid", pa.string()),
-        pa.field("entropy_source", pa.string()),
-        pa.field("timestamp_ns", pa.int64()),
-    ])
-    db.create_table("bronze_entropy", pa.table({
-        "raw_cid": [f"bronze-genesis-{uuid.uuid4()}"],
-        "entropy_source": ["genesis_boot"],
-        "timestamp_ns": [time.time_ns()],
-    }))
+    _bronze_schema = pa.schema(
+        [
+            pa.field("raw_cid", pa.string()),
+            pa.field("entropy_source", pa.string()),
+            pa.field("timestamp_ns", pa.int64()),
+        ]
+    )
+    db.create_table(
+        "bronze_entropy",
+        pa.table(
+            {
+                "raw_cid": [f"bronze-genesis-{uuid.uuid4()}"],
+                "entropy_source": ["genesis_boot"],
+                "timestamp_ns": [time.time_ns()],
+            }
+        ),
+    )
 
     logger.info("[Genesis] Silver & Bronze Medallion tables initialized.")
 
@@ -200,9 +220,7 @@ async def mint_genesis_block(
     }
 
     bootstrap_path = Path(config_path or "./network_bootstrap.json")
-    bootstrap_path.write_text(
-        json.dumps(bootstrap_config, indent=2), encoding="utf-8"
-    )
+    bootstrap_path.write_text(json.dumps(bootstrap_config, indent=2), encoding="utf-8")
 
     receipt["bootstrap_config_path"] = str(bootstrap_path)
     receipt["bootstrap_config"] = bootstrap_config

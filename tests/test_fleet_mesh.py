@@ -52,9 +52,7 @@ async def test_temporal_monitor_security_profile() -> None:
 @pytest.mark.asyncio
 async def test_pricing_oracle_vast() -> None:
     # Lines 87-112, 118, 120
-    hardware = HardwareProfile(
-        min_vram_gb=16.0, provider_whitelist=["vast"]
-    )
+    hardware = HardwareProfile(min_vram_gb=16.0, provider_whitelist=["vast"])
     oracle = PricingOracle()
 
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
@@ -84,9 +82,7 @@ async def test_pricing_oracle_vast() -> None:
 
 @pytest.mark.asyncio
 async def test_pricing_oracle_vast_failure() -> None:
-    hardware = HardwareProfile(
-        min_vram_gb=16.0, provider_whitelist=["vast"]
-    )
+    hardware = HardwareProfile(min_vram_gb=16.0, provider_whitelist=["vast"])
     oracle = PricingOracle()
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
         mock_get.side_effect = Exception("network fail")
@@ -97,9 +93,7 @@ async def test_pricing_oracle_vast_failure() -> None:
 @pytest.mark.asyncio
 async def test_pricing_oracle_aws_boto_failure() -> None:
     # Lines 51, 75-81
-    hardware = HardwareProfile(
-        min_vram_gb=16.0, provider_whitelist=["aws"]
-    )
+    hardware = HardwareProfile(min_vram_gb=16.0, provider_whitelist=["aws"])
     oracle = PricingOracle()
 
     import sys
@@ -114,9 +108,7 @@ async def test_pricing_oracle_aws_boto_failure() -> None:
 @pytest.mark.asyncio
 async def test_pricing_oracle_aws_no_instances() -> None:
     # Line 51 -> empty valid instances
-    hardware = HardwareProfile(
-        min_vram_gb=9999.0, provider_whitelist=["aws"]
-    )
+    hardware = HardwareProfile(min_vram_gb=9999.0, provider_whitelist=["aws"])
     oracle = PricingOracle()
     target = await oracle.calculate_optimal_bid(hardware, max_budget_hr=1.0)
     assert target is None

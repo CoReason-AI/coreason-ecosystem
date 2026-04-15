@@ -111,7 +111,9 @@ def fleet_start(
 )
 def init(
     project_name: str = typer.Argument(...),
-    topology: str = typer.Option("base", help="Topological routing pattern (base, medallion, rag)."),
+    topology: str = typer.Option(
+        "base", help="Topological routing pattern (base, medallion, rag)."
+    ),
     lang: str = typer.Option("python", help="Language scaffolding (python, rust, go)."),
 ) -> None:
     """Autonomically generate a mathematically verified Swarm workspace."""
@@ -224,6 +226,7 @@ def build_docs_cmd() -> None:
     """Generate dynamic MkDocs documentation from the ontological schema and ledger."""
     try:
         from coreason_ecosystem.docs_generator import generate_dynamic_docs
+
         generate_dynamic_docs()
     except Exception as e:
         console.print(f"[bold red]Documentation Pipeline Failed:[/bold red] {e}")

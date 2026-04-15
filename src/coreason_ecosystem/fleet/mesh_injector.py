@@ -131,7 +131,9 @@ class MeshInjector:
         return base64.b64encode(payload.encode("utf-8")).decode("utf-8")
 
     @staticmethod
-    def generate_ephemeral_certs(node_cid: str, ttl_seconds: int = 86400) -> dict[str, str]:
+    def generate_ephemeral_certs(
+        node_cid: str, ttl_seconds: int = 86400
+    ) -> dict[str, str]:
         """Generate ephemeral X.509 mTLS certificates for a fleet node.
 
         Creates a self-signed root CA (if needed) and signs a leaf certificate
@@ -153,10 +155,12 @@ class MeshInjector:
 
         # Generate Root CA key pair
         ca_key = ec.generate_private_key(ec.SECP256R1())
-        ca_subject = x509.Name([
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "CoReason Fleet CA"),
-            x509.NameAttribute(NameOID.COMMON_NAME, "coreason-fleet-ca"),
-        ])
+        ca_subject = x509.Name(
+            [
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "CoReason Fleet CA"),
+                x509.NameAttribute(NameOID.COMMON_NAME, "coreason-fleet-ca"),
+            ]
+        )
 
         now = datetime.datetime.now(datetime.UTC)
         ca_cert = (
@@ -173,10 +177,12 @@ class MeshInjector:
 
         # Generate Leaf certificate for the node
         leaf_key = ec.generate_private_key(ec.SECP256R1())
-        leaf_subject = x509.Name([
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "CoReason Fleet"),
-            x509.NameAttribute(NameOID.COMMON_NAME, f"node-{node_cid}"),
-        ])
+        leaf_subject = x509.Name(
+            [
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "CoReason Fleet"),
+                x509.NameAttribute(NameOID.COMMON_NAME, f"node-{node_cid}"),
+            ]
+        )
 
         leaf_cert = (
             x509.CertificateBuilder()
@@ -187,17 +193,21 @@ class MeshInjector:
             .not_valid_before(now)
             .not_valid_after(now + datetime.timedelta(seconds=ttl_seconds))
             .add_extension(
-                x509.SubjectAlternativeName([
-                    x509.DNSName(f"node-{node_cid}.coreason.local"),
-                    x509.DNSName("localhost"),
-                ]),
+                x509.SubjectAlternativeName(
+                    [
+                        x509.DNSName(f"node-{node_cid}.coreason.local"),
+                        x509.DNSName("localhost"),
+                    ]
+                ),
                 critical=False,
             )
             .sign(ca_key, hashes.SHA256())
         )
 
         ca_cert_pem = ca_cert.public_bytes(serialization.Encoding.PEM).decode("utf-8")
-        tls_cert_pem = leaf_cert.public_bytes(serialization.Encoding.PEM).decode("utf-8")
+        tls_cert_pem = leaf_cert.public_bytes(serialization.Encoding.PEM).decode(
+            "utf-8"
+        )
         tls_key_pem = leaf_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.PKCS8,
@@ -211,4 +221,3 @@ class MeshInjector:
             "node_cid": node_cid,
             "ttl_seconds": str(ttl_seconds),
         }
-

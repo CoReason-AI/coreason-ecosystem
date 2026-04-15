@@ -27,7 +27,7 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
     except ValueError:
         rel_path = file_path.resolve()
 
-    safe_name = f"{hashlib.md5(str(rel_path).encode()).hexdigest()[:8]}_{file_path.with_suffix('.wasm').name}"
+    safe_name = f"{hashlib.md5(str(rel_path).encode(), usedforsecurity=False).hexdigest()[:8]}_{file_path.with_suffix('.wasm').name}"  # nosec B324
     wasm_out_path = bin_dir / safe_name
     module_name = ".".join(rel_path.with_suffix("").parts)
 
@@ -198,7 +198,7 @@ async def execute_build(target_path: str) -> None:
                     loaded = json.load(f)
                     if isinstance(loaded, dict):
                         ledger_data.update({str(k): str(v) for k, v in loaded.items()})
-            except (json.JSONDecodeError, IOError):
+            except json.JSONDecodeError, IOError:
                 ledger_data = {}
 
         # 3. Store the hash using target path as key

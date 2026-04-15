@@ -15,7 +15,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from coreason_ecosystem.fleet.daemon import AutonomicFleetManager
-from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile, EpistemicSecurityProfile as SecurityProfile
+from coreason_manifest.spec.ontology import (
+    SpatialHardwareProfile as HardwareProfile,
+    EpistemicSecurityProfile as SecurityProfile,
+)
 from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
 
 
@@ -40,9 +43,7 @@ async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
     # We want to break the infinite loop after 1 iteration, so we make sleep throw CancelledError
     setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=1.5))
 
-    profile = HardwareProfile(
-        min_vram_gb=16.0, provider_whitelist=["aws"]
-    )
+    profile = HardwareProfile(min_vram_gb=16.0, provider_whitelist=["aws"])
     security_profile = SecurityProfile(network_isolation=True)
     setattr(
         manager.monitor,
@@ -170,9 +171,7 @@ async def test_daemon_start_general_exception(manager: AutonomicFleetManager) ->
 async def test_daemon_start_no_bid_found(manager: AutonomicFleetManager) -> None:
     setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=1.5))
 
-    profile = HardwareProfile(
-        min_vram_gb=16.0, provider_whitelist=["aws"]
-    )
+    profile = HardwareProfile(min_vram_gb=16.0, provider_whitelist=["aws"])
     setattr(
         manager.monitor,
         "get_active_task_hardware_profile",

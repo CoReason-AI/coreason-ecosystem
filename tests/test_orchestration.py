@@ -28,7 +28,7 @@ async def test_build_path_value_error(tmp_path: Path) -> None:
             # Force wasm file presence so FileNotFoundError is bypassed
             import hashlib
 
-            safe_name = f"{hashlib.md5(str(test_py.resolve()).encode()).hexdigest()[:8]}_{test_py.with_suffix('.wasm').name}"
+            safe_name = f"{hashlib.md5(str(test_py.resolve()).encode(), usedforsecurity=False).hexdigest()[:8]}_{test_py.with_suffix('.wasm').name}"
             (bin_dir / safe_name).touch()
 
             res_path, res_hash = await compile_and_hash(test_py, bin_dir)
@@ -101,7 +101,7 @@ async def test_build_go_path(tmp_path: Path) -> None:
 
         import hashlib
 
-        safe_name = f"{hashlib.md5(str(test_go.resolve()).encode()).hexdigest()[:8]}_{test_go.with_suffix('.wasm').name}"
+        safe_name = f"{hashlib.md5(str(test_go.resolve()).encode(), usedforsecurity=False).hexdigest()[:8]}_{test_go.with_suffix('.wasm').name}"
         (bin_dir / safe_name).write_bytes(b"mock_go")
 
         rel_path, res_hash = await compile_and_hash(test_go, bin_dir)
@@ -118,7 +118,9 @@ async def test_build_unsupported_type(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_init_rust_go_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_init_rust_go_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # init.py Lines 71-108, 112-148, 164-167
     monkeypatch.chdir(tmp_path)
     # Happy path version resolution line 165
@@ -139,7 +141,9 @@ async def test_init_rust_go_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 
 @pytest.mark.asyncio
-async def test_sync_compose_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_sync_compose_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # sync.py Lines 63-66 => missing compose.yaml throws Exit(1)
     # 89-92 => process.returncode != 0
     monkeypatch.chdir(tmp_path)
@@ -180,7 +184,9 @@ async def test_up_is_port_bound() -> None:
 
 
 @pytest.mark.asyncio
-async def test_up_timeout_fallbacks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_up_timeout_fallbacks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # up.py Lines 87-93, 124-130, 171-177
     monkeypatch.chdir(tmp_path)
 

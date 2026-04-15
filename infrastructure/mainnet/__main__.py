@@ -42,6 +42,7 @@ if BOOTSTRAP_PATH.exists():
 
 # ── VPC & Networking ───────────────────────────────────────────────────
 
+
 def create_vpc(region_name: str) -> dict:
     """Create a VPC with public and private subnets for a region."""
     vpc = aws.ec2.Vpc(
@@ -90,6 +91,7 @@ def create_vpc(region_name: str) -> dict:
 
 
 # ── Security Groups ───────────────────────────────────────────────────
+
 
 def create_security_groups(vpc_id: pulumi.Output, region_name: str) -> dict:
     """Create security groups for the mainnet components."""
@@ -153,14 +155,17 @@ def create_security_groups(vpc_id: pulumi.Output, region_name: str) -> dict:
 
 # ── ECS Cluster & Services ────────────────────────────────────────────
 
+
 def create_ecs_cluster(region_name: str, private_subnet_id: pulumi.Output) -> dict:
     """Create an ECS cluster for core adjudicator nodes."""
     cluster = aws.ecs.Cluster(
         f"{PROJECT_NAME}-cluster-{region_name}",
-        settings=[aws.ecs.ClusterSettingArgs(
-            name="containerInsights",
-            value="enabled",
-        )],
+        settings=[
+            aws.ecs.ClusterSettingArgs(
+                name="containerInsights",
+                value="enabled",
+            )
+        ],
         tags={
             "Name": f"{PROJECT_NAME}-cluster-{region_name}",
             "Environment": ENVIRONMENT,
@@ -175,26 +180,30 @@ def create_ecs_cluster(region_name: str, private_subnet_id: pulumi.Output) -> di
         requires_compatibilities=["FARGATE"],
         cpu="1024",
         memory="2048",
-        container_definitions=json.dumps([{
-            "name": "temporal-worker",
-            "image": "coreason/runtime-worker:latest",
-            "cpu": 1024,
-            "memory": 2048,
-            "essential": True,
-            "portMappings": [{"containerPort": 7233, "protocol": "tcp"}],
-            "environment": [
-                {"name": "COREASON_ENV", "value": ENVIRONMENT},
-                {"name": "TEMPORAL_NAMESPACE", "value": "coreason-mainnet"},
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": f"/ecs/{PROJECT_NAME}-temporal",
-                    "awslogs-region": region_name,
-                    "awslogs-stream-prefix": "temporal",
-                },
-            },
-        }]),
+        container_definitions=json.dumps(
+            [
+                {
+                    "name": "temporal-worker",
+                    "image": "coreason/runtime-worker:latest",
+                    "cpu": 1024,
+                    "memory": 2048,
+                    "essential": True,
+                    "portMappings": [{"containerPort": 7233, "protocol": "tcp"}],
+                    "environment": [
+                        {"name": "COREASON_ENV", "value": ENVIRONMENT},
+                        {"name": "TEMPORAL_NAMESPACE", "value": "coreason-mainnet"},
+                    ],
+                    "logConfiguration": {
+                        "logDriver": "awslogs",
+                        "options": {
+                            "awslogs-group": f"/ecs/{PROJECT_NAME}-temporal",
+                            "awslogs-region": region_name,
+                            "awslogs-stream-prefix": "temporal",
+                        },
+                    },
+                }
+            ]
+        ),
         tags={"Name": f"{PROJECT_NAME}-temporal-task-{region_name}"},
     )
 
@@ -206,26 +215,30 @@ def create_ecs_cluster(region_name: str, private_subnet_id: pulumi.Output) -> di
         requires_compatibilities=["FARGATE"],
         cpu="512",
         memory="1024",
-        container_definitions=json.dumps([{
-            "name": "federation-ingress",
-            "image": "coreason/federation-ingress:latest",
-            "cpu": 512,
-            "memory": 1024,
-            "essential": True,
-            "portMappings": [{"containerPort": 443, "protocol": "tcp"}],
-            "environment": [
-                {"name": "COREASON_ENV", "value": ENVIRONMENT},
-                {"name": "RATE_LIMIT_PER_MINUTE", "value": "30"},
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": f"/ecs/{PROJECT_NAME}-ingress",
-                    "awslogs-region": region_name,
-                    "awslogs-stream-prefix": "ingress",
-                },
-            },
-        }]),
+        container_definitions=json.dumps(
+            [
+                {
+                    "name": "federation-ingress",
+                    "image": "coreason/federation-ingress:latest",
+                    "cpu": 512,
+                    "memory": 1024,
+                    "essential": True,
+                    "portMappings": [{"containerPort": 443, "protocol": "tcp"}],
+                    "environment": [
+                        {"name": "COREASON_ENV", "value": ENVIRONMENT},
+                        {"name": "RATE_LIMIT_PER_MINUTE", "value": "30"},
+                    ],
+                    "logConfiguration": {
+                        "logDriver": "awslogs",
+                        "options": {
+                            "awslogs-group": f"/ecs/{PROJECT_NAME}-ingress",
+                            "awslogs-region": region_name,
+                            "awslogs-stream-prefix": "ingress",
+                        },
+                    },
+                }
+            ]
+        ),
         tags={"Name": f"{PROJECT_NAME}-ingress-task-{region_name}"},
     )
 
@@ -237,6 +250,7 @@ def create_ecs_cluster(region_name: str, private_subnet_id: pulumi.Output) -> di
 
 
 # ── Secrets Management ────────────────────────────────────────────────
+
 
 def inject_bootstrap_secret(region_name: str) -> aws.secretsmanager.Secret:
     """Inject the network_bootstrap.json as a secure secret."""

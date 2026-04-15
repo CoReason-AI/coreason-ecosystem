@@ -7,7 +7,10 @@ from coreason_ecosystem.fleet.pulumi_actuator import (
     PulumiFleetDriver,
     ComputeNodeTarget,
 )
-from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile, EpistemicSecurityProfile as SecurityProfile
+from coreason_manifest.spec.ontology import (
+    SpatialHardwareProfile as HardwareProfile,
+    EpistemicSecurityProfile as SecurityProfile,
+)
 
 
 @pytest.mark.asyncio
@@ -20,9 +23,7 @@ async def test_pulumi_actuator_compile_payload() -> None:
         instance_id="g4dn.xlarge",
         hourly_cost=0.5,
         vram_gb=16.0,
-        hardware_profile=HardwareProfile(
-            min_vram_gb=16.0, provider_whitelist=["aws"]
-        ),
+        hardware_profile=HardwareProfile(min_vram_gb=16.0, provider_whitelist=["aws"]),
         security_profile=SecurityProfile(network_isolation=True),
         mesh_auth_key="ts-12345",
         temporal_mesh_ip="100.1.1.1",

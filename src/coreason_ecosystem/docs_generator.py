@@ -53,7 +53,9 @@ def generate_dynamic_docs(
 
     # Generate index page from schema metadata
     title = schema.get("title", "CoReason Ontology")
-    index_content = f"# {title}\n\nAuto-generated from `coreason_ontology.schema.json`.\n"
+    index_content = (
+        f"# {title}\n\nAuto-generated from `coreason_ontology.schema.json`.\n"
+    )
 
     index_path = output_dir / "index.md"
     index_path.write_text(index_content, encoding="utf-8")
