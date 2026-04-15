@@ -11,6 +11,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from coreason_ecosystem.docs_generator import generate_dynamic_docs
 
 
@@ -46,8 +48,6 @@ def test_generate_dynamic_docs_schema_missing(tmp_path: Path) -> None:
 
 def test_generate_dynamic_docs_defaults(tmp_path: Path, monkeypatch: "pytest.MonkeyPatch") -> None:
     """Test docs generation with default paths (CWD-based)."""
-    import pytest
-
     monkeypatch.chdir(tmp_path)
 
     schema = {"title": "Default Ontology"}
