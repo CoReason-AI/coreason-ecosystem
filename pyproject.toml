@@ -98,8 +98,8 @@ target-version = "py314"
 line-ending = "lf"
 
 [tool.ruff.lint]
-select = ["E", "F", "B", "I", "UP", "SIM", "RUF", "ARG", "C4", "PT", "TCH", "FA", "PIE", "RET", "PERF", "FURB", "LOG", "N", "A", "S"]
-ignore = ["S101", "TCH001", "TCH002", "TCH003", "UP037", "ARG002"]
+select = ["E", "F", "B", "I", "UP", "SIM", "RUF", "ARG", "C4", "PT", "TC", "FA", "PIE", "RET", "PERF", "FURB", "LOG", "N", "A", "S"]
+ignore = ["S101", "TC001", "TC002", "TC003", "UP037", "ARG002"]
 
 [tool.mypy]
 python_version = "3.14"
