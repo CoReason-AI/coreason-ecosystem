@@ -70,7 +70,7 @@ async def test_trigger_normalization_pipeline_failure() -> None:
             response=mock_response,
         )
 
-    mock_response.raise_for_status = raise_for_status  # type: ignore[method-assign]
+    mock_response.raise_for_status = raise_for_status  # type: ignore[assignment,method-assign]
 
     with unittest.mock.patch(
         "httpx.AsyncClient.post", new_callable=AsyncMock

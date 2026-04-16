@@ -57,7 +57,7 @@ async def extract_and_verify_identity(request: Request) -> None:
 sse_transport = SseServerTransport("/messages")
 
 
-@app.get("/sse", dependencies=[Depends(extract_and_verify_identity)])
+@app.get("/sse", dependencies=[Depends(extract_and_verify_identity)])  # type: ignore[misc]
 async def handle_sse(request: Request) -> None:
     async with sse_transport.connect_sse(
         request.scope, request.receive, request._send
@@ -70,7 +70,7 @@ async def handle_sse(request: Request) -> None:
             logger.debug("SSE client disconnected")
 
 
-@app.post("/messages", dependencies=[Depends(extract_and_verify_identity)])
+@app.post("/messages", dependencies=[Depends(extract_and_verify_identity)])  # type: ignore[misc]
 async def handle_messages(request: Request) -> None:
     await sse_transport.handle_post_message(
         request.scope, request.receive, request._send
