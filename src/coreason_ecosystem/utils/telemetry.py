@@ -34,6 +34,7 @@ __all__ = [
     "setup_telemetry_mesh",
     "start_otlp_background_worker",
     "stop_otlp_background_worker",
+    "emit_span_event",
     "logger",
 ]
 
@@ -290,3 +291,21 @@ def setup_telemetry_mesh() -> None:
 
     # Route standard logging to loguru
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
+
+
+def emit_span_event(name: str, attributes: dict[str, Any]) -> None:
+    """Fire a single OpenTelemetry span event for cross-boundary observability.
+
+    Creates a new span under the ``coreason.gateway.telemetry`` tracer,
+    attaches all *attributes* as span attributes, and immediately ends
+    the span.  This is intentionally fire-and-forget so it never blocks
+    the JSON-RPC loop.
+
+    Args:
+        name: The semantic name of the event (e.g. ``mcp_tool_execution``).
+        attributes: A mapping of key-value pairs to attach to the span.
+    """
+    tracer = trace.get_tracer("coreason.gateway.telemetry")
+    with tracer.start_as_current_span(name) as span:
+        for key, value in attributes.items():
+            span.set_attribute(key, value)

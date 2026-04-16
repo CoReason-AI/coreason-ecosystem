@@ -153,17 +153,33 @@ async def test_call_tool_and_receipt() -> None:
     ) as mock_post:
         mock_post.return_value = mock_response
 
-        arguments = {"query": "clinical test"}
-        result = await call_tool(name=tool_name, arguments=arguments)
+        with unittest.mock.patch(
+            "coreason_ecosystem.gateway.master_mcp.emit_span_event"
+        ) as mock_telemetry:
+            arguments = {"query": "clinical test"}
+            result = await call_tool(name=tool_name, arguments=arguments)
 
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert isinstance(result[0], TextContent)
+            assert isinstance(result, list)
+            assert len(result) == 1
+            assert isinstance(result[0], TextContent)
 
-        # We can just verify the structure is there in the string
-        assert "aspirin" in result[0].text
+            # We can just verify the structure is there in the string
+            assert "aspirin" in result[0].text
 
-        mock_post.assert_called_with(action_space_url, json=arguments)
+            mock_post.assert_called_with(action_space_url, json=arguments)
+
+            # Telemetry bounding proof: emit_span_event must fire exactly once.
+            mock_telemetry.assert_called_once()
+            call_args = mock_telemetry.call_args
+            assert (
+                call_args.kwargs.get("name")
+                or call_args.args[0] == "mcp_tool_execution"
+            )
+            attrs = call_args.kwargs.get("attributes") or call_args.args[1]
+            assert attrs["executed_urn"] == "urn:coreason:oracle:clinical_extractor"
+            assert attrs["action_space_id"] == "urn_coreason_oracle_clinical_extractor"
+            assert "execution_time_ms" in attrs
+            assert isinstance(attrs["execution_time_ms"], float)
 
 
 @pytest.mark.asyncio

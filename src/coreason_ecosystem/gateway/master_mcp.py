@@ -10,6 +10,7 @@ from coreason_ecosystem.gateway.identity_broker import IdentityBroker
 from coreason_ecosystem.gateway.models import (
     OracleExecutionReceipt,
 )
+from coreason_ecosystem.utils.telemetry import emit_span_event
 
 import time
 import contextvars
@@ -158,6 +159,8 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
 
     payload = arguments
 
+    execution_start = time.time()
+
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(f"{endpoint_url}/execute", json=payload)
@@ -167,6 +170,9 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
             result_data = {"error": f"Sub-MCP failure: {e.response.status_code}"}
         except httpx.RequestError:
             result_data = {"status": "mock_execution_success"}
+
+    execution_end = time.time()
+    execution_time_ms = (execution_end - execution_start) * 1000
 
     timestamp = time.time()
     raw_payload_str = str(payload) + str(timestamp)
@@ -182,6 +188,16 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
         event_cid=event_cid,
         timestamp=timestamp,
         prior_event_hash=None,
+    )
+
+    # Fire telemetry event for cross-boundary observability.
+    emit_span_event(
+        name="mcp_tool_execution",
+        attributes={
+            "executed_urn": real_urn,
+            "action_space_id": receipt_action_space_id,
+            "execution_time_ms": execution_time_ms,
+        },
     )
 
     # The result data goes natively into TextContent
