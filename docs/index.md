@@ -1,39 +1,73 @@
-# 🌐 CoReason Ecosystem
+# CoReason Ecosystem: The Governance Plane
+**The Autonomic Nervous System of the Cybernetic Manifold**
 
-[![PyPI - Version](https://img.shields.io/pypi/v/coreason_ecosystem.svg)](https://pypi.org/project/coreason_ecosystem)
-[![CI](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/ci.yml/badge.svg)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/ci.yml)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/coreason_ecosystem.svg)](https://pypi.org/project/coreason_ecosystem)
-[![Downloads](https://img.shields.io/pypi/dm/coreason_ecosystem.svg)](https://pypi.org/project/coreason_ecosystem/)
-[![License: Prosperity 3.0](https://img.shields.io/badge/License-Prosperity_3.0-blue.svg)](https://prosperitylicense.com/versions/3.0.0)
-[![SOTA: 2026](https://img.shields.io/badge/Architecture-OEP_Manifold-purple.svg)]()
-<br>
-[![Code Coverage](https://img.shields.io/codecov/c/github/CoReason-AI/coreason-ecosystem/main.svg)](https://codecov.io/gh/CoReason-AI/coreason-ecosystem)
-[![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
-[![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
-[![Security: Bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
-<br>
-[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
-[![Forks](https://img.shields.io/github/forks/CoReason-AI/coreason-ecosystem.svg)](https://github.com/CoReason-AI/coreason-ecosystem/network/members)
-[![Powered By: AI](https://img.shields.io/badge/Powered%20By-CoReason%20AI-FF4500.svg)](https://coreason.ai)
+*(This document is a deterministic projection of `coreason_ontology.schema.json`)*
 
-**The Autopoietic Hypervisor for the Tripartite Cybernetic Manifold.**
+Welcome to the **Governance Plane**. This repository (`coreason-ecosystem`) does not execute LLM inference, nor does it define the mathematical boundaries of reality. It is the Macroscopic Orchestrator. Its singular purpose is the flawless execution of the deployment geometry.
 
-Welcome to the official documentation for the `coreason-ecosystem`.
+## 1. The Tripartite Architecture
+To navigate this documentation, you must locate yourself within the absolute coordinates of the CoReason stack:
 
-While the Swarm reasons internally, this Control Plane operates strictly on the exterior. It provides the declarative tools to deploy, distribute, document, and mathematically bound the Swarm at an enterprise scale.
+1. **Plane 1: `coreason-manifest` (The Epistemic Plane):** The pure, hollow math.
+2. **Plane 2: `coreason-runtime` (The Kinetic Plane):** The thermodynamic execution engine.
+3. **👉 Plane 3: `coreason-ecosystem` (The Governance Plane):** The infrastructure topology.
 
-## 🚀 The Execution Pipeline
+---
 
-The `coreason` CLI provides four pillars of macro-orchestration:
+## 2. Documentation Index
 
-1. `coreason init`: Synthesize a mathematically verified Swarm workspace.
-2. `coreason build`: Compile human-readable Python capabilities into WASM boundaries (The Epistemic Seal).
-3. `coreason up`: Ignite the Thermodynamic Mesh (Temporal, Postgres, and the WASM Daemon).
-4. `coreason doctor`: Prove Ontological Isomorphism across the network.
-5. `coreason sync`: Autonomically heal semantic drift.
+### L0: Mathematical Foundations
+These documents codify the pure mathematical physics governing the Governance Plane — how the swarm is topologically monitored, how compute energy is bounded, and how capital flows through the adversarial market.
 
-Explore the [Manifesto & Architecture](manifesto.md) to understand the strict Cognitive Systems Engineering principles behind the platform.
+| # | Document | Topological Scope |
+|---|----------|-------------------|
+| 1 | [Topological Data Analysis & Persistent Homology](topological_data_analysis.md) | Causal graph homology — Betti number invariants ($\beta_0$, $\beta_1$), simplicial complex projection, and the `TopologicalHaltIntent` immune response. |
+| 2 | [Thermodynamic Provisioning & The Economic Guillotine](thermodynamic_provisioning.md) | Ashby's Law of Requisite Variety, Variational Free Energy as KL-divergence, and the `PulumiActuator` severance protocol. |
+| 3 | [Game Theory & Epistemic Market Dynamics](game_theory_and_markets.md) | Non-cooperative fleet economics — Nash Equilibrium enforcement, LMSR pricing oracle, and the TreasuryManager SMPC automaton. |
+
+### L1: Architectural Axioms
+These documents define the rigid boundaries and absolute laws of the Governance Plane. They are written to be parsed by compliance compilers and AI agents, leaving zero room for human interpretation or legacy DevOps drift.
+
+| # | Document | Topological Scope |
+|---|----------|-------------------|
+| 4 | [The Macroscopic Lexicon](LEXICON.md) | The strict linguistic topology — banned legacy terminology, required SOTA lexicon, and the Lexical Guillotine enforcement protocol. |
+| 5 | [Zero-Trust Federation](zero_trust_federation.md) | Cryptographic boundaries — LBAC lattice-based access control, W3C DID ontological identity, RFC 8785 canonical hashing, and sovereign SMPC handshakes. |
+| 6 | [MCP Projection Doctrine](MCP_PROJECTION_DOCTRINE.md) | The Epistemic Variable Interface Contract — Master MCP federation, translation archetypes (A–D), autonomic capability discovery, and manifest bindings. |
+
+### L2: Applied Mechanics & Records
+The operational ledgers and foundational references of the Governance Plane — the physical map of what exists in the matrix.
+
+| # | Document | Scope |
+|---|----------|-------|
+| 7 | [Manifesto & Architecture](manifesto.md) | Tripartite Cybernetic Manifold — OEP layer definitions, core principles, and non-interference boundaries. |
+| 8 | [Sovereign MCP Registry](sovereign_mcp_registry.md) | The Ecosystem Capability Matrix — definitive catalog of all Sovereign MCP nodes across Archetypes A–D, with URNs, causal affordances, and content geometries. |
+
+### L3: Reference Implementations
+Production-ready blueprints demonstrating the practical application of the architectural axioms.
+
+| # | Document | Archetype |
+|---|----------|-----------|
+| 9 | [Combinatorial Solver Oracle Blueprint](combinatorial_oracle_blueprint.md) | **Archetype B** — Full extraction of the `clingo` ASP solver into a Sovereign MCP container with OCI packaging, Thermodynamic Guillotine enforcement, and topological egress wiring. |
+
+### Architecture Decision Records (ADR)
+
+| # | Decision | Status |
+|---|----------|--------|
+| ADR-0001 | [The Stateless Substrate & The Hollow Plane](adr/0001-the-stateless-substrate.md) | ACCEPTED |
+
+---
+
+## 3. Operational Directives
+
+As an engineer or autonomous agent operating within this plane, you are bound by the following physics:
+
+* **[The Macroscopic Lexicon](LEXICON.md):** The strict linguistic topology required to commit code.
+* **[Zero-Trust Federation](zero_trust_federation.md):** The cryptographic boundaries of the capability mesh.
+* **[MCP Projection Doctrine](MCP_PROJECTION_DOCTRINE.md):** The Epistemic Variable Interface Contract defining how to inject domain logic without polluting the Invariant Core.
+
+**Warning:** You are mathematically forbidden from writing compute logic or mutating the Pydantic ontology within this repository. Adhere to the boundaries, or your topological execution will be severed.
+
+---
 
 ## ⚖️ License and Copyright
 
