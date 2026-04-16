@@ -69,68 +69,49 @@ class MeshInjector:
         mesh_auth_key: str,
         temporal_mesh_ip: str,
     ) -> str:
+        """Render a deterministic cloud-init configuration from the IaC template.
+
+        Loads ``infrastructure/ephemeral/cloud-init.yaml.tpl`` and injects
+        the provisioning parameters. No raw shell scripts are generated —
+        per Mandatory Development Protocol #3 (IaC Mandate).
+        """
+        from pathlib import Path
+
         # 1 page = 64KB
-        # hardware.min_vram_gb is in gigabytes
         vram_bytes = hardware.min_vram_gb * 1024 * 1024 * 1024
         wasm_pages = math.ceil(vram_bytes / 65536)
 
-        # For the firewall logic the instructions ask exactly:
-        # If security.network_isolation is True, generate iptables commands that drop all INPUT/FORWARD traffic on eth0 except UDP port 41641 (Tailscale), allowing traffic only on the tailscale0 interface.
-        # It also asks for exact 5 steps sequentially:
-        # 1. Install Tailscale
-        # 2. Authenticate
-        # 3. Apply the iptables firewall rules (if isolation is True).
-        # 4. Install Docker.
-        # 5. Run the runtime container
+        # Resolve the deterministic IaC template
+        template_path = (
+            Path(__file__).resolve().parents[2]
+            / "infrastructure"
+            / "ephemeral"
+            / "cloud-init.yaml.tpl"
+        )
+        template = template_path.read_text(encoding="utf-8")
 
-        aws_commands: list[str] = [
-            "curl -fsSL https://tailscale.com/install.sh | sh",
-            f"tailscale up --authkey={mesh_auth_key} --ssh",
-        ]
-        bash_commands: list[str] = [
-            "curl -fsSL https://tailscale.com/install.sh | sh",
-            f"tailscale up --authkey={mesh_auth_key} --ssh",
-        ]
-
+        # Render firewall rules if network isolation is required
+        firewall_rules = ""
         if security.network_isolation:
-            fw_commands = [
-                "iptables -A INPUT -i lo -j ACCEPT",
-                "iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT",
-                "iptables -A INPUT -p udp --dport 41641 -j ACCEPT",
-                "iptables -A INPUT -i tailscale0 -j ACCEPT",
-                "iptables -A INPUT -i eth0 -j DROP",
-                "iptables -A FORWARD -i eth0 -j DROP",
+            fw_lines = [
+                "  - iptables -A INPUT -i lo -j ACCEPT",
+                "  - iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT",
+                "  - iptables -A INPUT -p udp --dport 41641 -j ACCEPT",
+                "  - iptables -A INPUT -i tailscale0 -j ACCEPT",
+                "  - iptables -A INPUT -i eth0 -j DROP",
+                "  - iptables -A FORWARD -i eth0 -j DROP",
             ]
-            aws_commands.extend(fw_commands)
-            bash_commands.extend(fw_commands)
+            firewall_rules = "\n".join(fw_lines)
 
-        aws_commands.extend(
-            [
-                "curl -fsSL https://get.docker.com | sh",
-                "systemctl enable --now docker",
-                f"docker run -d --net=host -e TEMPORAL_HOST={temporal_mesh_ip} -e WASM_MAX_PAGES={wasm_pages} -e MASTER_MCP_URI=http://coreason-master-gateway:8000/sse ghcr.io/coreason/coreason-runtime:latest",
-            ]
+        # Inject parameters into the template
+        rendered = (
+            template.replace("{{MESH_AUTH_KEY}}", mesh_auth_key)
+            .replace("{{TEMPORAL_MESH_IP}}", temporal_mesh_ip)
+            .replace("{{WASM_MAX_PAGES}}", str(wasm_pages))
+            .replace("{{FIREWALL_RULES}}", firewall_rules)
         )
 
-        bash_commands.extend(
-            [
-                "curl -fsSL https://get.docker.com | sh",
-                "systemctl enable --now docker",
-                f"docker run -d --net=host -e TEMPORAL_HOST={temporal_mesh_ip} -e WASM_MAX_PAGES={wasm_pages} -e MASTER_MCP_URI=http://coreason-master-gateway:8000/sse ghcr.io/coreason/coreason-runtime:latest",
-            ]
-        )
-
-        if provider == "aws":
-            payload_lines = ["#cloud-config", "runcmd:"]
-            for cmd in aws_commands:
-                payload_lines.append(f"  - {cmd}")
-            payload = "\n".join(payload_lines) + "\n"
-        else:
-            payload_lines = ["#!/bin/bash"]
-            payload_lines.extend(bash_commands)
-            payload = "\n".join(payload_lines) + "\n"
-
-        return base64.b64encode(payload.encode("utf-8")).decode("utf-8")
+        return base64.b64encode(rendered.encode("utf-8")).decode("utf-8")
 
     @staticmethod
     def generate_ephemeral_certs(

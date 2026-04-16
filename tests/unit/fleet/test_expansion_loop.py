@@ -8,76 +8,25 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-import asyncio
-from unittest.mock import AsyncMock, patch
-
 import pytest
 
-from coreason_ecosystem.economics.treasury import TreasuryState
 from coreason_ecosystem.fleet.expansion_loop import (
     HARDWARE_NODE_COST_GWEI,
     SAFETY_MARGIN_GWEI,
-    PulumiActuatorMock,
     von_neumann_expansion_daemon,
 )
+from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
+from coreason_ecosystem.web3.treasury_manager import TreasuryManager
 
 
 @pytest.mark.asyncio
-async def test_pulumi_actuator_mock() -> None:
-    """Test the PulumiActuatorMock.provision_node method."""
-    with patch("asyncio.sleep", new_callable=AsyncMock):
-        await PulumiActuatorMock.provision_node("p4d.24xlarge")
+async def test_expansion_loop_raises_not_implemented() -> None:
+    """Expansion loop raises NotImplementedError until physical Web3 provider exists."""
+    treasury = TreasuryManager(treasury_contract_address="0xTestContract")
+    oracle = PricingOracle()
 
-
-@pytest.mark.asyncio
-async def test_expansion_loop_below_threshold() -> None:
-    """Test expansion loop when capital is below the threshold."""
-    mock_treasury = TreasuryState(reinvestment_capital_gwei=0)
-
-    iteration_count = 0
-
-    async def mock_sleep(_: float) -> None:
-        nonlocal iteration_count
-        iteration_count += 1
-        if iteration_count >= 1:
-            raise asyncio.CancelledError()
-
-    with patch("asyncio.sleep", side_effect=mock_sleep):
-        try:
-            await von_neumann_expansion_daemon(mock_treasury)
-        except asyncio.CancelledError:
-            pass
-
-    # Capital should remain unchanged since threshold was not met
-    assert mock_treasury.reinvestment_capital_gwei == 0
-
-
-@pytest.mark.asyncio
-async def test_expansion_loop_above_threshold() -> None:
-    """Test expansion loop when capital exceeds the threshold."""
-    target_cost = HARDWARE_NODE_COST_GWEI + SAFETY_MARGIN_GWEI
-    mock_treasury = TreasuryState(reinvestment_capital_gwei=target_cost)
-
-    iteration_count = 0
-
-    async def mock_sleep(_: float) -> None:
-        nonlocal iteration_count
-        iteration_count += 1
-        if iteration_count >= 1:
-            raise asyncio.CancelledError()
-
-    with (
-        patch("asyncio.sleep", side_effect=mock_sleep),
-        patch.object(PulumiActuatorMock, "provision_node", new_callable=AsyncMock),
-    ):
-        try:
-            await von_neumann_expansion_daemon(mock_treasury)
-        except asyncio.CancelledError:
-            pass
-
-    # Capital should be drawn down by HARDWARE_NODE_COST_GWEI
-    expected = target_cost - HARDWARE_NODE_COST_GWEI
-    assert mock_treasury.reinvestment_capital_gwei == expected
+    with pytest.raises(NotImplementedError, match="Von Neumann Expansion Loop"):
+        await von_neumann_expansion_daemon(treasury, oracle)
 
 
 def test_constants() -> None:
