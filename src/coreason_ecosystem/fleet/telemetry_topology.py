@@ -25,20 +25,21 @@ This module is mathematically forbidden from relying on statistical means
 import asyncio
 from typing import Any
 
+import networkx as nx
 from loguru import logger
 from prometheus_client import Counter, Gauge, start_http_server
 from temporalio.client import Client
 
-from coreason_manifest.spec.ontology import (
-    SpatialHardwareProfile as HardwareProfile,
-    EpistemicSecurityProfile as SecurityProfile,
-)
-
 
 # Prometheus metrics — topological invariant gauges
+coreason_betti_0 = Gauge(
+    "coreason_betti_0",
+    "β₀ (connected components) of the workflow execution graph. "
+    "Detects network fragmentation when β₀ > 1.",
+)
 coreason_active_agents_total = Gauge(
     "coreason_active_agents_total",
-    "Number of currently active agent workflows in the Temporal cluster.",
+    "Total nodes in the workflow execution graph.",
 )
 coreason_thermodynamic_burn_total = Counter(
     "coreason_thermodynamic_burn_total",
@@ -53,11 +54,13 @@ coreason_circuit_breakers_tripped = Counter(
 class TelemetryTopologyMonitor:
     """Evaluates SSE telemetry streams via Persistent Homology (TDA).
 
-    Polls the Temporal cluster for workflow execution states and exposes
-    Prometheus metrics as topological invariants (Betti numbers) for
-    Grafana dashboards. Detects network fragmentation (β₀ discontinuities)
-    and causal paradoxes (β₁ cycle emergence) without imposing read-locks
-    on the kinetic plane.
+    Polls the Temporal cluster for workflow execution states, constructs
+    a directed graph from parent-child workflow relationships, and computes
+    the β₀ Betti number (connected components) via ``networkx``. Exposes
+    topological invariants as Prometheus gauges for Grafana dashboards.
+
+    Detects network fragmentation (β₀ discontinuities) and causal paradoxes
+    (β₁ cycle emergence) without imposing read-locks on the kinetic plane.
     """
 
     def __init__(
@@ -85,16 +88,33 @@ class TelemetryTopologyMonitor:
             )
 
     async def _poll_workflows(self) -> None:
-        """Poll Temporal for open workflow executions and update topological invariants."""
+        """Poll Temporal for open workflow executions and compute topological invariants.
+
+        Constructs a directed graph G where:
+          - Each running workflow is a node.
+          - Edges are drawn from child → parent using ParentExecution metadata.
+
+        β₀ is computed as ``nx.number_connected_components(G.to_undirected())``.
+        """
         if not self._client:
             return
 
         try:
-            active_count = 0
+            graph: nx.DiGraph = nx.DiGraph()
+
             async for workflow in self._client.list_workflows(
                 "ExecutionStatus = 'Running'"
             ):
-                active_count += 1
+                workflow_id: str = getattr(workflow, "id", str(id(workflow)))
+                graph.add_node(workflow_id)
+
+                # Extract parent-child edges from ParentExecution metadata
+                parent_execution = getattr(workflow, "parent_execution", None)
+                if parent_execution is not None:
+                    parent_id = getattr(
+                        parent_execution, "workflow_id", str(id(parent_execution))
+                    )
+                    graph.add_edge(workflow_id, parent_id)
 
                 # Check for circuit breaker signals in search attributes
                 search_attrs = getattr(workflow, "search_attributes", {})
@@ -107,7 +127,13 @@ class TelemetryTopologyMonitor:
                     if raw_attrs.get("circuit_breaker_tripped"):
                         coreason_circuit_breakers_tripped.inc()
 
-            coreason_active_agents_total.set(active_count)
+            # Compute topological invariants
+            node_count = graph.number_of_nodes()
+            beta_0 = nx.number_connected_components(graph.to_undirected())
+
+            coreason_active_agents_total.set(node_count)
+            coreason_betti_0.set(beta_0)
+
         except Exception as e:
             logger.warning(f"Workflow polling error: {e}")
 
@@ -127,54 +153,3 @@ class TelemetryTopologyMonitor:
         """Stop the polling loop."""
         self._running = False
         logger.info("TelemetryTopologyMonitor stopped.")
-
-    async def get_queue_derivative(self) -> float:
-        """Query the Temporal cluster for the kinetic-queue depth derivative.
-
-        Computes the rate-of-change of pending workflow executions by
-        counting currently running workflows. Returns 0.0 when the
-        Temporal client is unavailable (degraded mode — no mocked state).
-        """
-        if not self._client:
-            return 0.0
-
-        try:
-            count = 0
-            async for _workflow in self._client.list_workflows(
-                "ExecutionStatus = 'Running'"
-            ):
-                count += 1
-            return float(count)
-        except Exception as e:
-            logger.warning(f"Queue derivative query failed: {e}")
-            return 0.0
-
-    async def get_active_task_hardware_profile(self) -> HardwareProfile | None:
-        """Query the Temporal cluster for the hardware requirements of pending tasks.
-
-        Returns None when the Temporal client is unavailable.
-        No hardcoded profiles are returned — the Governance Plane is
-        structurally blind to semantic payloads.
-        """
-        if not self._client:
-            return None
-
-        # TODO: Query Temporal search attributes for HardwareProfile
-        # encoded in pending workflow metadata. The physical driver
-        # execution belongs here, not a mocked return value.
-        return None
-
-    async def get_active_task_security_profile(self) -> SecurityProfile | None:
-        """Query the Temporal cluster for the security requirements of pending tasks.
-
-        Returns None when the Temporal client is unavailable.
-        No hardcoded profiles are returned — the Governance Plane is
-        structurally blind to semantic payloads.
-        """
-        if not self._client:
-            return None
-
-        # TODO: Query Temporal search attributes for SecurityProfile
-        # encoded in pending workflow metadata. The physical driver
-        # execution belongs here, not a mocked return value.
-        return None

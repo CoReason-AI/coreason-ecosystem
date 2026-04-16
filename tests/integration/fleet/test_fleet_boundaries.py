@@ -41,11 +41,11 @@ def test_mesh_injector_middleware() -> None:
 
 
 @pytest.mark.asyncio
-async def test_temporal_monitor_security_profile() -> None:
-    # Without a live Temporal client, the monitor must return None (no mock).
+async def test_temporal_monitor_poll_no_client() -> None:
+    # Without a live Temporal client, _poll_workflows must be a no-op.
     monitor = TelemetryTopologyMonitor()
-    sec_profile = await monitor.get_active_task_security_profile()
-    assert sec_profile is None
+    assert monitor._client is None
+    await monitor._poll_workflows()  # Must not raise
 
 
 @pytest.mark.asyncio
