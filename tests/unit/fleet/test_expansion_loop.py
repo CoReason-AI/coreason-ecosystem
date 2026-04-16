@@ -13,20 +13,34 @@ import pytest
 from coreason_ecosystem.fleet.expansion_loop import (
     HARDWARE_NODE_COST_GWEI,
     SAFETY_MARGIN_GWEI,
+    TREASURY_URN,
     von_neumann_expansion_daemon,
 )
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
-from coreason_ecosystem.web3.treasury_manager import TreasuryManager
+from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
+
+
+def _seeded_registry() -> CapabilityRegistry:
+    """Create a registry with the Sovereign Treasury MCP registered."""
+    registry = CapabilityRegistry()
+    registry._cache = {
+        TREASURY_URN: {
+            "endpoint": "http://treasury-mcp:8000",
+            "clearance": "RESTRICTED",
+            "epistemic_status": "PUBLISHED",
+        },
+    }
+    return registry
 
 
 @pytest.mark.asyncio
 async def test_expansion_loop_raises_not_implemented() -> None:
-    """Expansion loop raises NotImplementedError until physical Web3 provider exists."""
-    treasury = TreasuryManager(treasury_contract_address="0xTestContract")
+    """Expansion loop raises NotImplementedError until Sovereign Treasury MCP is deployed."""
+    registry = _seeded_registry()
     oracle = PricingOracle()
 
-    with pytest.raises(NotImplementedError, match="Von Neumann Expansion Loop"):
-        await von_neumann_expansion_daemon(treasury, oracle)
+    with pytest.raises(NotImplementedError, match="Sovereign Treasury MCP"):
+        await von_neumann_expansion_daemon(registry, oracle)
 
 
 @pytest.mark.asyncio
@@ -36,7 +50,7 @@ async def test_expansion_loop_economic_guillotine() -> None:
 
     from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
 
-    treasury = TreasuryManager(treasury_contract_address="0xTestContract")
+    registry = _seeded_registry()
     oracle = PricingOracle()
 
     mock_assessment = ThermodynamicAssessment(
@@ -53,10 +67,21 @@ async def test_expansion_loop_economic_guillotine() -> None:
         return_value=mock_assessment,
     ):
         # Should NOT raise — the guillotine triggers a clean return.
-        await von_neumann_expansion_daemon(treasury, oracle)
+        await von_neumann_expansion_daemon(registry, oracle)
+
+
+@pytest.mark.asyncio
+async def test_expansion_loop_missing_treasury_urn() -> None:
+    """When treasury URN is not registered, daemon exits cleanly with a log."""
+    empty_registry = CapabilityRegistry()
+    oracle = PricingOracle()
+
+    # Should NOT raise — logs error and returns.
+    await von_neumann_expansion_daemon(empty_registry, oracle)
 
 
 def test_constants() -> None:
     """Test that constants are sensible values."""
     assert HARDWARE_NODE_COST_GWEI == 10_000_000_000
     assert SAFETY_MARGIN_GWEI == 2_000_000_000
+    assert TREASURY_URN == "urn:coreason:state:treasury"

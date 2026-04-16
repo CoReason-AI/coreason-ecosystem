@@ -8,15 +8,17 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-"""Von Neumann Expansion Loop.
+"""Von Neumann Expansion Loop — Thermodynamic Capital Scaling.
 
-Monitors the sovereign treasury's on-chain balance and automatically provisions
-physical GPU hardware via the PricingOracle and PulumiFleetDriver when sufficient
-reinvestment capital is aggregated.
+Monitors the sovereign treasury's on-chain balance via URN-based MCP
+projection and automatically provisions physical GPU hardware via the
+PricingOracle and PulumiFleetDriver when sufficient reinvestment capital
+is aggregated.
 
-No mutable in-memory state is held — the treasury balance is queried
-from the TreasuryManager (on-chain) and hardware profiles are resolved
-dynamically from the PricingOracle.
+No mutable in-memory state is held.  The treasury balance is queried
+exclusively through a Sovereign Treasury MCP at
+``urn:coreason:state:treasury`` — the Governance Plane does not import
+Web3 libraries or hold private keys.
 
 The expansion loop integrates with the VFE (Variational Free Energy)
 divergence assessment to enforce the Economic Guillotine per LAW 7
@@ -31,7 +33,7 @@ from coreason_ecosystem.fleet.pricing_oracle import (
     PricingOracle,
     assess_thermodynamic_expenditure,
 )
-from coreason_ecosystem.web3.treasury_manager import TreasuryManager
+from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
 
 # Hardware threshold (approx 10,000,000,000 Gwei / ~10 ETH at historical rates)
 HARDWARE_NODE_COST_GWEI = 10_000_000_000
@@ -40,31 +42,46 @@ SAFETY_MARGIN_GWEI = 2_000_000_000
 # Polling cadence for the expansion daemon.
 DEFAULT_POLLING_INTERVAL_SEC = 30.0
 
+# URN for the Sovereign Treasury MCP.
+TREASURY_URN = "urn:coreason:state:treasury"
+
 
 async def von_neumann_expansion_daemon(
-    treasury: TreasuryManager,
+    registry: CapabilityRegistry,
     oracle: PricingOracle,
     max_budget_hr: float = 10.0,
     polling_interval_sec: float = DEFAULT_POLLING_INTERVAL_SEC,
 ) -> None:
     """Continuous daemon loop assessing capital scaling capabilities.
 
-    Queries the TreasuryManager for on-chain balance and the PricingOracle
-    for optimal hardware profiles. No in-memory state mutation occurs.
+    Resolves the Sovereign Treasury MCP endpoint from the capability
+    registry and queries it for on-chain balance via JSON-RPC.  The
+    Governance Plane never holds Web3 state — it routes the query
+    blindly through the URN.
 
     The loop runs a VFE divergence check each iteration.  If the threshold
     is breached, a ``TopologicalHaltIntent`` is logged and the loop exits
     to allow the fleet daemon to sever kinetic execution.
 
     Args:
-        treasury: The TreasuryManager for on-chain balance queries.
+        registry: The CapabilityRegistry for URN-based treasury resolution.
         oracle: The PricingOracle for dynamic hardware profile resolution.
         max_budget_hr: Maximum hourly budget for compute provisioning.
         polling_interval_sec: Seconds between polling iterations.
     """
+    # Resolve the treasury endpoint from the Sovereign MCP matrix.
+    try:
+        treasury_endpoint = registry.resolve_urn(TREASURY_URN)
+    except KeyError:
+        logger.error(
+            f"[ExpansionLoop] Treasury URN '{TREASURY_URN}' not registered in "
+            "capabilities.matrix.yaml. Cannot initiate Von Neumann expansion."
+        )
+        return
+
     logger.info(
         "[ExpansionLoop] Initiated Von Neumann daemon. "
-        f"Monitoring treasury at {treasury.contract_address}."
+        f"Treasury projected via {treasury_endpoint}."
     )
 
     target_cost = HARDWARE_NODE_COST_GWEI + SAFETY_MARGIN_GWEI
@@ -88,11 +105,11 @@ async def von_neumann_expansion_daemon(
             )
             return
 
-        # Query the on-chain treasury for current reinvestment capital.
-        # This raises NotImplementedError until the physical Web3 provider
-        # is implemented — the Governance Plane does not fabricate balances.
+        # Query the Sovereign Treasury MCP for on-chain balance.
+        # The Governance Plane opens an HTTP/SSE connection to the external
+        # container — it does NOT import web3 or hold private keys.
         raise NotImplementedError(
-            "Von Neumann Expansion Loop requires a physical Web3 provider to query "
-            f"the on-chain treasury balance at {treasury.contract_address}. "
+            "Von Neumann Expansion Loop requires the Sovereign Treasury MCP "
+            f"at {treasury_endpoint} to be deployed and serving JSON-RPC. "
             f"Target cost threshold: {target_cost} Gwei."
         )
