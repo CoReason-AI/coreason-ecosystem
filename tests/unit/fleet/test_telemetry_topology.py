@@ -10,8 +10,6 @@
 
 import pytest
 
-from coreason_manifest.spec.ontology import AcceleratorProfile  # type: ignore[attr-defined, unused-ignore]
-
 from coreason_ecosystem.fleet.telemetry_topology import TelemetryTopologyMonitor
 
 
@@ -21,18 +19,30 @@ def monitor() -> TelemetryTopologyMonitor:
 
 
 @pytest.mark.asyncio
-async def test_get_queue_derivative(monitor: TelemetryTopologyMonitor) -> None:
+async def test_get_queue_derivative_no_client(
+    monitor: TelemetryTopologyMonitor,
+) -> None:
+    """Without a Temporal client, derivative must return 0.0 (degraded mode)."""
+    assert monitor._client is None
     derivative = await monitor.get_queue_derivative()
-    assert derivative == 1.5
+    assert derivative == 0.0
 
 
 @pytest.mark.asyncio
-async def test_get_active_task_hardware_profile(
+async def test_get_active_task_hardware_profile_no_client(
     monitor: TelemetryTopologyMonitor,
 ) -> None:
+    """Without a Temporal client, hardware profile must return None."""
+    assert monitor._client is None
     profile = await monitor.get_active_task_hardware_profile()
-    assert profile is not None
-    assert profile.min_vram_gb == 16.0
-    assert "aws" in profile.provider_whitelist
-    assert "vast" in profile.provider_whitelist
-    assert profile.accelerator_type == AcceleratorProfile.BF16_TENSOR
+    assert profile is None
+
+
+@pytest.mark.asyncio
+async def test_get_active_task_security_profile_no_client(
+    monitor: TelemetryTopologyMonitor,
+) -> None:
+    """Without a Temporal client, security profile must return None."""
+    assert monitor._client is None
+    profile = await monitor.get_active_task_security_profile()
+    assert profile is None

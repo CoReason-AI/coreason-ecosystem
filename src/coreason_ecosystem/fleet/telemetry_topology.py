@@ -72,14 +72,6 @@ class TelemetryTopologyMonitor:
         self._client: Client | None = None
         self._running = False
 
-        # Legacy compat
-        self._mock_derivative = 1.5
-        self._mock_hardware_profile = HardwareProfile(
-            min_vram_gb=16.0,
-            provider_whitelist=["aws", "vast"],
-        )
-        self._mock_security_profile = SecurityProfile(network_isolation=True)
-
     async def connect(self) -> None:
         """Connect to the Temporal cluster."""
         try:
@@ -136,18 +128,53 @@ class TelemetryTopologyMonitor:
         self._running = False
         logger.info("TelemetryTopologyMonitor stopped.")
 
-    # Legacy compatibility methods
     async def get_queue_derivative(self) -> float:
-        """Simulate fetching Temporal kinetic-queue depth via Prometheus."""
-        await asyncio.sleep(0.1)
-        return self._mock_derivative
+        """Query the Temporal cluster for the kinetic-queue depth derivative.
+
+        Computes the rate-of-change of pending workflow executions by
+        counting currently running workflows. Returns 0.0 when the
+        Temporal client is unavailable (degraded mode — no mocked state).
+        """
+        if not self._client:
+            return 0.0
+
+        try:
+            count = 0
+            async for _workflow in self._client.list_workflows(
+                "ExecutionStatus = 'Running'"
+            ):
+                count += 1
+            return float(count)
+        except Exception as e:
+            logger.warning(f"Queue derivative query failed: {e}")
+            return 0.0
 
     async def get_active_task_hardware_profile(self) -> HardwareProfile | None:
-        """Simulate fetching the requirements of the pending tasks."""
-        await asyncio.sleep(0.1)
-        return self._mock_hardware_profile
+        """Query the Temporal cluster for the hardware requirements of pending tasks.
+
+        Returns None when the Temporal client is unavailable.
+        No hardcoded profiles are returned — the Governance Plane is
+        structurally blind to semantic payloads.
+        """
+        if not self._client:
+            return None
+
+        # TODO: Query Temporal search attributes for HardwareProfile
+        # encoded in pending workflow metadata. The physical driver
+        # execution belongs here, not a mocked return value.
+        return None
 
     async def get_active_task_security_profile(self) -> SecurityProfile | None:
-        """Simulate fetching the security requirements of the pending tasks."""
-        await asyncio.sleep(0.1)
-        return self._mock_security_profile
+        """Query the Temporal cluster for the security requirements of pending tasks.
+
+        Returns None when the Temporal client is unavailable.
+        No hardcoded profiles are returned — the Governance Plane is
+        structurally blind to semantic payloads.
+        """
+        if not self._client:
+            return None
+
+        # TODO: Query Temporal search attributes for SecurityProfile
+        # encoded in pending workflow metadata. The physical driver
+        # execution belongs here, not a mocked return value.
+        return None

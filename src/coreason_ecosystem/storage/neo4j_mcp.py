@@ -14,9 +14,13 @@ Zero-Trust boundary wrapper: swarm agents NEVER connect directly to Neo4j.
 All property graph queries are mediated through this MCP tool interface.
 This module is a domain-blind Cypher passthrough proxy — it routes queries
 without inspecting or hardcoding semantic payloads.
+
+Connection URI must be injected via COREASON_NEO4J_URI environment variable.
+If the variable is absent, a configuration error is raised — the Governance
+Plane is forbidden from returning fabricated substrate responses.
 """
 
-import json
+import os
 from typing import Any
 
 import mcp.server
@@ -25,6 +29,26 @@ from fastapi import FastAPI
 
 app = FastAPI(title="coreason-neo4j-mcp")
 mcp_server = mcp.server.Server("coreason-neo4j-mcp")
+
+
+class Neo4jSubstrateNotConfiguredError(RuntimeError):
+    """Raised when the COREASON_NEO4J_URI environment variable is not set."""
+
+
+def _require_neo4j_uri() -> str:
+    """Resolve the Neo4j connection URI from the environment.
+
+    Raises:
+        Neo4jSubstrateNotConfiguredError: if COREASON_NEO4J_URI is not set.
+    """
+    uri = os.environ.get("COREASON_NEO4J_URI")
+    if not uri:
+        raise Neo4jSubstrateNotConfiguredError(
+            "Substrate configuration error: COREASON_NEO4J_URI is not set. "
+            "The Neo4j Matrix Substrate cannot be provisioned without a "
+            "connection URI injected via secure .env hydration."
+        )
+    return uri
 
 
 @mcp_server.list_tools()  # type: ignore[no-untyped-call,untyped-decorator]
@@ -64,28 +88,32 @@ async def query_property_graph(
 ) -> list[types.TextContent]:
     """Execute a Cypher query against the Neo4j property graph.
 
-    In production this will use the neo4j driver to execute the query.
-    Currently returns a domain-blind passthrough response echoing the
-    submitted Cypher query with an empty result set.
+    Validates that the Neo4j connection URI is present in the environment.
+    If configured, the physical neo4j driver execution belongs here.
 
     Args:
         cypher_query: The Cypher query to execute.
 
     Returns:
         A list containing a single TextContent with the query results.
-    """
-    # Domain-blind passthrough: echoes query with empty results.
-    # Production implementation connects to the Neo4j driver via
-    # credentials hydrated from secure .env injection.
-    passthrough_result = {
-        "status": "passthrough",
-        "cypher_query": cypher_query,
-        "records": [],
-        "summary": {
-            "nodes_created": 0,
-            "relationships_created": 0,
-            "properties_set": 0,
-        },
-    }
 
-    return [types.TextContent(type="text", text=json.dumps(passthrough_result))]
+    Raises:
+        Neo4jSubstrateNotConfiguredError: if COREASON_NEO4J_URI is not set.
+    """
+    neo4j_uri = _require_neo4j_uri()
+
+    # TODO: Execute the Cypher query against the live Neo4j instance using
+    # the neo4j async driver. The physical driver execution belongs here:
+    #
+    #   from neo4j import AsyncGraphDatabase
+    #   async with AsyncGraphDatabase.driver(neo4j_uri, auth=(...)) as driver:
+    #       async with driver.session() as session:
+    #           result = await session.run(cypher_query)
+    #           records = [dict(record) async for record in result]
+    #
+    # Credentials (username/password) must be hydrated from secure .env
+    # injection via COREASON_NEO4J_USER and COREASON_NEO4J_PASSWORD.
+    _ = neo4j_uri  # Consumed by the driver when implemented.
+    raise NotImplementedError(
+        f"Neo4j driver execution pending implementation for URI: {neo4j_uri}"
+    )

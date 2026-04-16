@@ -14,9 +14,13 @@ Zero-Trust boundary wrapper: swarm agents NEVER connect directly to Milvus.
 All vector queries are mediated through this MCP tool interface.
 This module is a domain-blind vector passthrough proxy — it routes queries
 without inspecting or hardcoding semantic payloads.
+
+Connection URI must be injected via COREASON_MILVUS_URI environment variable.
+If the variable is absent, a configuration error is raised — the Governance
+Plane is forbidden from returning fabricated substrate responses.
 """
 
-import json
+import os
 from typing import Any
 
 import mcp.server
@@ -25,6 +29,26 @@ from fastapi import FastAPI
 
 app = FastAPI(title="coreason-milvus-mcp")
 mcp_server = mcp.server.Server("coreason-milvus-mcp")
+
+
+class MilvusSubstrateNotConfiguredError(RuntimeError):
+    """Raised when the COREASON_MILVUS_URI environment variable is not set."""
+
+
+def _require_milvus_uri() -> str:
+    """Resolve the Milvus connection URI from the environment.
+
+    Raises:
+        MilvusSubstrateNotConfiguredError: if COREASON_MILVUS_URI is not set.
+    """
+    uri = os.environ.get("COREASON_MILVUS_URI")
+    if not uri:
+        raise MilvusSubstrateNotConfiguredError(
+            "Substrate configuration error: COREASON_MILVUS_URI is not set. "
+            "The Milvus Vector Substrate cannot be provisioned without a "
+            "connection URI injected via secure .env hydration."
+        )
+    return uri
 
 
 @mcp_server.list_tools()  # type: ignore[no-untyped-call,untyped-decorator]
@@ -71,9 +95,8 @@ async def query_vector_db(
 ) -> list[types.TextContent]:
     """Query the Milvus vector database.
 
-    In production this will use pymilvus to execute the search.
-    Currently returns a domain-blind passthrough response echoing the
-    collection name and query dimensions with an empty match set.
+    Validates that the Milvus connection URI is present in the environment.
+    If configured, the physical pymilvus driver execution belongs here.
 
     Args:
         collection_name: The Milvus collection to search.
@@ -81,15 +104,28 @@ async def query_vector_db(
 
     Returns:
         A list containing a single TextContent with the search results.
-    """
-    # Domain-blind passthrough: echoes query metadata with empty matches.
-    # Production implementation connects to Milvus via credentials
-    # hydrated from secure .env injection.
-    passthrough_result = {
-        "status": "passthrough",
-        "collection": collection_name,
-        "query_dimensions": len(query_vector),
-        "matches": [],
-    }
 
-    return [types.TextContent(type="text", text=json.dumps(passthrough_result))]
+    Raises:
+        MilvusSubstrateNotConfiguredError: if COREASON_MILVUS_URI is not set.
+    """
+    milvus_uri = _require_milvus_uri()
+
+    # TODO: Execute the vector search against the live Milvus instance using
+    # pymilvus. The physical driver execution belongs here:
+    #
+    #   from pymilvus import MilvusClient
+    #   client = MilvusClient(uri=milvus_uri)
+    #   results = client.search(
+    #       collection_name=collection_name,
+    #       data=[query_vector],
+    #       limit=10,
+    #   )
+    #
+    # Authentication tokens must be hydrated from secure .env injection
+    # via COREASON_MILVUS_TOKEN.
+    _ = milvus_uri  # Consumed by the driver when implemented.
+    _ = collection_name
+    _ = query_vector
+    raise NotImplementedError(
+        f"Milvus driver execution pending implementation for URI: {milvus_uri}"
+    )

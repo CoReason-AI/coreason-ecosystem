@@ -216,8 +216,12 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
             result_data = response.json()
         except httpx.HTTPStatusError as e:
             result_data = {"error": f"Sub-MCP failure: {e.response.status_code}"}
-        except httpx.RequestError:
-            result_data = {"status": "mock_execution_success"}
+        except httpx.RequestError as e:
+            result_data = {
+                "error": "Topological Severance Event: Sub-MCP unreachable",
+                "detail": str(e),
+                "endpoint": f"{endpoint_url}/execute",
+            }
 
     execution_end = time.time()
     execution_time_ms = (execution_end - execution_start) * 1000

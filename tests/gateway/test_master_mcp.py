@@ -266,7 +266,7 @@ async def test_call_tool_request_error() -> None:
         arguments = {"query": "fallback test"}
         result = await call_tool(name=tool_name, arguments=arguments)
 
-        assert "mock_execution_success" in result[0].text
+        assert "Topological Severance Event" in result[0].text
 
 
 @pytest.mark.asyncio
