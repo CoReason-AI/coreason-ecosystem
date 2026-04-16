@@ -42,6 +42,43 @@ services:
     networks:
       - swarm-mesh
 
+  envoy:
+    image: envoyproxy/envoy:v1.30-latest
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
+    ports:
+      - "80:80"
+    networks:
+      - swarm-mesh
+      - sensory-gateway
+    depends_on:
+      - coreason-runtime
+
+  milvus:
+    image: milvusdb/milvus:v2.3.0
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_USE_EMBED: "true"
+      COMMON_STORAGETYPE: local
+    volumes:
+      - milvus_data:/var/lib/milvus
+    ports:
+      - "19530:19530"
+    networks:
+      - swarm-mesh
+
+  neo4j:
+    image: neo4j:5.12
+    environment:
+      NEO4J_AUTH: none
+    volumes:
+      - neo4j_data:/data
+    ports:
+      - "7687:7687"
+      - "7474:7474"
+    networks:
+      - swarm-mesh
+
 networks:
   swarm-mesh:
     internal: true
@@ -49,3 +86,5 @@ networks:
 
 volumes:
   pg_data:
+  milvus_data:
+  neo4j_data:
