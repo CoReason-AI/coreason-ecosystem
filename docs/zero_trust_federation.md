@@ -4,9 +4,9 @@
 The `coreason-ecosystem` assumes an actively hostile execution environment. "Authentication" based on secrets or tokens is a legacy fallacy that relies on human-in-the-middle secrecy. The Governance Plane enforces systemic cohesion through continuous, cryptographic determinism and Lattice-Based Access Control (LBAC).
 
 ## 1. Lattice-Based Access Control (LBAC)
-Network policies and security groups are non-deterministic. The Governance Plane models swarm permissions as a mathematical lattice—a partially ordered set (poset) where every pair of nodes has a unique supremum (least upper bound) and infimum (greatest lower bound).
+Network policies and security groups are non-deterministic. The Governance Plane models swarm permissions as a mathematical latticeâ€”a partially ordered set (poset) where every pair of nodes has a unique supremum (least upper bound) and infimum (greatest lower bound).
 
-Information flows through the execution graph strictly along the authorized vectors of the lattice. 
+Information flows through the execution graph strictly along the authorized vectors of the lattice.
 
 ```python
 # The Epistemic Flow Theorem
@@ -32,7 +32,7 @@ def verify_state_transition(state_payload: dict, required_hash: str) -> bool:
     return True
 ```
 
-Before any agent ingests an MCP payload or a structural command from the Orchestrator, it MUST calculate the RFC 8785 canonical hash. Any deviation of a single byte—whether malicious or due to cosmic ray bit-flipping—renders the payload geometrically invalid. The agent MUST discard it and trigger an entropy alert.
+Before any agent ingests an MCP payload or a structural command from the Orchestrator, it MUST calculate the RFC 8785 canonical hash. Any deviation of a single byteâ€”whether malicious or due to cosmic ray bit-flippingâ€”renders the payload geometrically invalid. The agent MUST discard it and trigger an entropy alert.
 
 ## 4. The Sovereign Handshake
 When spanning topologies across distinct Sovereign Boundaries (e.g., bridging an on-premise Bare-Metal enclave with an AWS Spot Fleet), the `IdentityBroker` establishes a Secure Multi-Party Computation (SMPC) tunnel. Nodes exchange capability manifests via zero-knowledge proofs. They do not transmit raw data; they mathematically prove they hold the required structural states before permitting the exchange of state differentials.

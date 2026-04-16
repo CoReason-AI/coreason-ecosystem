@@ -5,9 +5,9 @@ Licensed under the Prosperity Public License 3.0.
 </legal_directive>
 
 # The Combinatorial Solver Oracle: A Sovereign MCP Blueprint
-**Archetype B Reference Implementation — Domain Rules, Agents, & Tools**
+**Archetype B Reference Implementation â€” Domain Rules, Agents, & Tools**
 
-This document is a textbook application of the **[MCP Projection Doctrine](MCP_PROJECTION_DOCTRINE.md)**. 
+This document is a textbook application of the **[MCP Projection Doctrine](MCP_PROJECTION_DOCTRINE.md)**.
 
 By extracting the `CombinatorialSolverOracle` out of `coreason-manifest`, the Manifest is successfully purified into a **Hollow Data Plane**. The Manifest should only define the *geometric shape* of a `FormalLogicProofReceipt`; it should never load C-bindings (like `clingo`), spawn multiprocessing pipes, or manage physical timeouts.
 
@@ -54,12 +54,12 @@ class AssumptionTransformer(Transformer):
         self.rule_idx += 1
         assumption_name = f"__assume_{idx}"
         self.rule_map[assumption_name] = str(rule)
-        
+
         loc = rule.location
         fun = Function(loc, assumption_name, [], 0)
         sym_atom = SymbolicAtom(fun)
         lit = Literal(loc, Sign.NoSign, sym_atom)
-        
+
         new_body = [*list(rule.body), lit]
         return rule.update(body=new_body)
 
@@ -91,10 +91,10 @@ def _clingo_isolated_worker(asp_program: str, queue: multiprocessing.Queue) -> N
                     new_stm = transformer(stm)
                     builder.add(new_stm)
                     parsed_choice: list[clingo.ast.AST] = []
-                    
+
                     def on_choice(s: clingo.ast.AST, pc: list[clingo.ast.AST] = parsed_choice) -> None:
                         pc.append(s)
-                        
+
                     parse_string(f"{{ __assume_{transformer.rule_idx - 1} }}.", on_choice)
                     for cstm in parsed_choice:
                         if cstm.ast_type == ASTType.Rule:
@@ -181,7 +181,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
         if process.is_alive():
             process.kill()
             process.join()
-        
+
         receipt_data = {
             "satisfiability": "UNKNOWN",
             "answer_sets": [],

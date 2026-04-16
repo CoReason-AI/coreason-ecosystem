@@ -3,7 +3,7 @@
 
 In a 2026+ State-of-the-Art neurosymbolic architecture, language dictates the geometric boundaries of execution. Legacy software engineering and 2010s DevOps terminology is highly polysemantic. It flattens vector embeddings, confuses reasoning agents, and introduces catastrophic boundary bleed between the Kinetic Plane (Compute) and the Governance Plane (Orchestration).
 
-You are mathematically forbidden from utilizing legacy, human-centric terminology within this repository. 
+You are mathematically forbidden from utilizing legacy, human-centric terminology within this repository.
 
 ## 1. Banned Terminology & Required Substrate Invariants
 The following terms carry implicit, stateful assumptions that violate the Invariant Substrate. Any pull request or AI generation utilizing these terms will trigger a `NormativeDriftEvent` and face immediate CI/CD rejection.

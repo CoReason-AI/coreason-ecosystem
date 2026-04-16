@@ -7,16 +7,16 @@ Licensed under the Prosperity Public License 3.0.
 # **MCP PROJECTION DOCTRINE (2026 SOTA)**
 **The Isomorphic Mapping of Sovereign State**
 
-The Governance Plane interacts with subordinate substrates (Storage, Web3 Ledgers, Sensory inputs) strictly through the **Model Context Protocol (MCP)**. In this ecosystem, an MCP server is not a "wrapper" or an "adapter." It is a mathematically rigid epistemic boundary. 
+The Governance Plane interacts with subordinate substrates (Storage, Web3 Ledgers, Sensory inputs) strictly through the **Model Context Protocol (MCP)**. In this ecosystem, an MCP server is not a "wrapper" or an "adapter." It is a mathematically rigid epistemic boundary.
 
 You are mathematically forbidden from hardcoding domain schemas, connection strings, or ORM logic directly into the reasoning swarm. You MUST project domain capabilities via a sovereign MCP substrate.
 
 ## 1. The Master MCP (Federated Gateway)
-`coreason-ecosystem` hosts the **Master MCP**. It does not hold domain logic; it acts as a multiplexing JSON-RPC router (Federated Aggregator). 
+`coreason-ecosystem` hosts the **Master MCP**. It does not hold domain logic; it acts as a multiplexing JSON-RPC router (Federated Aggregator).
 
 When `coreason-runtime` connects, the Master MCP projects a unified "Epistemic Discovery Surface" that aggregates all underlying sub-MCPs. It maps mathematical URNs to physical execution IDs within the sovereign VPC:
-* `urn:coreason:dialect:lean4` ➔ `actionSpaceId: local_docker_lean_v4`
-* `urn:coreason:oracle:pharma_db` ➔ `actionSpaceId: aws_vpc_postgres_01`
+* `urn:coreason:dialect:lean4` âž” `actionSpaceId: local_docker_lean_v4`
+* `urn:coreason:oracle:pharma_db` âž” `actionSpaceId: aws_vpc_postgres_01`
 
 ## 2. MCP Translation Archetypes (How to Build)
 When engineering a new capability for the Swarm, you must classify your subsystem into one of the following Archetypes:
@@ -30,7 +30,7 @@ When engineering a new capability for the Swarm, you must classify your subsyste
 * **The Contract:** The runtime uses the URN routing matrix to find the specific `actionSpaceId` containing the domain rules it needs, executing them blindly.
 
 ### Archetype C: Sensory & UI Projections
-* **The Architecture:** UI constraints are defined as Pydantic models in the manifest and exposed via an MCP. 
+* **The Architecture:** UI constraints are defined as Pydantic models in the manifest and exposed via an MCP.
 * **The Contract:** The LLM predicts logits constrained by this Pydantic schema to output a mathematically valid UI configuration. The MCP receives this geometric payload and physically projects it to the Human-in-the-Loop (HITL) socket.
 
 ### Archetype D: Sovereign State Projections
@@ -38,7 +38,7 @@ When engineering a new capability for the Swarm, you must classify your subsyste
 * **The Contract:** The Swarm mathematically requests state transitions (e.g., `disburse_funds`, `perturb_simulation`) via the MCP; it does not compute them.
 
 ## 3. Autonomic Capability Discovery & Cryptographic Provenance
-Agents do not possess configuration files. Upon bootstrap, an agent probes the `CapabilityRegistry` via standard MCP handshakes. 
+Agents do not possess configuration files. Upon bootstrap, an agent probes the `CapabilityRegistry` via standard MCP handshakes.
 
 To maintain absolute cryptographic determinism:
 1. **OCI Containerization:** Sub-MCPs must be packaged as Open Container Initiative (OCI) artifacts.

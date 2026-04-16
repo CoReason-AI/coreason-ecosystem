@@ -1,9 +1,9 @@
 # ADR 0001: The Stateless Substrate & The Hollow Plane
-**Date:** 2026-04-15  
-**Status:** ACCEPTED  
+**Date:** 2026-04-15
+**Status:** ACCEPTED
 
 ## 1. Context
-Legacy 2020s microservice orchestrators inherently bound themselves to the domain logic of the applications they deployed. API Gateways parsed specific REST paths, and deployment scripts hardcoded database schemas, medical vocabularies, and simulated physical states. 
+Legacy 2020s microservice orchestrators inherently bound themselves to the domain logic of the applications they deployed. API Gateways parsed specific REST paths, and deployment scripts hardcoded database schemas, medical vocabularies, and simulated physical states.
 
 In a neurosymbolic swarm, this tight coupling creates catastrophic semantic drift. If the Governance Plane (`coreason-ecosystem`) is aware of the difference between "Clinical Trial Data" and "Financial Tick Data," it requires a physical code mutation every time the Swarm shifts its reasoning domain.
 

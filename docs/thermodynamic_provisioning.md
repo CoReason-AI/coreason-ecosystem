@@ -21,12 +21,12 @@ The `PricingOracle` calculates the thermodynamic cost of execution as the Kullba
 
 $$VFE \equiv D_{KL}(Q(E) || P(E))$$
 
-A rising VFE mathematically proves that the reasoning nodes are diverging from optimal efficiency—engaging in localized hallucination, memory leaks, or adversarial looping. 
+A rising VFE mathematically proves that the reasoning nodes are diverging from optimal efficiencyâ€”engaging in localized hallucination, memory leaks, or adversarial looping.
 
 ## 3. The Economic Guillotine
 The Governance Plane does not attempt to "recover" instances exhibiting high VFE. Entropy cannot be bargained with.
 
-When $\Delta VFE$ breaches the critical threshold $\tau_{critical}$, or the fiat budget bound is exhausted, the `PulumiActuator` triggers the **Economic Guillotine**. 
+When $\Delta VFE$ breaches the critical threshold $\tau_{critical}$, or the fiat budget bound is exhausted, the `PulumiActuator` triggers the **Economic Guillotine**.
 1. The infrastructure bond is cryptographically severed.
 2. An unceremonious `SIGKILL` cascade is executed across the physical compute layer.
 3. The surrounding active nodes re-converge the network graph to route around the thermodynamic void.
