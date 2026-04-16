@@ -161,8 +161,6 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "coreason_ecosystem.gateway.master_mcp",
-    "coreason_ecosystem.storage.neo4j_mcp",
-    "coreason_ecosystem.storage.milvus_mcp",
 ]
 warn_unused_ignores = false
 disallow_untyped_decorators = false

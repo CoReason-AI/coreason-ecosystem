@@ -8,18 +8,18 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-"""Oracle Router — Asymmetric HITL Resolution Socket.
+"""Isomorphism Probe — Ontological Isomorphism Diagnostic Tool.
 
-Provisions a blind, asymmetric diagnostic socket for Human-in-the-Loop (HITL)
-resolution per LAW 8 (The Oracle Law). This module does not evaluate the context
-of OracleRequestEvents — it merely guarantees cryptographic delivery of the
-biological prior back into the deterministic Temporal execution loop.
-
-Probes the Tripartite Manifold boundaries to prove Ontological Isomorphism:
+Probes the Tripartite Manifold boundaries to prove Ontological Isomorphism
+across the Governance, Epistemic, and Kinetic planes:
   - Runtime Daemon reachability
   - Telemetry Stream connectivity
   - Ontology Schema hash integrity
   - Epistemic Root alignment across local ↔ remote boundaries
+
+This is a blind diagnostic socket: it routes probes without interpreting
+semantic payloads. Human operators consume the diagnostic table to resolve
+epistemic uncertainty per LAW 8 (The Oracle Law).
 """
 
 import hashlib

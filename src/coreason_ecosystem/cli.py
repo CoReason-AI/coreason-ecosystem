@@ -73,7 +73,7 @@ def cli_callback(
 # from cli.py, 'console' is defined above first.
 from pathlib import Path  # noqa: E402
 from coreason_ecosystem.orchestration.build import execute_build  # noqa: E402
-from coreason_ecosystem.orchestration.oracle_router import execute_oracle_diagnostic  # noqa: E402
+from coreason_ecosystem.orchestration.isomorphism_probe import execute_oracle_diagnostic  # noqa: E402
 from coreason_ecosystem.orchestration.init import execute_init  # noqa: E402
 from coreason_ecosystem.orchestration.sync import execute_sync  # noqa: E402
 from coreason_ecosystem.orchestration.up import execute_up  # noqa: E402
