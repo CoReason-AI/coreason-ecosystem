@@ -73,10 +73,6 @@ class TreasuryManager:
             "gas_limit": 100000,
         }
 
-        # TODO: Implement physical Web3 provider execution here.
-        # Use web3.py or eth_abi to broadcast the transaction payload
-        # to the contract at self.contract_address via the RPC URL
-        # injected from COREASON_WEB3_RPC_URL environment variable.
         raise NotImplementedError(
             "Physical Web3 provider (web3.py / eth_abi) execution not yet implemented. "
             f"Contract: {self.contract_address}, Target: {target_did}, Amount: {amount_gwei}"
