@@ -51,7 +51,7 @@ def _require_milvus_uri() -> str:
     return uri
 
 
-@mcp_server.list_tools()  # type: ignore[no-untyped-call,untyped-decorator]
+@mcp_server.list_tools()  # type: ignore
 async def list_tools() -> list[types.Tool]:
     """Expose the query_vector_db tool schema."""
     return [
@@ -77,7 +77,7 @@ async def list_tools() -> list[types.Tool]:
     ]
 
 
-@mcp_server.call_tool()  # type: ignore[untyped-decorator]
+@mcp_server.call_tool()  # type: ignore
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Dispatch tool execution to the appropriate handler."""
     if name != "query_vector_db":

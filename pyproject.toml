@@ -34,6 +34,7 @@ dependencies = [
     "pyarrow>=19.0.0",
     "mcp>=1.27.0",
     "fastapi>=0.135.3",
+    "pyyaml>=6.0.2",
 ]
 
 license = { file = "LICENSE" }
@@ -151,6 +152,15 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "starlette.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "coreason_ecosystem.gateway.master_mcp",
+    "coreason_ecosystem.storage.neo4j_mcp",
+    "coreason_ecosystem.storage.milvus_mcp",
+]
+warn_unused_ignores = false
+disallow_untyped_decorators = false
 
 [tool.ruff.lint.isort]
 known-first-party = ["coreason_ecosystem"]
