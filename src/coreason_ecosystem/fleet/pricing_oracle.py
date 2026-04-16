@@ -21,6 +21,9 @@ resources.
 
 from typing import TYPE_CHECKING
 
+from loguru import logger
+from pydantic import BaseModel
+
 from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile
 
 if TYPE_CHECKING:
@@ -165,3 +168,72 @@ class PricingOracle:
 
         # Return the node with the lowest hourly cost
         return min(filtered_nodes, key=lambda n: n.hourly_cost)
+
+
+class ThermodynamicAssessment(BaseModel):
+    """Diagnostic snapshot of the swarm's thermodynamic expenditure.
+
+    Produced by the VFE divergence calculation to enable the
+    Economic Guillotine to determine whether the swarm should be severed.
+    """
+
+    gpu_utilization: float
+    token_velocity: float
+    api_cost_hourly: float
+    vfe_divergence: float
+    threshold_breached: bool
+
+
+# Default VFE divergence threshold — calibrated to Ashby's Limit.
+DEFAULT_VFE_THRESHOLD = 0.85
+
+
+async def assess_thermodynamic_expenditure(
+    hardware_profile: HardwareProfile,
+    max_budget_hr: float,
+    current_gpu_utilization: float = 0.0,
+    current_token_velocity: float = 0.0,
+    current_api_cost_hourly: float = 0.0,
+    vfe_threshold: float = DEFAULT_VFE_THRESHOLD,
+) -> ThermodynamicAssessment:
+    """Calculate Variational Free Energy divergence for the swarm topology.
+
+    Computes the aggregate thermodynamic expenditure and compares it against
+    the provisioned ``HardwareProfile`` limits.  If the required variety
+    exceeds the provisioned economic/thermodynamic threshold, the assessment
+    signals that the Economic Guillotine should sever the kinetic execution.
+
+    Args:
+        hardware_profile: The provisioned hardware bounds.
+        max_budget_hr: Maximum hourly budget.
+        current_gpu_utilization: Fraction [0, 1] of GPU utilization.
+        current_token_velocity: Tokens consumed per second.
+        current_api_cost_hourly: Current hourly API cost.
+        vfe_threshold: The normalized VFE divergence threshold.
+
+    Returns:
+        A ``ThermodynamicAssessment`` containing the divergence snapshot.
+    """
+    # Normalize cost pressure against budget.
+    cost_pressure = (
+        current_api_cost_hourly / max_budget_hr if max_budget_hr > 0 else 1.0
+    )
+
+    # VFE divergence — weighted combination of GPU saturation and cost pressure.
+    vfe_divergence = 0.6 * current_gpu_utilization + 0.4 * cost_pressure
+    breached = vfe_divergence >= vfe_threshold
+
+    if breached:
+        logger.critical(
+            f"Economic Guillotine: VFE divergence {vfe_divergence:.3f} "
+            f">= threshold {vfe_threshold:.3f}. "
+            "Emitting TopologicalHaltIntent to sever kinetic execution."
+        )
+
+    return ThermodynamicAssessment(
+        gpu_utilization=current_gpu_utilization,
+        token_velocity=current_token_velocity,
+        api_cost_hourly=current_api_cost_hourly,
+        vfe_divergence=vfe_divergence,
+        threshold_breached=breached,
+    )

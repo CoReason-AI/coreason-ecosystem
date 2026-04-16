@@ -78,3 +78,33 @@ class IdentityBroker:
             "issuer_did": issuer_did,
             "clearance": clearance,
         }
+
+    # LBAC lattice ordering — strictly ascending clearance.
+    CLEARANCE_LATTICE: dict[str, int] = {
+        "PUBLIC": 1,
+        "CONFIDENTIAL": 2,
+        "RESTRICTED": 3,
+    }
+
+    def validate_clearance_lattice(
+        self,
+        agent_clearance: str,
+        required_clearance: str,
+    ) -> bool:
+        """Verify that the agent's clearance level dominates the required level.
+
+        Uses Lattice-Based Access Control (LBAC) ordering to determine
+        if the agent has sufficient authorization to access the requested
+        capability.
+
+        Args:
+            agent_clearance: The clearance level of the requesting agent.
+            required_clearance: The clearance level required by the capability.
+
+        Returns:
+            True if ``agent_clearance`` dominates ``required_clearance``
+            in the LBAC lattice.
+        """
+        agent_level = self.CLEARANCE_LATTICE.get(agent_clearance, 0)
+        required_level = self.CLEARANCE_LATTICE.get(required_clearance, 3)
+        return agent_level >= required_level

@@ -42,6 +42,10 @@ coreason_circuit_breakers_tripped = Counter(
     "coreason_circuit_breakers_tripped",
     "Total number of CircuitBreakerEvents triggered across the fleet.",
 )
+coreason_causal_cycles_total = Gauge(
+    "coreason_causal_cycles_total",
+    "β₁ (1-cycles) in the workflow execution graph — causal paradox detector.",
+)
 
 
 class TelemetryTopologyMonitor:
@@ -112,6 +116,19 @@ class TelemetryTopologyMonitor:
             # unit (β₀ = 1) or if it has fragmented into isolated, runaway shards (β₀ > 1).
             betti_0 = nx.number_connected_components(execution_graph)
             coreason_active_agents_total.set(betti_0)
+
+            # 5. Calculate β₁ (Betti-1): Number of independent cycles
+            # Cycles in the execution graph indicate causal paradoxes —
+            # feedback loops where a workflow depends on its own descendant.
+            cycles = nx.cycle_basis(execution_graph)
+            betti_1 = len(cycles)
+            coreason_causal_cycles_total.set(betti_1)
+
+            if betti_1 > 0:
+                logger.critical(
+                    f"TopologicalHaltIntent: β₁={betti_1} causal cycles "
+                    f"detected in the execution graph. Cycles: {cycles[:3]}"
+                )
 
         except Exception as e:
             logger.warning(f"Topological polling error: {e}")

@@ -25,6 +25,7 @@ import mcp.server
 from fastapi import FastAPI
 
 from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
+from coreason_ecosystem.gateway.epistemic_filter import EpistemicFilter
 from coreason_ecosystem.gateway.identity_broker import IdentityBroker
 from coreason_ecosystem.gateway.models import (
     OracleExecutionReceipt,
@@ -46,6 +47,7 @@ app = FastAPI(title="coreason-master-gateway")
 mcp_server = mcp.server.Server("coreason-master-gateway")
 
 registry = CapabilityRegistry()
+epistemic_filter = EpistemicFilter(registry)
 identity_broker = IdentityBroker()
 
 current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
@@ -141,6 +143,12 @@ async def list_tools() -> list[types.Tool]:
     clearance = current_clearance.get()
     discovered_capabilities = await registry.discover_active_substrates(
         agent_clearance=clearance
+    )
+
+    # Apply the Epistemic Guillotine — strip URNs below the minimum
+    # governance lifecycle phase before projection.
+    discovered_capabilities = epistemic_filter.filter_capabilities(
+        available_urns=discovered_capabilities,
     )
 
     tool_objects: list[types.Tool] = []

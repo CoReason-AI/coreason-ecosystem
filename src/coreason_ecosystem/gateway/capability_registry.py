@@ -15,6 +15,12 @@ as an empty substrate and hydrates its routing table dynamically by reading
 an external ``capabilities.matrix.yaml`` configuration file or querying an
 upstream discovery port. No URN-to-endpoint mappings are hardcoded.
 
+Each capability entry tracks:
+  - ``endpoint``: Physical network URI of the deployed action space.
+  - ``clearance``: LBAC clearance level (PUBLIC / CONFIDENTIAL / RESTRICTED).
+  - ``epistemic_status``: SRB governance lifecycle phase
+    (DRAFT / SRB_APPROVED / CLIENT_APPROVED / PUBLISHED).
+
 This enforces LAW 1 (Macroscopic Invariance) by keeping the Governance Plane
 immune to domain-level semantic drift.
 """
@@ -76,8 +82,13 @@ class CapabilityRegistry:
             urn = entry.get("urn", "")
             endpoint = entry.get("endpoint", "")
             clearance = entry.get("clearance", "RESTRICTED")
+            epistemic_status = entry.get("epistemic_status", "DRAFT")
             if urn and endpoint:
-                self._cache[urn] = {"endpoint": endpoint, "clearance": clearance}
+                self._cache[urn] = {
+                    "endpoint": endpoint,
+                    "clearance": clearance,
+                    "epistemic_status": epistemic_status,
+                }
 
         logger.info(f"Hydrated {len(self._cache)} capabilities from {matrix_path.name}")
 
@@ -102,8 +113,13 @@ class CapabilityRegistry:
                 urn = entry.get("urn", "")
                 endpoint = entry.get("endpoint", "")
                 clearance = entry.get("clearance", "RESTRICTED")
+                epistemic_status = entry.get("epistemic_status", "DRAFT")
                 if urn and endpoint:
-                    self._cache[urn] = {"endpoint": endpoint, "clearance": clearance}
+                    self._cache[urn] = {
+                        "endpoint": endpoint,
+                        "clearance": clearance,
+                        "epistemic_status": epistemic_status,
+                    }
 
             logger.info(
                 f"Hydrated {len(capabilities)} capabilities from {discovery_url}"
@@ -152,3 +168,19 @@ class CapabilityRegistry:
             raise KeyError(f"Geometrical topology fault: unregistered URN {target_urn}")
 
         return self._cache[target_urn]["endpoint"]
+
+    def get_epistemic_status(self, target_urn: str) -> str:
+        """Retrieve the SRB governance lifecycle status for a registered URN.
+
+        Args:
+            target_urn: The URN to query.
+
+        Returns:
+            The epistemic status string (DRAFT, SRB_APPROVED,
+            CLIENT_APPROVED, or PUBLISHED).  Defaults to ``"DRAFT"``
+            if the URN is not registered.
+        """
+        entry = self._cache.get(target_urn)
+        if entry is None:
+            return "DRAFT"
+        return entry.get("epistemic_status", "DRAFT")

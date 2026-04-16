@@ -12,6 +12,14 @@ class FederatedDiscoveryIntent(BaseModel):
         ...,
         description="The strict array of strings defining topological limits on the discovered capabilities.",
     )
+    minimum_epistemic_status: str = Field(
+        default="DRAFT",
+        description=(
+            "The minimum SRB governance lifecycle phase required for "
+            "projected capabilities "
+            "(DRAFT / SRB_APPROVED / CLIENT_APPROVED / PUBLISHED)."
+        ),
+    )
 
 
 class OracleExecutionReceipt(BaseModel):
