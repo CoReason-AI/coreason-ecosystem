@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from typing import Any
 
 import httpx
@@ -21,6 +22,8 @@ from starlette.requests import Request
 from fastapi import Depends, HTTPException
 from mcp.server.sse import SseServerTransport
 import mcp.types as types
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="coreason-master-gateway")
 mcp_server = mcp.server.Server("coreason-master-gateway")
@@ -64,7 +67,7 @@ async def handle_sse(request: Request) -> None:
                 read_stream, write_stream, mcp_server.create_initialization_options()
             )
         except Exception:
-            pass
+            logger.debug("SSE client disconnected")
 
 
 @app.post("/messages", dependencies=[Depends(extract_and_verify_identity)])

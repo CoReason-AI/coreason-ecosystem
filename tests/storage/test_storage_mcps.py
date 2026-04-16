@@ -95,3 +95,30 @@ async def test_neo4j_call_tool_rejects_unknown_tool() -> None:
 
     with pytest.raises(ValueError, match="Unknown tool"):
         await call_tool("nonexistent_tool", {})
+
+
+async def test_milvus_list_tools_returns_schema() -> None:
+    """Prove that the Milvus MCP list_tools returns the expected tool schema."""
+    from coreason_ecosystem.storage.milvus_mcp import list_tools
+
+    tools = await list_tools()
+
+    assert len(tools) == 1
+    tool = tools[0]
+    assert isinstance(tool, types.Tool)
+    assert tool.name == "query_vector_db"
+    assert "collection_name" in tool.inputSchema["properties"]
+    assert "query_vector" in tool.inputSchema["properties"]
+
+
+async def test_neo4j_list_tools_returns_schema() -> None:
+    """Prove that the Neo4j MCP list_tools returns the expected tool schema."""
+    from coreason_ecosystem.storage.neo4j_mcp import list_tools
+
+    tools = await list_tools()
+
+    assert len(tools) == 1
+    tool = tools[0]
+    assert isinstance(tool, types.Tool)
+    assert tool.name == "query_property_graph"
+    assert "cypher_query" in tool.inputSchema["properties"]
