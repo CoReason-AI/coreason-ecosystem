@@ -168,7 +168,7 @@ async def test_list_tools() -> None:
 
 @pytest.mark.asyncio
 async def test_list_tools_request_error() -> None:
-    """Test discovery fallback to proxy definition when sub-MCP is down."""
+    """Test that offline substrates are dropped from the projection (Zero-Trust)."""
 
     def raise_request_error(*args: typing.Any, **kwargs: typing.Any) -> None:
         raise httpx.RequestError("Connection failed")
@@ -181,10 +181,9 @@ async def test_list_tools_request_error() -> None:
         current_clearance.set("PUBLIC")
         tools = await list_tools()
 
-        assert len(tools) >= 1
-        names = [tool.name for tool in tools]
-        assert "urn_coreason_oracle_clinical_extractor" in names
-        assert "Proxied tool" in tools[0].description
+        # Unreachable substrates must not be projected — they do not exist
+        # in the active topology.
+        assert len(tools) == 0
 
 
 @pytest.mark.asyncio

@@ -175,13 +175,12 @@ async def list_tools() -> list[types.Tool]:
                             )
                         )
             except httpx.RequestError:
-                tool_objects.append(
-                    types.Tool(
-                        name=sanitized_name[:64],
-                        description=f"Proxied tool for {urn}",
-                        inputSchema={"type": "object", "properties": {}},
-                    )
+                # If a substrate is unreachable during discovery, it mathematically
+                # does not exist in the active topology. Drop it.
+                logger.warning(
+                    f"Topological absence: {urn} is offline and will not be projected."
                 )
+                continue
 
     return tool_objects
 
