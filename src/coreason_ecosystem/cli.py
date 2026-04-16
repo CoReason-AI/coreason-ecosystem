@@ -73,7 +73,7 @@ def cli_callback(
 # from cli.py, 'console' is defined above first.
 from pathlib import Path  # noqa: E402
 from coreason_ecosystem.orchestration.build import execute_build  # noqa: E402
-from coreason_ecosystem.orchestration.doctor import execute_doctor  # noqa: E402
+from coreason_ecosystem.orchestration.oracle_router import execute_oracle_diagnostic  # noqa: E402
 from coreason_ecosystem.orchestration.init import execute_init  # noqa: E402
 from coreason_ecosystem.orchestration.sync import execute_sync  # noqa: E402
 from coreason_ecosystem.orchestration.up import execute_up  # noqa: E402
@@ -189,7 +189,7 @@ def doctor() -> None:
     async def _run() -> None:
         start_otlp_background_worker()
         try:
-            await execute_doctor()
+            await execute_oracle_diagnostic()
         finally:
             await stop_otlp_background_worker()
 

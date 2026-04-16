@@ -15,7 +15,7 @@ from loguru import logger
 
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
 from coreason_ecosystem.fleet.pulumi_actuator import PulumiFleetDriver
-from coreason_ecosystem.fleet.temporal_monitor import ThermodynamicMonitor
+from coreason_ecosystem.fleet.telemetry_topology import TelemetryTopologyMonitor
 
 
 class AutonomicFleetManager:
@@ -33,7 +33,7 @@ class AutonomicFleetManager:
         self.temporal_mesh_ip = temporal_mesh_ip
         self.driver = PulumiFleetDriver(templates_dir=templates_path)
         self.oracle = PricingOracle()
-        self.monitor = ThermodynamicMonitor()
+        self.monitor = TelemetryTopologyMonitor()
         self._running = False
 
     async def start(self) -> None:

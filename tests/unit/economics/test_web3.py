@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc
+# Copyright (c) 2026 CoReason, Inc.
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -14,7 +14,6 @@ from unittest.mock import AsyncMock, patch
 from coreason_ecosystem.web3.treasury_manager import (
     MockWeb3Provider,
     TreasuryManager,
-    global_web3_treasury,
 )
 
 
@@ -32,7 +31,7 @@ async def test_mock_web3_provider_broadcast() -> None:
 @pytest.mark.asyncio
 async def test_treasury_manager_disburse() -> None:
     """Test TreasuryManager disburses rewards correctly."""
-    manager = TreasuryManager()
+    manager = TreasuryManager(treasury_contract_address="0xTestContract")
 
     receipt = {
         "awarded_syndicate": "did:coreason:syndicate-1",
@@ -59,7 +58,15 @@ async def test_treasury_manager_disburse_defaults() -> None:
     assert tx_hash.startswith("0x")
 
 
-def test_global_web3_treasury_instance() -> None:
-    """Test that global_web3_treasury is initialized."""
-    assert isinstance(global_web3_treasury, TreasuryManager)
-    assert global_web3_treasury.contract_address.startswith("0x")
+def test_treasury_manager_env_injection() -> None:
+    """Test that TreasuryManager resolves contract address from env."""
+    with patch.dict("os.environ", {"COREASON_TREASURY_CONTRACT": "0xEnvContract"}):
+        manager = TreasuryManager()
+        assert manager.contract_address == "0xEnvContract"
+
+
+def test_treasury_manager_no_address_warns() -> None:
+    """Test that TreasuryManager warns when no contract address is configured."""
+    with patch.dict("os.environ", {}, clear=True):
+        manager = TreasuryManager()
+        assert manager.contract_address == ""

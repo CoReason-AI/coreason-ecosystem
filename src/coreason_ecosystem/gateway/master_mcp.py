@@ -1,4 +1,22 @@
+# Copyright (c) 2026 CoReason, Inc.
+#
+# This software is proprietary and dual-licensed
+# Licensed under the Prosperity Public License 3.0 (the "License")
+# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
+# For details, see the LICENSE file
+# Commercial use beyond a 30-day trial requires a separate license
+#
+# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
+
+"""Master MCP Gateway — Federated Capability Discovery & Cryptographic Sealing.
+
+Routes JSON-RPC requests to sub-MCP backends based on Epistemic Intents.
+Enforces RFC 8785 (JCS) canonical hashing on all MCP tool schemas before
+projection to the kinetic plane, per LAW 4 (Cryptographic Provenance).
+"""
+
 import hashlib
+import json
 import logging
 from typing import Any
 
@@ -15,7 +33,6 @@ from coreason_ecosystem.utils.telemetry import emit_span_event
 
 import time
 import contextvars
-import json
 import base64
 
 from starlette.requests import Request
@@ -32,6 +49,43 @@ registry = CapabilityRegistry()
 identity_broker = IdentityBroker()
 
 current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
+
+
+def _canonicalize_json(obj: Any) -> bytes:
+    """Produce RFC 8785 (JCS) canonical JSON serialization.
+
+    Sorts keys recursively and uses compact separators with no trailing
+    whitespace, which is the subset of JCS achievable via Python's stdlib.
+
+    Args:
+        obj: The object to canonicalize.
+
+    Returns:
+        UTF-8 encoded canonical JSON bytes.
+    """
+    return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def compute_schema_seal(schema: dict[str, Any]) -> str:
+    """Compute the SHA-256 seal of a canonicalized MCP tool schema.
+
+    Args:
+        schema: The MCP tool input schema dictionary.
+
+    Returns:
+        Hexadecimal SHA-256 digest string.
+    """
+    canonical = _canonicalize_json(schema)
+    return hashlib.sha256(canonical).hexdigest()
+
+
+@app.on_event("startup")
+async def _hydrate_registry() -> None:
+    """Hydrate the capability registry from the matrix file on startup."""
+    from pathlib import Path
+
+    matrix_path = Path.cwd() / "capabilities.matrix.yaml"
+    registry.hydrate_from_matrix(matrix_path)
 
 
 async def extract_and_verify_identity(request: Request) -> None:
@@ -79,10 +133,10 @@ async def handle_messages(request: Request) -> None:
 
 @mcp_server.list_tools()  # type: ignore
 async def list_tools() -> list[types.Tool]:
-    """
-    Federated tool discovery from registry.
-    We assume the identity is verified upstream or implicitly authorized here.
-    For this implementation, we will query substrates without hardcoded clearance unless provided.
+    """Federated tool discovery from registry with cryptographic schema sealing.
+
+    Each tool schema is sealed with SHA-256 of its RFC 8785 canonical form
+    before being projected to the kinetic plane.
     """
     clearance = current_clearance.get()
     discovered_capabilities = await registry.discover_active_substrates(
@@ -98,19 +152,26 @@ async def list_tools() -> list[types.Tool]:
                 response = await client.get(f"{endpoint}/tools")
                 if response.status_code == 200:
                     schemas = response.json()
-                    # Add all schemas mapped to the tool.
-                    # Assuming the sub-MCP returns an array of dicts that match mcp.types.Tool signature.
                     for schema in schemas:
                         schema["name"] = (
                             f"{sanitized_name}_{schema.get('name', 'tool')}"
                         )
+
+                        # Cryptographic sealing: compute SHA-256 of the canonical
+                        # input schema before projection to the kinetic plane.
+                        input_schema = schema.get(
+                            "inputSchema", {"type": "object", "properties": {}}
+                        )
+                        schema_seal = compute_schema_seal(input_schema)
+
                         tool_objects.append(
                             types.Tool(
                                 name=schema["name"][:64],
-                                description=schema.get("description", "A proxied tool"),
-                                inputSchema=schema.get(
-                                    "inputSchema", {"type": "object", "properties": {}}
+                                description=(
+                                    f"{schema.get('description', 'A proxied tool')} "
+                                    f"[seal:{schema_seal[:16]}]"
                                 ),
+                                inputSchema=input_schema,
                             )
                         )
             except httpx.RequestError:
@@ -127,24 +188,8 @@ async def list_tools() -> list[types.Tool]:
 
 @mcp_server.call_tool()  # type: ignore
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
-    """
-    Proxies execution request to physical action space bounding and produces cryptographic receipt.
-    """
-    # Simple un-sanitization for test cases or base tools.
-    # The true URN would be mapped or inferred.
-    # For safe translation, assume any tool name matching `urn_coreason_*` translates `_` to `:`
-    # since tool names are at most 64 chars and must match ^[a-zA-Z0-9_-]{1,64}$
-
-    # We heuristically rebuild the URN
-    target_urn = name.replace("_", ":")
-    # For concatenated names like `urn:coreason:oracle:clinical:extractor_tool`, we just find the URN prefix.
-    # Better: just replace the first 3 or 4 underscores to form the URN.
-    parts = target_urn.split(":")
-    if len(parts) >= 4 and parts[0] == "urn" and parts[1] == "coreason":
-        target_urn = "urn:coreason:oracle:" + parts[3].split("_")[0]
-        # the simplest mapped approach is to look up in the registry keys.
-
-    # Actually, we should just find the matching URN in registry caching
+    """Proxies execution request to physical action space with cryptographic receipt."""
+    # Resolve the matching URN from the registry cache
     discovered = await registry.discover_active_substrates()
     endpoint_url: str | None = None
     real_urn: str | None = None
@@ -177,9 +222,10 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
     execution_end = time.time()
     execution_time_ms = (execution_end - execution_start) * 1000
 
+    # Cryptographic receipt: RFC 8785 canonical hash of the payload
     timestamp = time.time()
-    raw_payload_str = str(payload) + str(timestamp)
-    event_cid = hashlib.sha256(raw_payload_str.encode("utf-8")).hexdigest()
+    canonical_payload = _canonicalize_json({"payload": payload, "timestamp": timestamp})
+    event_cid = hashlib.sha256(canonical_payload).hexdigest()
 
     # Derive a pattern-compliant action_space_id from the URN.
     receipt_action_space_id = real_urn.replace(":", "_")

@@ -1,3 +1,13 @@
+# Copyright (c) 2026 CoReason, Inc.
+#
+# This software is proprietary and dual-licensed
+# Licensed under the Prosperity Public License 3.0 (the "License")
+# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
+# For details, see the LICENSE file
+# Commercial use beyond a 30-day trial requires a separate license
+#
+# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
+
 """Tests for the Sovereign Storage Micro-MCPs — bounding proofs."""
 
 import json
@@ -9,9 +19,9 @@ from coreason_ecosystem.storage.neo4j_mcp import query_property_graph
 
 
 async def test_query_vector_db_returns_text_content() -> None:
-    """Prove that query_vector_db returns a valid TextContent with search results."""
+    """Prove that query_vector_db returns a valid TextContent with passthrough results."""
     result = await query_vector_db(
-        collection_name="clinical_embeddings",
+        collection_name="test_embeddings",
         query_vector=[0.1, 0.2, 0.3, 0.4, 0.5],
     )
 
@@ -21,16 +31,14 @@ async def test_query_vector_db_returns_text_content() -> None:
     assert content.type == "text"
 
     payload = json.loads(content.text)
-    assert payload["status"] == "success"
-    assert payload["collection"] == "clinical_embeddings"
+    assert payload["status"] == "passthrough"
+    assert payload["collection"] == "test_embeddings"
     assert payload["query_dimensions"] == 5
-    assert len(payload["matches"]) == 2
-    assert payload["matches"][0]["id"] == "vec-001"
-    assert payload["matches"][0]["score"] == 0.97
+    assert payload["matches"] == []
 
 
 async def test_query_property_graph_returns_text_content() -> None:
-    """Prove that query_property_graph returns a valid TextContent with Cypher results."""
+    """Prove that query_property_graph returns a valid TextContent with passthrough results."""
     cypher = "MATCH (n:Concept) RETURN n LIMIT 10"
     result = await query_property_graph(cypher_query=cypher)
 
@@ -40,10 +48,9 @@ async def test_query_property_graph_returns_text_content() -> None:
     assert content.type == "text"
 
     payload = json.loads(content.text)
-    assert payload["status"] == "success"
+    assert payload["status"] == "passthrough"
     assert payload["cypher_query"] == cypher
-    assert len(payload["records"]) == 2
-    assert payload["records"][0]["n"]["label"] == "Concept"
+    assert payload["records"] == []
     assert payload["summary"]["nodes_created"] == 0
 
 
@@ -58,7 +65,7 @@ async def test_milvus_call_tool_dispatches_correctly() -> None:
 
     assert len(result) == 1
     payload = json.loads(result[0].text)
-    assert payload["status"] == "success"
+    assert payload["status"] == "passthrough"
     assert payload["collection"] == "test_collection"
 
 
@@ -73,7 +80,7 @@ async def test_neo4j_call_tool_dispatches_correctly() -> None:
 
     assert len(result) == 1
     payload = json.loads(result[0].text)
-    assert payload["status"] == "success"
+    assert payload["status"] == "passthrough"
     assert payload["cypher_query"] == "MATCH (n) RETURN n LIMIT 1"
 
 

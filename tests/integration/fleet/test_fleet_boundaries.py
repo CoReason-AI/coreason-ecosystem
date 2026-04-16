@@ -7,7 +7,7 @@ from coreason_ecosystem.fleet.mesh_injector import (
     MeshInjector,
 )
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
-from coreason_ecosystem.fleet.temporal_monitor import ThermodynamicMonitor
+from coreason_ecosystem.fleet.telemetry_topology import TelemetryTopologyMonitor
 from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile
 
 
@@ -43,7 +43,7 @@ def test_mesh_injector_middleware() -> None:
 @pytest.mark.asyncio
 async def test_temporal_monitor_security_profile() -> None:
     # Line 40
-    monitor = ThermodynamicMonitor()
+    monitor = TelemetryTopologyMonitor()
     sec_profile = await monitor.get_active_task_security_profile()
     assert sec_profile is not None
     assert sec_profile.network_isolation is True

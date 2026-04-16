@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc
+# Copyright (c) 2026 CoReason, Inc.
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -14,17 +14,17 @@ from typing import Any
 
 import pytest
 
-from coreason_ecosystem.fleet.temporal_monitor import ThermodynamicMonitor
+from coreason_ecosystem.fleet.telemetry_topology import TelemetryTopologyMonitor
 
 
 @pytest.mark.asyncio
 async def test_connect_success() -> None:
     """Test successful Temporal client connection."""
-    monitor = ThermodynamicMonitor()
+    monitor = TelemetryTopologyMonitor()
 
     mock_client = MagicMock()
     with patch(
-        "coreason_ecosystem.fleet.temporal_monitor.Client.connect",
+        "coreason_ecosystem.fleet.telemetry_topology.Client.connect",
         new_callable=AsyncMock,
         return_value=mock_client,
     ):
@@ -36,10 +36,10 @@ async def test_connect_success() -> None:
 @pytest.mark.asyncio
 async def test_connect_failure() -> None:
     """Test fallback to degraded mode when Temporal connection fails."""
-    monitor = ThermodynamicMonitor()
+    monitor = TelemetryTopologyMonitor()
 
     with patch(
-        "coreason_ecosystem.fleet.temporal_monitor.Client.connect",
+        "coreason_ecosystem.fleet.telemetry_topology.Client.connect",
         new_callable=AsyncMock,
         side_effect=Exception("Connection refused"),
     ):
@@ -51,7 +51,7 @@ async def test_connect_failure() -> None:
 @pytest.mark.asyncio
 async def test_poll_workflows_no_client() -> None:
     """Test that _poll_workflows returns early when client is None."""
-    monitor = ThermodynamicMonitor()
+    monitor = TelemetryTopologyMonitor()
     monitor._client = None
 
     # Should not raise
@@ -61,7 +61,7 @@ async def test_poll_workflows_no_client() -> None:
 @pytest.mark.asyncio
 async def test_poll_workflows_with_client() -> None:
     """Test _poll_workflows counts active workflows and checks circuit breakers."""
-    monitor = ThermodynamicMonitor()
+    monitor = TelemetryTopologyMonitor()
 
     # Create mock workflows
     mock_workflow_1 = MagicMock()
@@ -87,7 +87,7 @@ async def test_poll_workflows_with_client() -> None:
 @pytest.mark.asyncio
 async def test_poll_workflows_exception() -> None:
     """Test _poll_workflows handles exceptions gracefully."""
-    monitor = ThermodynamicMonitor()
+    monitor = TelemetryTopologyMonitor()
 
     mock_client = MagicMock()
     mock_client.list_workflows = MagicMock(side_effect=Exception("polling error"))
@@ -101,10 +101,10 @@ async def test_poll_workflows_exception() -> None:
 async def test_start_and_stop() -> None:
     """Test the start/stop lifecycle of the monitor."""
     # Use a small polling interval so it yields naturally without mocking sleep
-    monitor = ThermodynamicMonitor(polling_interval_sec=0.01)
+    monitor = TelemetryTopologyMonitor(polling_interval_sec=0.01)
 
     with (
-        patch("coreason_ecosystem.fleet.temporal_monitor.start_http_server"),
+        patch("coreason_ecosystem.fleet.telemetry_topology.start_http_server"),
         patch.object(monitor, "connect", new_callable=AsyncMock),
         patch.object(monitor, "_poll_workflows", new_callable=AsyncMock),
     ):
@@ -123,7 +123,7 @@ async def test_start_and_stop() -> None:
 @pytest.mark.asyncio
 async def test_stop() -> None:
     """Test the stop method."""
-    monitor = ThermodynamicMonitor()
+    monitor = TelemetryTopologyMonitor()
     monitor._running = True
     await monitor.stop()
     assert monitor._running is False
@@ -132,7 +132,7 @@ async def test_stop() -> None:
 @pytest.mark.asyncio
 async def test_poll_workflows_search_attrs_non_dict() -> None:
     """Test _poll_workflows when search_attributes is not a dict."""
-    monitor = ThermodynamicMonitor()
+    monitor = TelemetryTopologyMonitor()
 
     mock_workflow = MagicMock()
     # Simulate search_attributes that is not a dict (e.g., a Mapping subclass)

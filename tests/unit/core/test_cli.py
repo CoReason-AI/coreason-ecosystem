@@ -294,16 +294,16 @@ class MockAsyncClient:
 
 
 @patch(
-    "coreason_ecosystem.orchestration.doctor.calculate_epistemic_root",
+    "coreason_ecosystem.orchestration.oracle_router.calculate_epistemic_root",
     new_callable=AsyncMock,
 )
-@patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
+@patch("coreason_ecosystem.orchestration.oracle_router.read_registry_lock")
 @patch(
-    "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
+    "coreason_ecosystem.orchestration.oracle_router.httpx.AsyncClient",
     return_value=MockAsyncClient(),
 )
-@patch("coreason_ecosystem.orchestration.doctor.Path.exists")
-@patch("coreason_ecosystem.orchestration.doctor.Path.read_bytes")
+@patch("coreason_ecosystem.orchestration.oracle_router.Path.exists")
+@patch("coreason_ecosystem.orchestration.oracle_router.Path.read_bytes")
 def test_doctor_command(
     mock_read_bytes: Any,
     mock_exists: Any,
@@ -342,16 +342,16 @@ class MockAsyncClientErrorCodes:
 
 
 @patch(
-    "coreason_ecosystem.orchestration.doctor.calculate_epistemic_root",
+    "coreason_ecosystem.orchestration.oracle_router.calculate_epistemic_root",
     new_callable=AsyncMock,
 )
-@patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
+@patch("coreason_ecosystem.orchestration.oracle_router.read_registry_lock")
 @patch(
-    "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
+    "coreason_ecosystem.orchestration.oracle_router.httpx.AsyncClient",
     return_value=MockAsyncClientErrorCodes(),
 )
-@patch("coreason_ecosystem.orchestration.doctor.Path.exists")
-@patch("coreason_ecosystem.orchestration.doctor.Path.read_bytes")
+@patch("coreason_ecosystem.orchestration.oracle_router.Path.exists")
+@patch("coreason_ecosystem.orchestration.oracle_router.Path.read_bytes")
 def test_doctor_command_error_codes(
     mock_read_bytes: Any,
     mock_exists: Any,
@@ -395,15 +395,15 @@ class MockAsyncClientFail:
 
 
 @patch(
-    "coreason_ecosystem.orchestration.doctor.calculate_epistemic_root",
+    "coreason_ecosystem.orchestration.oracle_router.calculate_epistemic_root",
     new_callable=AsyncMock,
 )
-@patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
+@patch("coreason_ecosystem.orchestration.oracle_router.read_registry_lock")
 @patch(
-    "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
+    "coreason_ecosystem.orchestration.oracle_router.httpx.AsyncClient",
     return_value=MockAsyncClientFail(),
 )
-@patch("coreason_ecosystem.orchestration.doctor.Path.exists")
+@patch("coreason_ecosystem.orchestration.oracle_router.Path.exists")
 def test_doctor_command_failures(
     mock_exists: Any,
     mock_client: Any,
@@ -442,16 +442,16 @@ class MockAsyncClientHTTP:
 
 
 @patch(
-    "coreason_ecosystem.orchestration.doctor.calculate_epistemic_root",
+    "coreason_ecosystem.orchestration.oracle_router.calculate_epistemic_root",
     new_callable=AsyncMock,
 )
-@patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
+@patch("coreason_ecosystem.orchestration.oracle_router.read_registry_lock")
 @patch(
-    "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
+    "coreason_ecosystem.orchestration.oracle_router.httpx.AsyncClient",
     return_value=MockAsyncClientHTTP(),
 )
-@patch("coreason_ecosystem.orchestration.doctor.Path.exists")
-@patch("coreason_ecosystem.orchestration.doctor.Path.read_bytes")
+@patch("coreason_ecosystem.orchestration.oracle_router.Path.exists")
+@patch("coreason_ecosystem.orchestration.oracle_router.Path.read_bytes")
 def test_doctor_command_http_error(
     mock_read_bytes: Any,
     mock_exists: Any,
@@ -489,16 +489,16 @@ class MockAsyncClientHTTP409:
 
 
 @patch(
-    "coreason_ecosystem.orchestration.doctor.calculate_epistemic_root",
+    "coreason_ecosystem.orchestration.oracle_router.calculate_epistemic_root",
     new_callable=AsyncMock,
 )
-@patch("coreason_ecosystem.orchestration.doctor.read_registry_lock")
+@patch("coreason_ecosystem.orchestration.oracle_router.read_registry_lock")
 @patch(
-    "coreason_ecosystem.orchestration.doctor.httpx.AsyncClient",
+    "coreason_ecosystem.orchestration.oracle_router.httpx.AsyncClient",
     return_value=MockAsyncClientHTTP409(),
 )
-@patch("coreason_ecosystem.orchestration.doctor.Path.exists")
-@patch("coreason_ecosystem.orchestration.doctor.Path.read_bytes")
+@patch("coreason_ecosystem.orchestration.oracle_router.Path.exists")
+@patch("coreason_ecosystem.orchestration.oracle_router.Path.read_bytes")
 def test_doctor_command_http_error_409(
     mock_read_bytes: Any,
     mock_exists: Any,

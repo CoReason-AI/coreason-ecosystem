@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc
+# Copyright (c) 2026 CoReason, Inc.
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -12,22 +12,24 @@ import pytest
 
 from coreason_manifest.spec.ontology import AcceleratorProfile  # type: ignore[attr-defined, unused-ignore]
 
-from coreason_ecosystem.fleet.temporal_monitor import ThermodynamicMonitor
+from coreason_ecosystem.fleet.telemetry_topology import TelemetryTopologyMonitor
 
 
 @pytest.fixture
-def monitor() -> ThermodynamicMonitor:
-    return ThermodynamicMonitor()
+def monitor() -> TelemetryTopologyMonitor:
+    return TelemetryTopologyMonitor()
 
 
 @pytest.mark.asyncio
-async def test_get_queue_derivative(monitor: ThermodynamicMonitor) -> None:
+async def test_get_queue_derivative(monitor: TelemetryTopologyMonitor) -> None:
     derivative = await monitor.get_queue_derivative()
     assert derivative == 1.5
 
 
 @pytest.mark.asyncio
-async def test_get_active_task_hardware_profile(monitor: ThermodynamicMonitor) -> None:
+async def test_get_active_task_hardware_profile(
+    monitor: TelemetryTopologyMonitor,
+) -> None:
     profile = await monitor.get_active_task_hardware_profile()
     assert profile is not None
     assert profile.min_vram_gb == 16.0

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc
+# Copyright (c) 2026 CoReason, Inc.
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -8,7 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-from coreason_ecosystem.economics.treasury import TreasuryState, global_treasury
+from coreason_ecosystem.economics.treasury import TreasuryState
 
 
 def test_treasury_state_default() -> None:
@@ -21,8 +21,3 @@ def test_treasury_state_custom() -> None:
     """Test TreasuryState with custom initial capital."""
     state = TreasuryState(reinvestment_capital_gwei=1_000_000)
     assert state.reinvestment_capital_gwei == 1_000_000
-
-
-def test_global_treasury_instance() -> None:
-    """Test that the global treasury is a TreasuryState instance."""
-    assert isinstance(global_treasury, TreasuryState)

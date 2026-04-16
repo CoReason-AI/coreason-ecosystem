@@ -1,8 +1,19 @@
-"""
-Milvus Sub-MCP — Sovereign Storage gatekeeper for VectorEmbeddingState.
+# Copyright (c) 2026 CoReason, Inc.
+#
+# This software is proprietary and dual-licensed
+# Licensed under the Prosperity Public License 3.0 (the "License")
+# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
+# For details, see the LICENSE file
+# Commercial use beyond a 30-day trial requires a separate license
+#
+# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
+
+"""Milvus Sub-MCP — Sovereign Storage gatekeeper for VectorEmbeddingState.
 
 Zero-Trust boundary wrapper: swarm agents NEVER connect directly to Milvus.
 All vector queries are mediated through this MCP tool interface.
+This module is a domain-blind vector passthrough proxy — it routes queries
+without inspecting or hardcoding semantic payloads.
 """
 
 import json
@@ -58,11 +69,11 @@ async def query_vector_db(
     collection_name: str,
     query_vector: list[float],
 ) -> list[types.TextContent]:
-    """
-    Query the Milvus vector database.
+    """Query the Milvus vector database.
 
     In production this will use pymilvus to execute the search.
-    Currently returns a simulated successful search payload.
+    Currently returns a domain-blind passthrough response echoing the
+    collection name and query dimensions with an empty match set.
 
     Args:
         collection_name: The Milvus collection to search.
@@ -71,23 +82,14 @@ async def query_vector_db(
     Returns:
         A list containing a single TextContent with the search results.
     """
-    # Stub: simulated Milvus vector search result.
-    simulated_result = {
-        "status": "success",
+    # Domain-blind passthrough: echoes query metadata with empty matches.
+    # Production implementation connects to Milvus via credentials
+    # hydrated from secure .env injection.
+    passthrough_result = {
+        "status": "passthrough",
         "collection": collection_name,
         "query_dimensions": len(query_vector),
-        "matches": [
-            {
-                "id": "vec-001",
-                "score": 0.97,
-                "metadata": {"label": "clinical_note_embeddings"},
-            },
-            {
-                "id": "vec-002",
-                "score": 0.91,
-                "metadata": {"label": "fda_label_embeddings"},
-            },
-        ],
+        "matches": [],
     }
 
-    return [types.TextContent(type="text", text=json.dumps(simulated_result))]
+    return [types.TextContent(type="text", text=json.dumps(passthrough_result))]

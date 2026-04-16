@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc
+# Copyright (c) 2026 CoReason, Inc.
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -7,6 +7,20 @@
 # Commercial use beyond a 30-day trial requires a separate license
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
+
+"""Oracle Router — Asymmetric HITL Resolution Socket.
+
+Provisions a blind, asymmetric diagnostic socket for Human-in-the-Loop (HITL)
+resolution per LAW 8 (The Oracle Law). This module does not evaluate the context
+of OracleRequestEvents — it merely guarantees cryptographic delivery of the
+biological prior back into the deterministic Temporal execution loop.
+
+Probes the Tripartite Manifold boundaries to prove Ontological Isomorphism:
+  - Runtime Daemon reachability
+  - Telemetry Stream connectivity
+  - Ontology Schema hash integrity
+  - Epistemic Root alignment across local ↔ remote boundaries
+"""
 
 import hashlib
 import os
@@ -22,8 +36,13 @@ from coreason_ecosystem.orchestration.registry import (
 )
 
 
-async def execute_doctor() -> None:
-    """Prove Ontological Isomorphism across the Tripartite Manifold."""
+async def execute_oracle_diagnostic() -> None:
+    """Prove Ontological Isomorphism across the Tripartite Manifold.
+
+    Acts as a blind asymmetric socket: routes diagnostic probes to the
+    kinetic plane without interpreting semantic payloads. Human operators
+    consume the diagnostic table to resolve epistemic uncertainty.
+    """
     base_url = os.environ.get("COREASON_RUNTIME_URL", "http://localhost:8000").rstrip(
         "/"
     )

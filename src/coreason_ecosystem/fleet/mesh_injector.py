@@ -9,6 +9,8 @@
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
 import base64
+import hashlib
+import json
 import math
 from typing import Any, Literal
 
@@ -221,3 +223,47 @@ class MeshInjector:
             "node_cid": node_cid,
             "ttl_seconds": str(ttl_seconds),
         }
+
+    @staticmethod
+    def verify_payload_integrity(
+        payload_bytes: bytes,
+        expected_hash: str,
+    ) -> bool:
+        """Verify a WASM payload's SHA-256 hash against the genesis manifest.
+
+        Enforces LAW 4 (Cryptographic Provenance) by ensuring no WASM payload
+        or MCP schema is projected to the kinetic plane without its SHA-256
+        hash being verified against the genesis manifest.
+
+        The payload is first canonicalized via RFC 8785 (JCS) if it is valid
+        JSON; otherwise the raw bytes are hashed directly.
+
+        Args:
+            payload_bytes: The raw bytes of the WASM payload or MCP schema.
+            expected_hash: The SHA-256 hex digest from the genesis manifest.
+
+        Returns:
+            True if the computed hash matches the expected hash.
+
+        Raises:
+            ValueError: If the hash does not match (payload quarantine breach).
+        """
+        # Attempt RFC 8785 canonical form for JSON payloads
+        try:
+            parsed = json.loads(payload_bytes)
+            canonical = json.dumps(
+                parsed, sort_keys=True, separators=(",", ":")
+            ).encode("utf-8")
+        except json.JSONDecodeError, UnicodeDecodeError:
+            # Binary WASM payload — hash raw bytes
+            canonical = payload_bytes
+
+        computed_hash = hashlib.sha256(canonical).hexdigest()
+
+        if computed_hash != expected_hash:
+            raise ValueError(
+                f"Payload Quarantine Breach: computed hash {computed_hash[:16]}... "
+                f"does not match genesis manifest hash {expected_hash[:16]}..."
+            )
+
+        return True

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc
+# Copyright (c) 2026 CoReason, Inc.
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -8,10 +8,12 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-"""Sovereign Treasury State.
+"""Sovereign Treasury State Schema.
 
-Tracks the reinvestment capital pool used by the Von Neumann Expansion Loop
-to autonomously purchase physical GPU hardware when sufficient capital is aggregated.
+Defines the thermodynamic capital schema used by the Von Neumann Expansion Loop
+to track reinvestment capital. This module provides the schema definition only —
+instances are constructed and injected at runtime via the Governance Plane CLI,
+never stored as mutable module-level singletons.
 """
 
 from __future__ import annotations
@@ -21,9 +23,10 @@ from pydantic import BaseModel
 
 
 class TreasuryState(BaseModel):
-    """Mutable state tracking the swarm's reinvestment capital in Gwei."""
+    """Schema defining the swarm's reinvestment capital tracking in Gwei.
+
+    Instances are constructed at runtime boundaries and injected
+    into subsystems that require capital-aware decision making.
+    """
 
     reinvestment_capital_gwei: int = 0
-
-
-global_treasury: TreasuryState = TreasuryState()

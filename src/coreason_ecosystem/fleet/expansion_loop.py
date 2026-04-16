@@ -12,6 +12,9 @@
 
 Monitors the sovereign treasury and automatically purchases physical GPU hardware
 via Pulumi when sufficient reinvestment capital is aggregated.
+
+Treasury state is injected at construction time — never imported as a
+module-level mutable singleton.
 """
 
 from __future__ import annotations
@@ -19,7 +22,7 @@ from __future__ import annotations
 import asyncio
 from loguru import logger
 
-from coreason_ecosystem.economics.treasury import global_treasury
+from coreason_ecosystem.economics.treasury import TreasuryState
 
 # Hardware threshold (approx 10,000,000,000 Gwei / ~10 ETH at historical rates)
 HARDWARE_NODE_COST_GWEI = 10_000_000_000
@@ -40,8 +43,12 @@ class PulumiActuatorMock:
         )
 
 
-async def von_neumann_expansion_daemon() -> None:
-    """Continuous daemon loop assessing capital scaling capabilities."""
+async def von_neumann_expansion_daemon(treasury: TreasuryState) -> None:
+    """Continuous daemon loop assessing capital scaling capabilities.
+
+    Args:
+        treasury: The injected TreasuryState instance tracking reinvestment capital.
+    """
     logger.info(
         "[ExpansionLoop] Initiated Von Neumann daemon. Monitoring TreasuryState."
     )
@@ -51,7 +58,7 @@ async def von_neumann_expansion_daemon() -> None:
     while True:
         target_cost = HARDWARE_NODE_COST_GWEI + SAFETY_MARGIN_GWEI
 
-        reinvest_pool = global_treasury.reinvestment_capital_gwei
+        reinvest_pool = treasury.reinvestment_capital_gwei
 
         if reinvest_pool >= target_cost:
             logger.info(
@@ -60,14 +67,14 @@ async def von_neumann_expansion_daemon() -> None:
             logger.info("[ExpansionLoop] Submitting sovereign expansion intent...")
 
             # Debit the treasury
-            global_treasury.reinvestment_capital_gwei -= HARDWARE_NODE_COST_GWEI
+            treasury.reinvestment_capital_gwei -= HARDWARE_NODE_COST_GWEI
 
             # Provision infrastructure autonomously
             hardware_profile = "p4d.24xlarge"
             await actuator.provision_node(hardware_profile)
 
             logger.info(
-                f"[ExpansionLoop] Expansion successful. Remaining Reinvest Pool: {global_treasury.reinvestment_capital_gwei} Gwei"
+                f"[ExpansionLoop] Expansion successful. Remaining Reinvest Pool: {treasury.reinvestment_capital_gwei} Gwei"
             )
 
         else:
@@ -79,4 +86,4 @@ async def von_neumann_expansion_daemon() -> None:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    asyncio.run(von_neumann_expansion_daemon())
+    asyncio.run(von_neumann_expansion_daemon(TreasuryState()))

@@ -1,8 +1,19 @@
-"""
-Neo4j Sub-MCP — Sovereign Storage gatekeeper for SemanticNodeState.
+# Copyright (c) 2026 CoReason, Inc.
+#
+# This software is proprietary and dual-licensed
+# Licensed under the Prosperity Public License 3.0 (the "License")
+# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
+# For details, see the LICENSE file
+# Commercial use beyond a 30-day trial requires a separate license
+#
+# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
+
+"""Neo4j Sub-MCP — Sovereign Storage gatekeeper for SemanticNodeState.
 
 Zero-Trust boundary wrapper: swarm agents NEVER connect directly to Neo4j.
 All property graph queries are mediated through this MCP tool interface.
+This module is a domain-blind Cypher passthrough proxy — it routes queries
+without inspecting or hardcoding semantic payloads.
 """
 
 import json
@@ -51,11 +62,11 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
 async def query_property_graph(
     cypher_query: str,
 ) -> list[types.TextContent]:
-    """
-    Execute a Cypher query against the Neo4j property graph.
+    """Execute a Cypher query against the Neo4j property graph.
 
     In production this will use the neo4j driver to execute the query.
-    Currently returns a simulated successful Cypher execution payload.
+    Currently returns a domain-blind passthrough response echoing the
+    submitted Cypher query with an empty result set.
 
     Args:
         cypher_query: The Cypher query to execute.
@@ -63,14 +74,13 @@ async def query_property_graph(
     Returns:
         A list containing a single TextContent with the query results.
     """
-    # Stub: simulated Neo4j Cypher execution result.
-    simulated_result = {
-        "status": "success",
+    # Domain-blind passthrough: echoes query with empty results.
+    # Production implementation connects to the Neo4j driver via
+    # credentials hydrated from secure .env injection.
+    passthrough_result = {
+        "status": "passthrough",
         "cypher_query": cypher_query,
-        "records": [
-            {"n": {"label": "Concept", "id": "C0001", "name": "Aspirin"}},
-            {"n": {"label": "Concept", "id": "C0002", "name": "Ibuprofen"}},
-        ],
+        "records": [],
         "summary": {
             "nodes_created": 0,
             "relationships_created": 0,
@@ -78,4 +88,4 @@ async def query_property_graph(
         },
     }
 
-    return [types.TextContent(type="text", text=json.dumps(simulated_result))]
+    return [types.TextContent(type="text", text=json.dumps(passthrough_result))]

@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc
+# Copyright (c) 2026 CoReason, Inc.
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -7,6 +7,20 @@
 # Commercial use beyond a 30-day trial requires a separate license
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
+
+"""Telemetry Topology — Persistent Homology evaluator for SSE telemetry streams.
+
+Ingests continuous Server-Sent Events (SSE) telemetry from the Temporal kinetic
+plane and applies Topological Data Analysis (Persistent Homology) to detect
+structural anomalies in the swarm execution graph.
+
+Key invariants tracked:
+  - β₀ (Betti-0): Connected components — detects network fragmentation.
+  - β₁ (Betti-1): Cycles (1-holes) — detects causal paradoxes and feedback loops.
+
+This module is mathematically forbidden from relying on statistical means
+(e.g., CPU averages) per LAW 6 (The Telemetry Topology Law).
+"""
 
 import asyncio
 from typing import Any
@@ -21,7 +35,7 @@ from coreason_manifest.spec.ontology import (
 )
 
 
-# Prometheus metrics
+# Prometheus metrics — topological invariant gauges
 coreason_active_agents_total = Gauge(
     "coreason_active_agents_total",
     "Number of currently active agent workflows in the Temporal cluster.",
@@ -36,11 +50,14 @@ coreason_circuit_breakers_tripped = Counter(
 )
 
 
-class ThermodynamicMonitor:
-    """Polls the Temporal cluster for workflow execution states and exposes Prometheus metrics.
+class TelemetryTopologyMonitor:
+    """Evaluates SSE telemetry streams via Persistent Homology (TDA).
 
-    Bridges Temporal execution history (budget exhaustion, circuit breakers, active agents)
-    into Prometheus gauges and counters for Grafana dashboards.
+    Polls the Temporal cluster for workflow execution states and exposes
+    Prometheus metrics as topological invariants (Betti numbers) for
+    Grafana dashboards. Detects network fragmentation (β₀ discontinuities)
+    and causal paradoxes (β₁ cycle emergence) without imposing read-locks
+    on the kinetic plane.
     """
 
     def __init__(
@@ -68,7 +85,7 @@ class ThermodynamicMonitor:
         try:
             self._client = await Client.connect(self.temporal_host)
             logger.info(
-                f"ThermodynamicMonitor connected to Temporal at {self.temporal_host}"
+                f"TelemetryTopologyMonitor connected to Temporal at {self.temporal_host}"
             )
         except Exception as e:
             logger.warning(
@@ -76,7 +93,7 @@ class ThermodynamicMonitor:
             )
 
     async def _poll_workflows(self) -> None:
-        """Poll Temporal for open workflow executions and update Prometheus metrics."""
+        """Poll Temporal for open workflow executions and update topological invariants."""
         if not self._client:
             return
 
@@ -117,7 +134,7 @@ class ThermodynamicMonitor:
     async def stop(self) -> None:
         """Stop the polling loop."""
         self._running = False
-        logger.info("ThermodynamicMonitor stopped.")
+        logger.info("TelemetryTopologyMonitor stopped.")
 
     # Legacy compatibility methods
     async def get_queue_derivative(self) -> float:

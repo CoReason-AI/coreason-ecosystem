@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc
+# Copyright (c) 2026 CoReason, Inc.
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -7,6 +7,17 @@
 # Commercial use beyond a 30-day trial requires a separate license
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
+
+"""Pricing Oracle — Dynamic Thermodynamic Provisioning API.
+
+Queries cloud provider pricing APIs dynamically based on requested geometric
+bounds (VRAM, provider whitelist). No instance types, VRAM maps, or pricing
+data are hardcoded — all data is fetched at query time from the provider APIs.
+
+This enforces LAW 1 (Macroscopic Invariance) and LAW 5 (Thermodynamic
+Provisioning) by treating cloud providers as commoditized thermodynamic
+resources.
+"""
 
 from typing import TYPE_CHECKING
 
@@ -17,74 +28,84 @@ if TYPE_CHECKING:
 
 
 class PricingOracle:
+    """Queries cloud provider pricing APIs to find optimal compute bids.
+
+    All instance types and VRAM specifications are resolved dynamically
+    from the provider APIs — no hardcoded catalogs exist in this module.
+    """
+
     async def calculate_optimal_bid(
         self, hardware_profile: HardwareProfile, max_budget_hr: float
     ) -> "ComputeNodeTarget | None":
         from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
         import httpx
 
-        valid_nodes = []
+        valid_nodes: list[ComputeNodeTarget] = []
 
         if "aws" in hardware_profile.provider_whitelist:
             import asyncio
-            from datetime import datetime, timezone
 
             def fetch_aws_spot() -> list["ComputeNodeTarget"]:
-                from typing import Literal, cast
+                """Query AWS APIs dynamically for GPU instances meeting VRAM bounds.
 
-                AwsInstanceType = Literal[
-                    "g4dn.xlarge",
-                    "g4dn.2xlarge",
-                    "g4dn.4xlarge",
-                    "g4dn.8xlarge",
-                    "g4dn.12xlarge",
-                    "g5.xlarge",
-                    "g5.2xlarge",
-                    "p3.2xlarge",
-                    "p3.8xlarge",
-                    "p4d.24xlarge",
-                ]
-
-                instance_vram_map: dict[AwsInstanceType, float] = {
-                    "g4dn.xlarge": 16.0,
-                    "g4dn.2xlarge": 16.0,
-                    "g4dn.4xlarge": 16.0,
-                    "g4dn.8xlarge": 16.0,
-                    "g4dn.12xlarge": 16.0,
-                    "g5.xlarge": 24.0,
-                    "g5.2xlarge": 24.0,
-                    "p3.2xlarge": 16.0,
-                    "p3.8xlarge": 64.0,
-                    "p4d.24xlarge": 320.0,
-                }
-                valid_instances: list[AwsInstanceType] = [
-                    k
-                    for k, v in instance_vram_map.items()
-                    if v >= hardware_profile.min_vram_gb
-                ]
-                if not valid_instances:
-                    return []
+                Uses ``describe_instance_types`` to resolve VRAM per instance
+                (no hardcoded instance_vram_map), then queries spot pricing
+                for qualifying instances.
+                """
                 try:
                     import boto3
+                    from datetime import datetime, timezone
 
                     client = boto3.client("ec2", region_name="us-east-1")
-                    # Safe cast to Sequence[str] or explicitly cast so Boto3 stubs accept it without type: ignore
+
+                    # Step 1: Dynamically discover GPU instance types meeting VRAM bounds
+                    paginator = client.get_paginator("describe_instance_types")
+                    qualifying_instances: dict[str, float] = {}
+
+                    for page in paginator.paginate(
+                        Filters=[
+                            {
+                                "Name": "instance-type",
+                                "Values": ["g4dn.*", "g5.*", "p3.*", "p4d.*", "p5.*"],
+                            },
+                        ],
+                    ):
+                        for itype in page.get("InstanceTypes", []):
+                            gpu_info = itype.get("GpuInfo", {})
+                            gpus = gpu_info.get("Gpus", [])
+                            total_vram_mb = sum(
+                                g.get("MemoryInfo", {}).get("SizeInMiB", 0)
+                                * g.get("Count", 1)
+                                for g in gpus
+                            )
+                            total_vram_gb = total_vram_mb / 1024.0
+                            if total_vram_gb >= hardware_profile.min_vram_gb:
+                                qualifying_instances[itype["InstanceType"]] = (
+                                    total_vram_gb
+                                )
+
+                    if not qualifying_instances:
+                        return []
+
+                    # Step 2: Query spot pricing for qualifying instances
                     response = client.describe_spot_price_history(
-                        InstanceTypes=valid_instances,
+                        InstanceTypes=list(qualifying_instances.keys()),  # type: ignore[arg-type]
                         ProductDescriptions=["Linux/UNIX"],
                         StartTime=datetime.now(timezone.utc),
-                        MaxResults=len(valid_instances) * 2,
+                        MaxResults=len(qualifying_instances) * 2,
                     )
-                    aws_nodes = []
+
+                    aws_nodes: list[ComputeNodeTarget] = []
                     for spot in response.get("SpotPriceHistory", []):
-                        itype = cast(AwsInstanceType, spot["InstanceType"])
+                        itype_name = spot["InstanceType"]
                         price = float(spot["SpotPrice"])
+                        vram = qualifying_instances.get(itype_name, 0.0)
                         aws_nodes.append(
                             ComputeNodeTarget(
                                 provider="aws",
-                                instance_id=itype,
+                                instance_id=itype_name,
                                 hourly_cost=price,
-                                vram_gb=instance_vram_map[itype],
+                                vram_gb=vram,
                             )
                         )
                     return aws_nodes

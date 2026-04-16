@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc
+# Copyright (c) 2026 CoReason, Inc.
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -42,12 +42,9 @@ async def test_expansion_loop_below_threshold() -> None:
         if iteration_count >= 1:
             raise asyncio.CancelledError()
 
-    with (
-        patch("coreason_ecosystem.fleet.expansion_loop.global_treasury", mock_treasury),
-        patch("asyncio.sleep", side_effect=mock_sleep),
-    ):
+    with patch("asyncio.sleep", side_effect=mock_sleep):
         try:
-            await von_neumann_expansion_daemon()
+            await von_neumann_expansion_daemon(mock_treasury)
         except asyncio.CancelledError:
             pass
 
@@ -70,12 +67,11 @@ async def test_expansion_loop_above_threshold() -> None:
             raise asyncio.CancelledError()
 
     with (
-        patch("coreason_ecosystem.fleet.expansion_loop.global_treasury", mock_treasury),
         patch("asyncio.sleep", side_effect=mock_sleep),
         patch.object(PulumiActuatorMock, "provision_node", new_callable=AsyncMock),
     ):
         try:
-            await von_neumann_expansion_daemon()
+            await von_neumann_expansion_daemon(mock_treasury)
         except asyncio.CancelledError:
             pass
 
