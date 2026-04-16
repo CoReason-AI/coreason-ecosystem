@@ -32,6 +32,8 @@ dependencies = [
     "prometheus-client>=0.21.0",
     "temporalio>=1.9.0",
     "pyarrow>=19.0.0",
+    "mcp>=1.27.0",
+    "fastapi>=0.135.3",
 ]
 
 license = { file = "LICENSE" }
@@ -78,7 +80,7 @@ dev = [
 packages = ["src/coreason_ecosystem"]
 
 [tool.deptry]
-per_rule_ignores = {"DEP002" = ["click", "pulumi-aws", "pulumi-command"]}
+per_rule_ignores = {"DEP002" = ["click", "pulumi-aws", "pulumi-command"], "DEP003" = ["starlette"]}
 
 
 [project.urls]
@@ -136,6 +138,18 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "pyarrow.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "mcp.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "fastapi.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "starlette.*"
 ignore_missing_imports = true
 
 [tool.ruff.lint.isort]

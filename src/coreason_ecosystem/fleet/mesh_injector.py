@@ -106,7 +106,7 @@ class MeshInjector:
             [
                 "curl -fsSL https://get.docker.com | sh",
                 "systemctl enable --now docker",
-                f"docker run -d --net=host -e TEMPORAL_HOST={temporal_mesh_ip} -e WASM_MAX_PAGES={wasm_pages} ghcr.io/coreason/coreason-runtime:latest",
+                f"docker run -d --net=host -e TEMPORAL_HOST={temporal_mesh_ip} -e WASM_MAX_PAGES={wasm_pages} -e MASTER_MCP_URI=http://coreason-master-gateway:8000/sse ghcr.io/coreason/coreason-runtime:latest",
             ]
         )
 
@@ -114,7 +114,7 @@ class MeshInjector:
             [
                 "curl -fsSL https://get.docker.com | sh",
                 "systemctl enable --now docker",
-                f"docker run -d --net=host -e TEMPORAL_HOST={temporal_mesh_ip} -e WASM_MAX_PAGES={wasm_pages} ghcr.io/coreason/coreason-runtime:latest",
+                f"docker run -d --net=host -e TEMPORAL_HOST={temporal_mesh_ip} -e WASM_MAX_PAGES={wasm_pages} -e MASTER_MCP_URI=http://coreason-master-gateway:8000/sse ghcr.io/coreason/coreason-runtime:latest",
             ]
         )
 
