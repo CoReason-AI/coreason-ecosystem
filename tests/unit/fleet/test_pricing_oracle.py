@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc
+# Copyright (c) 2026 CoReason, Inc.
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -11,11 +11,12 @@
 import sys
 from collections.abc import Generator
 from unittest.mock import MagicMock
+
 import pytest
 
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
-from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile
 from coreason_manifest.spec.ontology import AcceleratorProfile  # type: ignore[attr-defined, unused-ignore]
+from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile
 
 
 @pytest.fixture
@@ -25,22 +26,44 @@ def oracle() -> PricingOracle:
 
 @pytest.fixture
 def mock_boto3() -> Generator[MagicMock, None, None]:
-    from moto import mock_aws
+    """Mock boto3 with both describe_instance_types paginator and spot pricing."""
+    mock_boto = MagicMock()
+    sys.modules["boto3"] = mock_boto
+    mock_client = MagicMock()
+    mock_boto.client.return_value = mock_client
 
-    with mock_aws():
-        mock_boto = MagicMock()
-        sys.modules["boto3"] = mock_boto
-        mock_client = MagicMock()
-        mock_boto.client.return_value = mock_client
-        mock_client.describe_spot_price_history.return_value = {
-            "SpotPriceHistory": [
-                {"InstanceType": "p3.2xlarge", "SpotPrice": "3.06"},
-                {"InstanceType": "g4dn.xlarge", "SpotPrice": "0.52"},
+    # Mock the paginator for describe_instance_types (dynamic VRAM discovery)
+    mock_paginator = MagicMock()
+    mock_client.get_paginator.return_value = mock_paginator
+    mock_paginator.paginate.return_value = [
+        {
+            "InstanceTypes": [
+                {
+                    "InstanceType": "g4dn.xlarge",
+                    "GpuInfo": {
+                        "Gpus": [{"Count": 1, "MemoryInfo": {"SizeInMiB": 16384}}]
+                    },
+                },
+                {
+                    "InstanceType": "p3.2xlarge",
+                    "GpuInfo": {
+                        "Gpus": [{"Count": 1, "MemoryInfo": {"SizeInMiB": 16384}}]
+                    },
+                },
             ]
         }
-        yield mock_boto
-        if "boto3" in sys.modules:
-            del sys.modules["boto3"]
+    ]
+
+    # Mock spot pricing
+    mock_client.describe_spot_price_history.return_value = {
+        "SpotPriceHistory": [
+            {"InstanceType": "p3.2xlarge", "SpotPrice": "3.06"},
+            {"InstanceType": "g4dn.xlarge", "SpotPrice": "0.52"},
+        ]
+    }
+    yield mock_boto
+    if "boto3" in sys.modules:
+        del sys.modules["boto3"]
 
 
 @pytest.mark.asyncio
@@ -85,3 +108,51 @@ async def test_calculate_optimal_bid_lowest_price(
     bid = await oracle.calculate_optimal_bid(profile, max_budget_hr=5.0)
     assert bid is not None
     assert bid.instance_id == "g4dn.xlarge"
+
+
+@pytest.mark.asyncio
+async def test_vfe_assessment_safe() -> None:
+    """VFE divergence below threshold does not trigger the guillotine."""
+    from coreason_ecosystem.fleet.pricing_oracle import assess_thermodynamic_expenditure
+
+    profile = HardwareProfile(min_vram_gb=1.0, provider_whitelist=["aws"])
+    assessment = await assess_thermodynamic_expenditure(
+        hardware_profile=profile,
+        max_budget_hr=10.0,
+        current_gpu_utilization=0.3,
+        current_api_cost_hourly=2.0,
+    )
+    assert not assessment.threshold_breached
+    assert assessment.vfe_divergence < 0.85
+
+
+@pytest.mark.asyncio
+async def test_vfe_assessment_breach() -> None:
+    """VFE divergence at or above threshold triggers the Economic Guillotine."""
+    from coreason_ecosystem.fleet.pricing_oracle import assess_thermodynamic_expenditure
+
+    profile = HardwareProfile(min_vram_gb=1.0, provider_whitelist=["aws"])
+    assessment = await assess_thermodynamic_expenditure(
+        hardware_profile=profile,
+        max_budget_hr=10.0,
+        current_gpu_utilization=0.95,
+        current_api_cost_hourly=9.0,
+    )
+    assert assessment.threshold_breached
+    assert assessment.vfe_divergence >= 0.85
+
+
+@pytest.mark.asyncio
+async def test_vfe_assessment_zero_budget() -> None:
+    """Zero budget forces cost_pressure to 1.0."""
+    from coreason_ecosystem.fleet.pricing_oracle import assess_thermodynamic_expenditure
+
+    profile = HardwareProfile(min_vram_gb=1.0, provider_whitelist=["aws"])
+    assessment = await assess_thermodynamic_expenditure(
+        hardware_profile=profile,
+        max_budget_hr=0.0,
+        current_gpu_utilization=0.0,
+    )
+    # cost_pressure = 1.0, vfe = 0.6*0.0 + 0.4*1.0 = 0.4
+    assert assessment.vfe_divergence == pytest.approx(0.4)
+    assert not assessment.threshold_breached

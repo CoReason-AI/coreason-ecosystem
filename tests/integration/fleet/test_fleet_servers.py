@@ -47,7 +47,11 @@ async def test_pulumi_actuator_compile_payload() -> None:
 
 @pytest.mark.asyncio
 async def test_daemon_no_viable_bid() -> None:
-    # Covers line 72 in daemon.py
+    # Covers the "no viable bid" branch in daemon.py
+    from unittest.mock import AsyncMock
+
+    from coreason_ecosystem.fleet.telemetry_topology import coreason_active_agents_total
+
     manager = AutonomicFleetManager(
         max_budget_hr=1.0,
         polling_interval_sec=1,
@@ -56,12 +60,19 @@ async def test_daemon_no_viable_bid() -> None:
         temporal_mesh_ip="10.0.0.1",
     )
 
-    # We explicitly throw a cancel error to jump out of the infinite while true loop after 1 pass
-    async def get_q() -> float:
-        manager._running = False
-        return 1.5
+    # Set β₀ > 0 so scale-up logic triggers
+    coreason_active_agents_total.set(1)
 
-    with patch.object(manager.monitor, "get_queue_derivative", side_effect=get_q):
-        with patch.object(manager.oracle, "calculate_optimal_bid", return_value=None):
-            await manager.start()
-            # If it passes without exception, coverage on line 72 is hit
+    setattr(manager.monitor, "_poll_workflows", AsyncMock())
+
+    async def stop_loop() -> None:
+        manager._running = False
+
+    with patch.object(
+        manager.oracle,
+        "calculate_optimal_bid",
+        side_effect=stop_loop,
+        return_value=None,
+    ):
+        await manager.start()
+        # If it passes without exception, the no-bid branch was hit

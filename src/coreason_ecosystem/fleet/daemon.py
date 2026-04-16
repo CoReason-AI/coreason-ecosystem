@@ -8,6 +8,14 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
+"""Autonomic Fleet Manager — Thermodynamic Provisioning Daemon.
+
+Continuously polls the TelemetryTopologyMonitor for the β₀ Betti number
+(connected components) and drives scale-up/scale-down actuation via the
+PricingOracle and PulumiFleetDriver. All scaling decisions are derived
+from topological invariants — no scalar metrics are consumed.
+"""
+
 import asyncio
 from pathlib import Path
 
@@ -15,10 +23,25 @@ from loguru import logger
 
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
 from coreason_ecosystem.fleet.pulumi_actuator import PulumiFleetDriver
-from coreason_ecosystem.fleet.temporal_monitor import ThermodynamicMonitor
+from coreason_ecosystem.fleet.telemetry_topology import (
+    TelemetryTopologyMonitor,
+    coreason_active_agents_total,
+)
+from coreason_manifest.spec.ontology import (
+    SpatialHardwareProfile as HardwareProfile,
+    EpistemicSecurityProfile as SecurityProfile,
+)
 
 
 class AutonomicFleetManager:
+    """Thermodynamic provisioning daemon.
+
+    Derives scaling decisions from the topological invariants exposed by
+    the TelemetryTopologyMonitor. ``coreason_active_agents_total`` holds β₀
+    (connected components). β₀ > 0 means active workflows requiring compute;
+    β₀ == 0 means the swarm is idle and resources can be reclaimed.
+    """
+
     def __init__(
         self,
         max_budget_hr: float,
@@ -33,7 +56,7 @@ class AutonomicFleetManager:
         self.temporal_mesh_ip = temporal_mesh_ip
         self.driver = PulumiFleetDriver(templates_dir=templates_path)
         self.oracle = PricingOracle()
-        self.monitor = ThermodynamicMonitor()
+        self.monitor = TelemetryTopologyMonitor()
         self._running = False
 
     async def start(self) -> None:
@@ -42,37 +65,39 @@ class AutonomicFleetManager:
 
         while self._running:
             try:
-                derivative = await self.monitor.get_queue_derivative()
-                logger.debug(f"Queue Derivative: {derivative}")
+                # Poll the topological state
+                await self.monitor._poll_workflows()
 
-                if derivative > 0:
-                    # Scale Up Logic
-                    profile = await self.monitor.get_active_task_hardware_profile()
-                    security_profile = (
-                        await self.monitor.get_active_task_security_profile()
+                # β₀ (connected components) is stored in coreason_active_agents_total
+                betti_0 = coreason_active_agents_total._value.get()
+
+                logger.debug(f"Topological state: β₀={betti_0}")
+
+                if betti_0 > 0:
+                    # Active workflow components — provision compute.
+                    profile = HardwareProfile(
+                        min_vram_gb=1.0, provider_whitelist=["aws", "vast"]
                     )
+                    security_profile = SecurityProfile(network_isolation=True)
 
-                    if profile and security_profile:
-                        bid = await self.oracle.calculate_optimal_bid(
-                            profile, self.max_budget_hr
+                    bid = await self.oracle.calculate_optimal_bid(
+                        profile, self.max_budget_hr
+                    )
+                    if bid:
+                        logger.info(f"Optimal Bid Found: {bid}. Provisioning...")
+
+                        bid.hardware_profile = profile
+                        bid.security_profile = security_profile
+                        bid.mesh_auth_key = self.mesh_auth_key
+                        bid.temporal_mesh_ip = self.temporal_mesh_ip
+
+                        result = await self.driver.provision_node(bid)
+                        logger.info(f"Provisioning Complete: {result['stack_name']}")
+                    else:
+                        logger.warning(
+                            "No viable bids found under budget for current requirements."
                         )
-                        if bid:
-                            logger.info(f"Optimal Bid Found: {bid}. Provisioning...")
-
-                            bid.hardware_profile = profile
-                            bid.security_profile = security_profile
-                            bid.mesh_auth_key = self.mesh_auth_key
-                            bid.temporal_mesh_ip = self.temporal_mesh_ip
-
-                            result = await self.driver.provision_node(bid)
-                            logger.info(
-                                f"Provisioning Complete: {result['stack_name']}"
-                            )
-                        else:
-                            logger.warning(
-                                "No viable bids found under budget for current requirements."
-                            )
-                elif derivative == 0:
+                elif betti_0 == 0:
                     # Scale Down Logic
                     active_stacks = await self.driver.reconcile_state()
                     if active_stacks:
@@ -83,7 +108,6 @@ class AutonomicFleetManager:
                         logger.info(
                             f"Scale to zero triggered. Destroying {stack_to_destroy} on {provider}..."
                         )
-                        # Pass the dynamically resolved provider to the actuator
                         await self.driver.destroy_node(stack_to_destroy, provider)  # type: ignore[arg-type]
                     else:
                         logger.debug(

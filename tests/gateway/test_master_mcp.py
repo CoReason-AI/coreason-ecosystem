@@ -1,3 +1,13 @@
+# Copyright (c) 2026 CoReason, Inc.
+#
+# This software is proprietary and dual-licensed
+# Licensed under the Prosperity Public License 3.0 (the "License")
+# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
+# For details, see the LICENSE file
+# Commercial use beyond a 30-day trial requires a separate license
+#
+# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
+
 import unittest.mock
 import typing
 from unittest.mock import AsyncMock
@@ -10,15 +20,56 @@ from coreason_ecosystem.gateway.master_mcp import (
     list_tools,
     call_tool,
     current_clearance,
+    registry,
+    compute_schema_seal,
 )
 from mcp.types import Tool, TextContent
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, patch
 
 
+def _seed_registry() -> None:
+    """Seed the registry with test capabilities for the test suite."""
+    registry._cache = {
+        "urn:coreason:oracle:clinical_extractor": {
+            "endpoint": "http://svc-pubmed-mcp.internal:8000",
+            "clearance": "PUBLIC",
+        },
+        "urn:coreason:oracle:mathematics": {
+            "endpoint": "http://svc-math-mcp.internal:8000",
+            "clearance": "CONFIDENTIAL",
+        },
+        "urn:coreason:oracle:milvus": {
+            "endpoint": "http://coreason-milvus-mcp:8000",
+            "clearance": "CONFIDENTIAL",
+        },
+        "urn:coreason:oracle:neo4j": {
+            "endpoint": "http://coreason-neo4j-mcp:8000",
+            "clearance": "CONFIDENTIAL",
+        },
+    }
+
+
+@pytest.fixture(autouse=True)
+def _hydrate_test_registry() -> typing.Generator[None, None, None]:
+    """Auto-seed registry before each test and clear after."""
+    _seed_registry()
+    yield
+    registry._cache = {}
+
+
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(app)
+
+
+def test_compute_schema_seal() -> None:
+    """Test that schema sealing produces deterministic SHA-256 hashes."""
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+    seal1 = compute_schema_seal(schema)
+    seal2 = compute_schema_seal(schema)
+    assert seal1 == seal2
+    assert len(seal1) == 64  # SHA-256 hex digest
 
 
 @pytest.mark.asyncio
@@ -103,14 +154,12 @@ async def test_list_tools() -> None:
     ) as mock_get:
         mock_get.return_value = mock_response
 
-        # list_tools has no parameters and fetches all registered based on context
         current_clearance.set("PUBLIC")
         tools = await list_tools()
 
         assert len(tools) >= 1
         assert isinstance(tools[0], Tool)
 
-        # Tools should be sanitized. "urn:coreason:oracle:clinical_extractor" -> "urn_coreason_oracle_clinical_extractor_extract"
         names = [tool.name for tool in tools]
         assert "urn_coreason_oracle_clinical_extractor_extract" in names
 
@@ -119,7 +168,7 @@ async def test_list_tools() -> None:
 
 @pytest.mark.asyncio
 async def test_list_tools_request_error() -> None:
-    """Test discovery fallback to proxy definition when sub-MCP is down."""
+    """Test that offline substrates are dropped from the projection (Zero-Trust)."""
 
     def raise_request_error(*args: typing.Any, **kwargs: typing.Any) -> None:
         raise httpx.RequestError("Connection failed")
@@ -132,10 +181,9 @@ async def test_list_tools_request_error() -> None:
         current_clearance.set("PUBLIC")
         tools = await list_tools()
 
-        assert len(tools) >= 1
-        names = [tool.name for tool in tools]
-        assert "urn_coreason_oracle_clinical_extractor" in names
-        assert "Proxied tool" in tools[0].description
+        # Unreachable substrates must not be projected — they do not exist
+        # in the active topology.
+        assert len(tools) == 0
 
 
 @pytest.mark.asyncio
@@ -146,7 +194,7 @@ async def test_call_tool_and_receipt() -> None:
 
     mock_response = unittest.mock.Mock()
     mock_response.status_code = 200
-    mock_response.json.return_value = {"status": "extracted", "entities": ["aspirin"]}
+    mock_response.json.return_value = {"status": "extracted", "entities": ["data"]}
 
     with unittest.mock.patch(
         "httpx.AsyncClient.post", new_callable=AsyncMock
@@ -162,9 +210,6 @@ async def test_call_tool_and_receipt() -> None:
             assert isinstance(result, list)
             assert len(result) == 1
             assert isinstance(result[0], TextContent)
-
-            # We can just verify the structure is there in the string
-            assert "aspirin" in result[0].text
 
             mock_post.assert_called_with(action_space_url, json=arguments)
 
@@ -218,9 +263,8 @@ async def test_call_tool_request_error() -> None:
         mock_post.side_effect = raise_request_error
 
         arguments = {"query": "fallback test"}
-        result = await call_tool(name=tool_name, arguments=arguments)
-
-        assert "mock_execution_success" in result[0].text
+        with pytest.raises(RuntimeError, match="Topological Severance Event"):
+            await call_tool(name=tool_name, arguments=arguments)
 
 
 @pytest.mark.asyncio

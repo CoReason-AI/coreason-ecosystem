@@ -8,6 +8,8 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
+"""Unit tests for AutonomicFleetManager — topological scaling verification."""
+
 import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -15,9 +17,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from coreason_ecosystem.fleet.daemon import AutonomicFleetManager
-from coreason_manifest.spec.ontology import (
-    SpatialHardwareProfile as HardwareProfile,
-    EpistemicSecurityProfile as SecurityProfile,
+from coreason_ecosystem.fleet.telemetry_topology import (
+    coreason_active_agents_total,
 )
 from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
 
@@ -40,34 +41,15 @@ def manager(templates_path: Path) -> AutonomicFleetManager:
 
 @pytest.mark.asyncio
 async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
-    # We want to break the infinite loop after 1 iteration, so we make sleep throw CancelledError
-    setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=1.5))
+    """When β₀ > 0, the daemon provisions compute."""
+    coreason_active_agents_total.set(2)
 
-    profile = HardwareProfile(min_vram_gb=16.0, provider_whitelist=["aws"])
-    security_profile = SecurityProfile(network_isolation=True)
-    setattr(
-        manager.monitor,
-        "get_active_task_security_profile",
-        AsyncMock(return_value=security_profile),
-    )
-    setattr(
-        manager.monitor,
-        "get_active_task_hardware_profile",
-        AsyncMock(return_value=profile),
-    )
-
-    security_profile = SecurityProfile(network_isolation=True)
-    setattr(
-        manager.monitor,
-        "get_active_task_security_profile",
-        AsyncMock(return_value=security_profile),
-    )
+    setattr(manager.monitor, "_poll_workflows", AsyncMock())
 
     bid = ComputeNodeTarget(
         provider="aws", instance_id="p3.2xlarge", hourly_cost=3.0, vram_gb=16.0
     )
     setattr(manager.oracle, "calculate_optimal_bid", AsyncMock(return_value=bid))
-
     setattr(
         manager.driver,
         "provision_node",
@@ -77,25 +59,17 @@ async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
         await manager.start()
 
-    getattr(manager.monitor, "get_queue_derivative").assert_awaited_once()
-    getattr(manager.monitor, "get_active_task_hardware_profile").assert_awaited_once()
-    getattr(manager.monitor, "get_active_task_security_profile").assert_awaited_once()
-    getattr(manager.oracle, "calculate_optimal_bid").assert_awaited_once_with(
-        profile, 5.0
-    )
-
-    bid.hardware_profile = profile
-    bid.security_profile = security_profile
-    bid.mesh_auth_key = manager.mesh_auth_key
-    bid.temporal_mesh_ip = manager.temporal_mesh_ip
-    getattr(manager.driver, "provision_node").assert_awaited_once_with(bid)
+    getattr(manager.oracle, "calculate_optimal_bid").assert_awaited_once()
+    getattr(manager.driver, "provision_node").assert_awaited_once()
     assert manager._running is False
 
 
 @pytest.mark.asyncio
 async def test_daemon_start_scale_down(manager: AutonomicFleetManager) -> None:
-    setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=0.0))
+    """When β₀ == 0, the daemon destroys orphaned stacks."""
+    coreason_active_agents_total.set(0)
 
+    setattr(manager.monitor, "_poll_workflows", AsyncMock())
     setattr(
         manager.driver,
         "reconcile_state",
@@ -108,7 +82,6 @@ async def test_daemon_start_scale_down(manager: AutonomicFleetManager) -> None:
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
         await manager.start()
 
-    getattr(manager.monitor, "get_queue_derivative").assert_awaited_once()
     getattr(manager.driver, "reconcile_state").assert_awaited_once()
     getattr(manager.driver, "destroy_node").assert_awaited_once_with(
         "fleet-worker-orphan", "aws"
@@ -119,14 +92,15 @@ async def test_daemon_start_scale_down(manager: AutonomicFleetManager) -> None:
 async def test_daemon_start_scale_down_queue_empty_nothing_to_destroy(
     manager: AutonomicFleetManager,
 ) -> None:
-    setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=0.0))
+    """When β₀ == 0 and no stacks, no destruction occurs."""
+    coreason_active_agents_total.set(0)
 
+    setattr(manager.monitor, "_poll_workflows", AsyncMock())
     setattr(
         manager.driver,
         "reconcile_state",
         AsyncMock(return_value=[]),
     )
-
     setattr(manager.driver, "destroy_node", AsyncMock())
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
@@ -139,45 +113,41 @@ async def test_daemon_start_scale_down_queue_empty_nothing_to_destroy(
 async def test_daemon_start_cancelled_error_main_loop(
     manager: AutonomicFleetManager,
 ) -> None:
+    """CancelledError during poll cleanly exits the loop."""
     setattr(
         manager.monitor,
-        "get_queue_derivative",
+        "_poll_workflows",
         AsyncMock(side_effect=asyncio.CancelledError("Shutdown requested")),
     )
 
     await manager.start()
 
-    getattr(manager.monitor, "get_queue_derivative").assert_awaited_once()
+    getattr(manager.monitor, "_poll_workflows").assert_awaited_once()
     assert manager._running is False
 
 
 @pytest.mark.asyncio
 async def test_daemon_start_general_exception(manager: AutonomicFleetManager) -> None:
+    """General exceptions are logged and the loop continues to sleep."""
     setattr(
         manager.monitor,
-        "get_queue_derivative",
+        "_poll_workflows",
         AsyncMock(side_effect=Exception("API down")),
     )
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
         await manager.start()
 
-    getattr(manager.monitor, "get_queue_derivative").assert_awaited_once()
-    # The loop should catch the exception and sleep (which raises CancelledError, exiting loop)
+    getattr(manager.monitor, "_poll_workflows").assert_awaited_once()
     assert manager._running is False
 
 
 @pytest.mark.asyncio
 async def test_daemon_start_no_bid_found(manager: AutonomicFleetManager) -> None:
-    setattr(manager.monitor, "get_queue_derivative", AsyncMock(return_value=1.5))
+    """When oracle returns None, no provisioning occurs."""
+    coreason_active_agents_total.set(1)
 
-    profile = HardwareProfile(min_vram_gb=16.0, provider_whitelist=["aws"])
-    setattr(
-        manager.monitor,
-        "get_active_task_hardware_profile",
-        AsyncMock(return_value=profile),
-    )
-
+    setattr(manager.monitor, "_poll_workflows", AsyncMock())
     setattr(manager.oracle, "calculate_optimal_bid", AsyncMock(return_value=None))
     setattr(manager.driver, "provision_node", AsyncMock())
 

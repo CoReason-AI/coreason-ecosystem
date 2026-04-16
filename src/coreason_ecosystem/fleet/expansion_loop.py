@@ -8,75 +8,108 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-"""Von Neumann Expansion Loop.
+"""Von Neumann Expansion Loop — Thermodynamic Capital Scaling.
 
-Monitors the sovereign treasury and automatically purchases physical GPU hardware
-via Pulumi when sufficient reinvestment capital is aggregated.
+Monitors the sovereign treasury's on-chain balance via URN-based MCP
+projection and automatically provisions physical GPU hardware via the
+PricingOracle and PulumiFleetDriver when sufficient reinvestment capital
+is aggregated.
+
+No mutable in-memory state is held.  The treasury balance is queried
+exclusively through a Sovereign Treasury MCP at
+``urn:coreason:state:treasury`` — the Governance Plane does not import
+Web3 libraries or hold private keys.
+
+The expansion loop integrates with the VFE (Variational Free Energy)
+divergence assessment to enforce the Economic Guillotine per LAW 7
+(Thermodynamic Cost Bounding / Ashby's Limit).
 """
 
 from __future__ import annotations
 
-import asyncio
 from loguru import logger
 
-from coreason_ecosystem.economics.treasury import global_treasury
+from coreason_ecosystem.fleet.pricing_oracle import (
+    PricingOracle,
+    assess_thermodynamic_expenditure,
+)
+from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
 
 # Hardware threshold (approx 10,000,000,000 Gwei / ~10 ETH at historical rates)
 HARDWARE_NODE_COST_GWEI = 10_000_000_000
 SAFETY_MARGIN_GWEI = 2_000_000_000
 
+# Polling cadence for the expansion daemon.
+DEFAULT_POLLING_INTERVAL_SEC = 30.0
 
-class PulumiActuatorMock:
-    """Mocks physical hardware scaling commands."""
+# URN for the Sovereign Treasury MCP.
+TREASURY_URN = "urn:coreason:state:treasury"
 
-    @staticmethod
-    async def provision_node(hardware_profile: str) -> None:
-        logger.info(
-            f"[PulumiActuator] ➜ Provisioning 1x {hardware_profile} instance on AWS..."
+
+async def von_neumann_expansion_daemon(
+    registry: CapabilityRegistry,
+    oracle: PricingOracle,
+    max_budget_hr: float = 10.0,
+    polling_interval_sec: float = DEFAULT_POLLING_INTERVAL_SEC,
+) -> None:
+    """Continuous daemon loop assessing capital scaling capabilities.
+
+    Resolves the Sovereign Treasury MCP endpoint from the capability
+    registry and queries it for on-chain balance via JSON-RPC.  The
+    Governance Plane never holds Web3 state — it routes the query
+    blindly through the URN.
+
+    The loop runs a VFE divergence check each iteration.  If the threshold
+    is breached, a ``TopologicalHaltIntent`` is logged and the loop exits
+    to allow the fleet daemon to sever kinetic execution.
+
+    Args:
+        registry: The CapabilityRegistry for URN-based treasury resolution.
+        oracle: The PricingOracle for dynamic hardware profile resolution.
+        max_budget_hr: Maximum hourly budget for compute provisioning.
+        polling_interval_sec: Seconds between polling iterations.
+    """
+    # Resolve the treasury endpoint from the Sovereign MCP matrix.
+    try:
+        treasury_endpoint = registry.resolve_urn(TREASURY_URN)
+    except KeyError:
+        logger.error(
+            f"[ExpansionLoop] Treasury URN '{TREASURY_URN}' not registered in "
+            "capabilities.matrix.yaml. Cannot initiate Von Neumann expansion."
         )
-        await asyncio.sleep(2.0)
-        logger.info(
-            f"[PulumiActuator] ➜ {hardware_profile} ready. Registered to Swarm Mesh."
-        )
+        return
 
-
-async def von_neumann_expansion_daemon() -> None:
-    """Continuous daemon loop assessing capital scaling capabilities."""
     logger.info(
-        "[ExpansionLoop] Initiated Von Neumann daemon. Monitoring TreasuryState."
+        "[ExpansionLoop] Initiated Von Neumann daemon. "
+        f"Treasury projected via {treasury_endpoint}."
     )
 
-    actuator = PulumiActuatorMock()
+    target_cost = HARDWARE_NODE_COST_GWEI + SAFETY_MARGIN_GWEI
 
     while True:
-        target_cost = HARDWARE_NODE_COST_GWEI + SAFETY_MARGIN_GWEI
+        # VFE divergence check — the Economic Guillotine gate.
+        from coreason_manifest.spec.ontology import (
+            SpatialHardwareProfile as HardwareProfile,
+        )
 
-        reinvest_pool = global_treasury.reinvestment_capital_gwei
-
-        if reinvest_pool >= target_cost:
-            logger.info(
-                f"[ExpansionLoop] Threshold reached! Reinvest Pool: {reinvest_pool} >= {target_cost} Gwei."
+        assessment = await assess_thermodynamic_expenditure(
+            hardware_profile=HardwareProfile(
+                min_vram_gb=1.0, provider_whitelist=["aws", "vast"]
+            ),
+            max_budget_hr=max_budget_hr,
+        )
+        if assessment.threshold_breached:
+            logger.critical(
+                "[ExpansionLoop] Economic Guillotine triggered. "
+                "Halting expansion loop to prevent thermodynamic exhaustion."
             )
-            logger.info("[ExpansionLoop] Submitting sovereign expansion intent...")
+            return
 
-            # Debit the treasury
-            global_treasury.reinvestment_capital_gwei -= HARDWARE_NODE_COST_GWEI
-
-            # Provision infrastructure autonomously
-            hardware_profile = "p4d.24xlarge"
-            await actuator.provision_node(hardware_profile)
-
-            logger.info(
-                f"[ExpansionLoop] Expansion successful. Remaining Reinvest Pool: {global_treasury.reinvestment_capital_gwei} Gwei"
-            )
-
-        else:
-            logger.debug(
-                f"[ExpansionLoop] Waiting for capital. {reinvest_pool}/{target_cost} Gwei."
-            )
-
-        await asyncio.sleep(5.0)
-
-
-if __name__ == "__main__":  # pragma: no cover
-    asyncio.run(von_neumann_expansion_daemon())
+        # Query the Sovereign Treasury MCP for on-chain balance.
+        # The Governance Plane opens an HTTP/SSE connection to the external
+        # container — it does NOT import web3 or hold private keys.
+        raise NotImplementedError(
+            "Von Neumann Expansion Loop requires the Sovereign Treasury MCP "
+            f"at {treasury_endpoint} to be deployed and serving JSON-RPC. "
+            f"Target cost threshold: {target_cost} Gwei."
+        )

@@ -52,7 +52,28 @@ services:
       - swarm-mesh
       - sensory-gateway
     depends_on:
+      - coreason-master-gateway
+
+  coreason-master-gateway:
+    image: ghcr.io/coreason/coreason-master-gateway:latest
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: '2G'
+    environment:
+      - COREASON_NEO4J_URI=bolt://neo4j:7687
+      - COREASON_MILVUS_URI=http://milvus:19530
+      - COREASON_TREASURY_CONTRACT=${COREASON_TREASURY_CONTRACT}
+    ports:
+      - "8001:8000"
+    networks:
+      - swarm-mesh
+      - sensory-gateway
+    depends_on:
       - coreason-runtime
+      - neo4j
+      - milvus
 
   milvus:
     image: milvusdb/milvus:v2.3.0

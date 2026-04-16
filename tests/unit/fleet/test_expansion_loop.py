@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc
+# Copyright (c) 2026 CoReason, Inc.
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -8,83 +8,80 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-import asyncio
-from unittest.mock import AsyncMock, patch
-
 import pytest
 
-from coreason_ecosystem.economics.treasury import TreasuryState
 from coreason_ecosystem.fleet.expansion_loop import (
     HARDWARE_NODE_COST_GWEI,
     SAFETY_MARGIN_GWEI,
-    PulumiActuatorMock,
+    TREASURY_URN,
     von_neumann_expansion_daemon,
 )
+from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
+from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
+
+
+def _seeded_registry() -> CapabilityRegistry:
+    """Create a registry with the Sovereign Treasury MCP registered."""
+    registry = CapabilityRegistry()
+    registry._cache = {
+        TREASURY_URN: {
+            "endpoint": "http://treasury-mcp:8000",
+            "clearance": "RESTRICTED",
+            "epistemic_status": "PUBLISHED",
+        },
+    }
+    return registry
 
 
 @pytest.mark.asyncio
-async def test_pulumi_actuator_mock() -> None:
-    """Test the PulumiActuatorMock.provision_node method."""
-    with patch("asyncio.sleep", new_callable=AsyncMock):
-        await PulumiActuatorMock.provision_node("p4d.24xlarge")
+async def test_expansion_loop_raises_not_implemented() -> None:
+    """Expansion loop raises NotImplementedError until Sovereign Treasury MCP is deployed."""
+    registry = _seeded_registry()
+    oracle = PricingOracle()
+
+    with pytest.raises(NotImplementedError, match="Sovereign Treasury MCP"):
+        await von_neumann_expansion_daemon(registry, oracle)
 
 
 @pytest.mark.asyncio
-async def test_expansion_loop_below_threshold() -> None:
-    """Test expansion loop when capital is below the threshold."""
-    mock_treasury = TreasuryState(reinvestment_capital_gwei=0)
+async def test_expansion_loop_economic_guillotine() -> None:
+    """When VFE threshold is breached, the daemon exits cleanly (no NotImplementedError)."""
+    from unittest.mock import AsyncMock, patch
 
-    iteration_count = 0
+    from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
 
-    async def mock_sleep(_: float) -> None:
-        nonlocal iteration_count
-        iteration_count += 1
-        if iteration_count >= 1:
-            raise asyncio.CancelledError()
+    registry = _seeded_registry()
+    oracle = PricingOracle()
 
-    with (
-        patch("coreason_ecosystem.fleet.expansion_loop.global_treasury", mock_treasury),
-        patch("asyncio.sleep", side_effect=mock_sleep),
+    mock_assessment = ThermodynamicAssessment(
+        gpu_utilization=0.95,
+        token_velocity=100.0,
+        api_cost_hourly=50.0,
+        vfe_divergence=0.99,
+        threshold_breached=True,
+    )
+
+    with patch(
+        "coreason_ecosystem.fleet.expansion_loop.assess_thermodynamic_expenditure",
+        new_callable=AsyncMock,
+        return_value=mock_assessment,
     ):
-        try:
-            await von_neumann_expansion_daemon()
-        except asyncio.CancelledError:
-            pass
-
-    # Capital should remain unchanged since threshold was not met
-    assert mock_treasury.reinvestment_capital_gwei == 0
+        # Should NOT raise — the guillotine triggers a clean return.
+        await von_neumann_expansion_daemon(registry, oracle)
 
 
 @pytest.mark.asyncio
-async def test_expansion_loop_above_threshold() -> None:
-    """Test expansion loop when capital exceeds the threshold."""
-    target_cost = HARDWARE_NODE_COST_GWEI + SAFETY_MARGIN_GWEI
-    mock_treasury = TreasuryState(reinvestment_capital_gwei=target_cost)
+async def test_expansion_loop_missing_treasury_urn() -> None:
+    """When treasury URN is not registered, daemon exits cleanly with a log."""
+    empty_registry = CapabilityRegistry()
+    oracle = PricingOracle()
 
-    iteration_count = 0
-
-    async def mock_sleep(_: float) -> None:
-        nonlocal iteration_count
-        iteration_count += 1
-        if iteration_count >= 1:
-            raise asyncio.CancelledError()
-
-    with (
-        patch("coreason_ecosystem.fleet.expansion_loop.global_treasury", mock_treasury),
-        patch("asyncio.sleep", side_effect=mock_sleep),
-        patch.object(PulumiActuatorMock, "provision_node", new_callable=AsyncMock),
-    ):
-        try:
-            await von_neumann_expansion_daemon()
-        except asyncio.CancelledError:
-            pass
-
-    # Capital should be drawn down by HARDWARE_NODE_COST_GWEI
-    expected = target_cost - HARDWARE_NODE_COST_GWEI
-    assert mock_treasury.reinvestment_capital_gwei == expected
+    # Should NOT raise — logs error and returns.
+    await von_neumann_expansion_daemon(empty_registry, oracle)
 
 
 def test_constants() -> None:
     """Test that constants are sensible values."""
     assert HARDWARE_NODE_COST_GWEI == 10_000_000_000
     assert SAFETY_MARGIN_GWEI == 2_000_000_000
+    assert TREASURY_URN == "urn:coreason:state:treasury"

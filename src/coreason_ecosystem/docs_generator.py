@@ -13,6 +13,8 @@
 Dynamically parses coreason_ontology.schema.json and generates
 static MkDocs/Material documentation portals. Per RULE 2 (Zero-Waste Mandate),
 documentation is a mathematical derivative of the codebase, never a manual transcription.
+
+This generator is strictly read-only — it MUST NOT modify the ontology schema.
 """
 
 from __future__ import annotations
@@ -28,6 +30,9 @@ def generate_dynamic_docs(
     output_dir: Path | None = None,
 ) -> None:
     """Generate MkDocs documentation from the ontological schema.
+
+    This function is purely read-only. It consumes the schema and emits
+    documentation — it never writes back to the schema file.
 
     Args:
         schema_path: Path to coreason_ontology.schema.json. Defaults to CWD.
@@ -47,34 +52,6 @@ def generate_dynamic_docs(
             "Run 'coreason sync' to generate it."
         )
         return
-
-    def sync_governance_schemas(path: Path) -> None:
-        from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
-        from coreason_ecosystem.economics.treasury import TreasuryState
-
-        with path.open("r", encoding="utf-8") as file:
-            schema_data = json.load(file)
-
-        if "$defs" not in schema_data:
-            schema_data["$defs"] = {}
-
-        schema_changed = False
-        from typing import Any, cast
-
-        for model in [ComputeNodeTarget, TreasuryState]:
-            model_cls = cast(Any, model)
-            sub_schema = model_cls.model_json_schema()
-            name = sub_schema.get("title", model.__name__)
-            if schema_data["$defs"].get(name) != sub_schema:
-                schema_data["$defs"][name] = sub_schema
-                schema_changed = True
-
-        if schema_changed:
-            with path.open("w", encoding="utf-8") as file:
-                json.dump(schema_data, file, indent=4)
-            logger.info("Governance Pydantic schema synchronized.")
-
-    sync_governance_schemas(schema_path)
 
     with schema_path.open("r", encoding="utf-8") as f:
         schema = json.load(f)
