@@ -9,28 +9,14 @@
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
-from coreason_ecosystem.web3.treasury_manager import (
-    MockWeb3Provider,
-    TreasuryManager,
-)
-
-
-@pytest.mark.asyncio
-async def test_mock_web3_provider_broadcast() -> None:
-    """Test MockWeb3Provider broadcasts a transaction and returns a hash."""
-    with patch("asyncio.sleep", new_callable=AsyncMock):
-        tx_hash = await MockWeb3Provider.broadcast_tx(
-            "0xContract", {"function": "test"}
-        )
-    assert tx_hash.startswith("0x")
-    assert len(tx_hash) == 18  # 0x + 16 hex chars
+from coreason_ecosystem.web3.treasury_manager import TreasuryManager
 
 
 @pytest.mark.asyncio
 async def test_treasury_manager_disburse() -> None:
-    """Test TreasuryManager disburses rewards correctly."""
+    """Test TreasuryManager raises NotImplementedError (no physical provider)."""
     manager = TreasuryManager(treasury_contract_address="0xTestContract")
 
     receipt = {
@@ -38,10 +24,8 @@ async def test_treasury_manager_disburse() -> None:
         "amount_gwei": 5_000_000,
     }
 
-    with patch("asyncio.sleep", new_callable=AsyncMock):
-        tx_hash = await manager.disburse_node_rewards(receipt)
-
-    assert tx_hash.startswith("0x")
+    with pytest.raises(NotImplementedError, match="Physical Web3 provider"):
+        await manager.disburse_node_rewards(receipt)
 
 
 @pytest.mark.asyncio
@@ -52,10 +36,8 @@ async def test_treasury_manager_disburse_defaults() -> None:
 
     receipt: dict[str, object] = {}
 
-    with patch("asyncio.sleep", new_callable=AsyncMock):
-        tx_hash = await manager.disburse_node_rewards(receipt)
-
-    assert tx_hash.startswith("0x")
+    with pytest.raises(NotImplementedError, match="Physical Web3 provider"):
+        await manager.disburse_node_rewards(receipt)
 
 
 def test_treasury_manager_env_injection() -> None:

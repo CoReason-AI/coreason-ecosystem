@@ -20,24 +20,10 @@ zero hardcoded trust assumptions per LAW 10 (Thermodynamic Secret Quarantine).
 
 from __future__ import annotations
 
-import asyncio
 import os
 
 from loguru import logger
 from typing import Any
-
-
-class MockWeb3Provider:
-    """Mock EVM provider for transaction broadcasting."""
-
-    @staticmethod
-    async def broadcast_tx(contract_address: str, payload: dict[str, Any]) -> str:
-        tx_hash = f"0x{hash(str(payload)) & 0xFFFFFFFFFFFFFFFF:016x}"
-        logger.info(
-            f"[Web3] Broadcasting TX payload {payload} to {contract_address} (Hash: {tx_hash})"
-        )
-        await asyncio.sleep(1.0)
-        return tx_hash
 
 
 class TreasuryManager:
@@ -60,7 +46,6 @@ class TreasuryManager:
                 "[TreasuryManager] No treasury contract address configured. "
                 "Set COREASON_TREASURY_CONTRACT in .env or inject at construction."
             )
-        self.provider = MockWeb3Provider()
 
     async def disburse_node_rewards(self, award_receipt: dict[str, Any]) -> str:
         """Disburse stablecoin rewards to a decentralized DID/address.
@@ -70,6 +55,9 @@ class TreasuryManager:
 
         Returns:
             The on-chain transaction hash.
+
+        Raises:
+            NotImplementedError: Physical Web3 provider not yet connected.
         """
         logger.info(
             f"[TreasuryManager] Initiating reward disbursement for receipt: {award_receipt}"
@@ -78,17 +66,18 @@ class TreasuryManager:
         target_did = award_receipt.get("awarded_syndicate", "unknown_syndicate_did")
         amount_gwei = award_receipt.get("amount_gwei", 0)
 
-        # In a real environment, ABIs are loaded from the genesis manifest
-        # and the RPC URL is injected from secure .env configuration.
-        payload = {
+        # Construct the on-chain payload from the award receipt.
+        _payload = {
             "function": "disburseRewards",
             "args": [target_did, amount_gwei],
             "gas_limit": 100000,
         }
 
-        tx_hash = await self.provider.broadcast_tx(self.contract_address, payload)
-
-        logger.info(
-            f"[TreasuryManager] Successfully disbursed {amount_gwei} Gwei to {target_did}. TX: {tx_hash}"
+        # TODO: Implement physical Web3 provider execution here.
+        # Use web3.py or eth_abi to broadcast the transaction payload
+        # to the contract at self.contract_address via the RPC URL
+        # injected from COREASON_WEB3_RPC_URL environment variable.
+        raise NotImplementedError(
+            "Physical Web3 provider (web3.py / eth_abi) execution not yet implemented. "
+            f"Contract: {self.contract_address}, Target: {target_did}, Amount: {amount_gwei}"
         )
-        return tx_hash
