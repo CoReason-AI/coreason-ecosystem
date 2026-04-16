@@ -114,3 +114,26 @@ async def test_lbac_masking() -> None:
     assert "urn:coreason:oracle:clinical_extractor" in masked_endpoints
     assert "urn:coreason:oracle:mathematics" not in masked_endpoints
     assert "urn:coreason:oracle:weapon_systems" not in masked_endpoints
+
+
+def test_lbac_validate_clearance_dominates() -> None:
+    """RESTRICTED agent dominates PUBLIC capability."""
+    broker = IdentityBroker()
+    assert broker.validate_clearance_lattice("RESTRICTED", "PUBLIC") is True
+    assert broker.validate_clearance_lattice("CONFIDENTIAL", "PUBLIC") is True
+    assert broker.validate_clearance_lattice("PUBLIC", "PUBLIC") is True
+
+
+def test_lbac_validate_clearance_insufficient() -> None:
+    """PUBLIC agent cannot access RESTRICTED capability."""
+    broker = IdentityBroker()
+    assert broker.validate_clearance_lattice("PUBLIC", "RESTRICTED") is False
+    assert broker.validate_clearance_lattice("PUBLIC", "CONFIDENTIAL") is False
+
+
+def test_lbac_validate_clearance_unknown() -> None:
+    """Unknown clearance level defaults to most restrictive."""
+    broker = IdentityBroker()
+    # Unknown agent gets level 0, unknown required gets level 3.
+    assert broker.validate_clearance_lattice("UNKNOWN", "PUBLIC") is False
+    assert broker.validate_clearance_lattice("RESTRICTED", "UNKNOWN") is True

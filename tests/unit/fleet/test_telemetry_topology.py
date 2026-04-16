@@ -18,6 +18,7 @@ import pytest
 from coreason_ecosystem.fleet.telemetry_topology import (
     TelemetryTopologyMonitor,
     coreason_active_agents_total,
+    coreason_causal_cycles_total,
 )
 
 
@@ -89,3 +90,38 @@ async def test_poll_workflows_connected_graph(
     await monitor._poll_workflows()
 
     assert coreason_active_agents_total._value.get() == 1
+
+
+@pytest.mark.asyncio
+async def test_poll_workflows_detects_causal_cycles(
+    monitor: TelemetryTopologyMonitor,
+) -> None:
+    """A→B→C→A cycle → β₁ > 0 (causal paradox detected)."""
+    mock_a = MagicMock()
+    mock_a.id = "wf-a"
+    mock_a.parent_id = "wf-c"
+    mock_a.search_attributes = {}
+
+    mock_b = MagicMock()
+    mock_b.id = "wf-b"
+    mock_b.parent_id = "wf-a"
+    mock_b.search_attributes = {}
+
+    mock_c = MagicMock()
+    mock_c.id = "wf-c"
+    mock_c.parent_id = "wf-b"
+    mock_c.search_attributes = {}
+
+    mock_client = MagicMock()
+
+    async def mock_list_workflows(_query: str) -> Any:
+        for w in [mock_a, mock_b, mock_c]:
+            yield w
+
+    mock_client.list_workflows = mock_list_workflows
+    monitor._client = mock_client
+
+    await monitor._poll_workflows()
+
+    # β₁ > 0 proves a causal cycle was detected.
+    assert coreason_causal_cycles_total._value.get() > 0

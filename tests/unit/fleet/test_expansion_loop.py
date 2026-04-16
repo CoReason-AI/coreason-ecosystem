@@ -29,6 +29,33 @@ async def test_expansion_loop_raises_not_implemented() -> None:
         await von_neumann_expansion_daemon(treasury, oracle)
 
 
+@pytest.mark.asyncio
+async def test_expansion_loop_economic_guillotine() -> None:
+    """When VFE threshold is breached, the daemon exits cleanly (no NotImplementedError)."""
+    from unittest.mock import AsyncMock, patch
+
+    from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
+
+    treasury = TreasuryManager(treasury_contract_address="0xTestContract")
+    oracle = PricingOracle()
+
+    mock_assessment = ThermodynamicAssessment(
+        gpu_utilization=0.95,
+        token_velocity=100.0,
+        api_cost_hourly=50.0,
+        vfe_divergence=0.99,
+        threshold_breached=True,
+    )
+
+    with patch(
+        "coreason_ecosystem.fleet.expansion_loop.assess_thermodynamic_expenditure",
+        new_callable=AsyncMock,
+        return_value=mock_assessment,
+    ):
+        # Should NOT raise — the guillotine triggers a clean return.
+        await von_neumann_expansion_daemon(treasury, oracle)
+
+
 def test_constants() -> None:
     """Test that constants are sensible values."""
     assert HARDWARE_NODE_COST_GWEI == 10_000_000_000

@@ -108,3 +108,51 @@ async def test_calculate_optimal_bid_lowest_price(
     bid = await oracle.calculate_optimal_bid(profile, max_budget_hr=5.0)
     assert bid is not None
     assert bid.instance_id == "g4dn.xlarge"
+
+
+@pytest.mark.asyncio
+async def test_vfe_assessment_safe() -> None:
+    """VFE divergence below threshold does not trigger the guillotine."""
+    from coreason_ecosystem.fleet.pricing_oracle import assess_thermodynamic_expenditure
+
+    profile = HardwareProfile(min_vram_gb=1.0, provider_whitelist=["aws"])
+    assessment = await assess_thermodynamic_expenditure(
+        hardware_profile=profile,
+        max_budget_hr=10.0,
+        current_gpu_utilization=0.3,
+        current_api_cost_hourly=2.0,
+    )
+    assert not assessment.threshold_breached
+    assert assessment.vfe_divergence < 0.85
+
+
+@pytest.mark.asyncio
+async def test_vfe_assessment_breach() -> None:
+    """VFE divergence at or above threshold triggers the Economic Guillotine."""
+    from coreason_ecosystem.fleet.pricing_oracle import assess_thermodynamic_expenditure
+
+    profile = HardwareProfile(min_vram_gb=1.0, provider_whitelist=["aws"])
+    assessment = await assess_thermodynamic_expenditure(
+        hardware_profile=profile,
+        max_budget_hr=10.0,
+        current_gpu_utilization=0.95,
+        current_api_cost_hourly=9.0,
+    )
+    assert assessment.threshold_breached
+    assert assessment.vfe_divergence >= 0.85
+
+
+@pytest.mark.asyncio
+async def test_vfe_assessment_zero_budget() -> None:
+    """Zero budget forces cost_pressure to 1.0."""
+    from coreason_ecosystem.fleet.pricing_oracle import assess_thermodynamic_expenditure
+
+    profile = HardwareProfile(min_vram_gb=1.0, provider_whitelist=["aws"])
+    assessment = await assess_thermodynamic_expenditure(
+        hardware_profile=profile,
+        max_budget_hr=0.0,
+        current_gpu_utilization=0.0,
+    )
+    # cost_pressure = 1.0, vfe = 0.6*0.0 + 0.4*1.0 = 0.4
+    assert assessment.vfe_divergence == pytest.approx(0.4)
+    assert not assessment.threshold_breached
