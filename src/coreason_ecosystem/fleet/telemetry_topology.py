@@ -23,23 +23,16 @@ This module is mathematically forbidden from relying on statistical means
 """
 
 import asyncio
-from typing import Any
 
-import networkx as nx
 from loguru import logger
 from prometheus_client import Counter, Gauge, start_http_server
 from temporalio.client import Client
 
 
 # Prometheus metrics — topological invariant gauges
-coreason_betti_0 = Gauge(
-    "coreason_betti_0",
-    "β₀ (connected components) of the workflow execution graph. "
-    "Detects network fragmentation when β₀ > 1.",
-)
 coreason_active_agents_total = Gauge(
     "coreason_active_agents_total",
-    "Total nodes in the workflow execution graph.",
+    "β₀ (connected components) of the workflow execution graph.",
 )
 coreason_thermodynamic_burn_total = Counter(
     "coreason_thermodynamic_burn_total",
@@ -55,7 +48,7 @@ class TelemetryTopologyMonitor:
     """Evaluates SSE telemetry streams via Persistent Homology (TDA).
 
     Polls the Temporal cluster for workflow execution states, constructs
-    a directed graph from parent-child workflow relationships, and computes
+    an undirected graph from parent-child workflow relationships, and computes
     the β₀ Betti number (connected components) via ``networkx``. Exposes
     topological invariants as Prometheus gauges for Grafana dashboards.
 
@@ -88,54 +81,40 @@ class TelemetryTopologyMonitor:
             )
 
     async def _poll_workflows(self) -> None:
-        """Poll Temporal for open workflow executions and compute topological invariants.
-
-        Constructs a directed graph G where:
-          - Each running workflow is a node.
-          - Edges are drawn from child → parent using ParentExecution metadata.
-
-        β₀ is computed as ``nx.number_connected_components(G.to_undirected())``.
-        """
+        """Poll Temporal to construct the execution graph and compute Betti invariants."""
         if not self._client:
             return
 
-        try:
-            graph: nx.DiGraph = nx.DiGraph()
+        import networkx as nx
 
+        execution_graph = nx.Graph()
+
+        try:
             async for workflow in self._client.list_workflows(
                 "ExecutionStatus = 'Running'"
             ):
-                workflow_id: str = getattr(workflow, "id", str(id(workflow)))
-                graph.add_node(workflow_id)
+                # 1. Project node into the geometric space
+                execution_graph.add_node(workflow.id)
 
-                # Extract parent-child edges from ParentExecution metadata
-                parent_execution = getattr(workflow, "parent_execution", None)
-                if parent_execution is not None:
-                    parent_id = getattr(
-                        parent_execution, "workflow_id", str(id(parent_execution))
-                    )
-                    graph.add_edge(workflow_id, parent_id)
+                # 2. Draw topological edges based on causal parent-child relationships
+                # (Assumes Temporal search attributes or parent_execution metadata)
+                parent_id = getattr(workflow, "parent_id", None)
+                if parent_id:
+                    execution_graph.add_edge(parent_id, workflow.id)
 
-                # Check for circuit breaker signals in search attributes
+                # 3. Track thermodynamic exhaustion circuits
                 search_attrs = getattr(workflow, "search_attributes", {})
-                if search_attrs:
-                    raw_attrs: dict[str, Any] = (
-                        dict(search_attrs)
-                        if not isinstance(search_attrs, dict)
-                        else search_attrs
-                    )
-                    if raw_attrs.get("circuit_breaker_tripped"):
-                        coreason_circuit_breakers_tripped.inc()
+                if search_attrs and search_attrs.get("circuit_breaker_tripped"):
+                    coreason_circuit_breakers_tripped.inc()
 
-            # Compute topological invariants
-            node_count = graph.number_of_nodes()
-            beta_0 = nx.number_connected_components(graph.to_undirected())
-
-            coreason_active_agents_total.set(node_count)
-            coreason_betti_0.set(beta_0)
+            # 4. Calculate β₀ (Betti-0): Number of connected components
+            # This mathematically proves if the Swarm is operating as a cohesive
+            # unit (β₀ = 1) or if it has fragmented into isolated, runaway shards (β₀ > 1).
+            betti_0 = nx.number_connected_components(execution_graph)
+            coreason_active_agents_total.set(betti_0)
 
         except Exception as e:
-            logger.warning(f"Workflow polling error: {e}")
+            logger.warning(f"Topological polling error: {e}")
 
     async def start(self) -> None:
         """Start the Prometheus metrics server and begin polling Temporal."""

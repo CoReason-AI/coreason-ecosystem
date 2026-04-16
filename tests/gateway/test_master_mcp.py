@@ -264,9 +264,8 @@ async def test_call_tool_request_error() -> None:
         mock_post.side_effect = raise_request_error
 
         arguments = {"query": "fallback test"}
-        result = await call_tool(name=tool_name, arguments=arguments)
-
-        assert "Topological Severance Event" in result[0].text
+        with pytest.raises(RuntimeError, match="Topological Severance Event"):
+            await call_tool(name=tool_name, arguments=arguments)
 
 
 @pytest.mark.asyncio

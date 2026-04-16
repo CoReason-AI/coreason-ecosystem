@@ -19,7 +19,6 @@ import pytest
 from coreason_ecosystem.fleet.daemon import AutonomicFleetManager
 from coreason_ecosystem.fleet.telemetry_topology import (
     coreason_active_agents_total,
-    coreason_betti_0,
 )
 from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
 
@@ -42,12 +41,9 @@ def manager(templates_path: Path) -> AutonomicFleetManager:
 
 @pytest.mark.asyncio
 async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
-    """When node_count > 0, the daemon provisions compute."""
-    # Simulate topological state: 2 workflows, 1 connected component
+    """When β₀ > 0, the daemon provisions compute."""
     coreason_active_agents_total.set(2)
-    coreason_betti_0.set(1)
 
-    # Mock _poll_workflows to be a no-op (state is pre-set in gauges)
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
 
     bid = ComputeNodeTarget(
@@ -70,9 +66,8 @@ async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
 
 @pytest.mark.asyncio
 async def test_daemon_start_scale_down(manager: AutonomicFleetManager) -> None:
-    """When node_count == 0, the daemon destroys orphaned stacks."""
+    """When β₀ == 0, the daemon destroys orphaned stacks."""
     coreason_active_agents_total.set(0)
-    coreason_betti_0.set(0)
 
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
     setattr(
@@ -97,9 +92,8 @@ async def test_daemon_start_scale_down(manager: AutonomicFleetManager) -> None:
 async def test_daemon_start_scale_down_queue_empty_nothing_to_destroy(
     manager: AutonomicFleetManager,
 ) -> None:
-    """When node_count == 0 and no stacks, no destruction occurs."""
+    """When β₀ == 0 and no stacks, no destruction occurs."""
     coreason_active_agents_total.set(0)
-    coreason_betti_0.set(0)
 
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
     setattr(
@@ -152,7 +146,6 @@ async def test_daemon_start_general_exception(manager: AutonomicFleetManager) ->
 async def test_daemon_start_no_bid_found(manager: AutonomicFleetManager) -> None:
     """When oracle returns None, no provisioning occurs."""
     coreason_active_agents_total.set(1)
-    coreason_betti_0.set(1)
 
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
     setattr(manager.oracle, "calculate_optimal_bid", AsyncMock(return_value=None))

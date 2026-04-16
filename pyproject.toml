@@ -35,6 +35,7 @@ dependencies = [
     "mcp>=1.27.0",
     "fastapi>=0.135.3",
     "pyyaml>=6.0.2",
+    "networkx>=3.0",
 ]
 
 license = { file = "LICENSE" }
@@ -151,6 +152,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "starlette.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "networkx.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

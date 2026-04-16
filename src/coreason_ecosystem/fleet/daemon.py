@@ -25,7 +25,6 @@ from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
 from coreason_ecosystem.fleet.pulumi_actuator import PulumiFleetDriver
 from coreason_ecosystem.fleet.telemetry_topology import (
     TelemetryTopologyMonitor,
-    coreason_betti_0,
     coreason_active_agents_total,
 )
 from coreason_manifest.spec.ontology import (
@@ -38,9 +37,9 @@ class AutonomicFleetManager:
     """Thermodynamic provisioning daemon.
 
     Derives scaling decisions from the topological invariants exposed by
-    the TelemetryTopologyMonitor (β₀ connected components, total node count).
-    Does NOT call any mock or stub accessor methods — reads Prometheus
-    gauge values directly.
+    the TelemetryTopologyMonitor. ``coreason_active_agents_total`` holds β₀
+    (connected components). β₀ > 0 means active workflows requiring compute;
+    β₀ == 0 means the swarm is idle and resources can be reclaimed.
     """
 
     def __init__(
@@ -66,22 +65,18 @@ class AutonomicFleetManager:
 
         while self._running:
             try:
-                # Poll the topological state from Prometheus gauges
+                # Poll the topological state
                 await self.monitor._poll_workflows()
 
-                node_count = coreason_active_agents_total._value.get()  # type: ignore[union-attr]
-                beta_0 = coreason_betti_0._value.get()  # type: ignore[union-attr]
+                # β₀ (connected components) is stored in coreason_active_agents_total
+                betti_0 = coreason_active_agents_total._value.get()
 
-                logger.debug(
-                    f"Topological state: nodes={node_count}, β₀={beta_0}"
-                )
+                logger.debug(f"Topological state: β₀={betti_0}")
 
-                if node_count > 0:
-                    # Active workflows present — provision if needed.
-                    # Hardware/Security profiles are injected via Temporal
-                    # search attributes at the Kinetic Plane level.
+                if betti_0 > 0:
+                    # Active workflow components — provision compute.
                     profile = HardwareProfile(
-                        min_vram_gb=0.0, provider_whitelist=["aws", "vast"]
+                        min_vram_gb=1.0, provider_whitelist=["aws", "vast"]
                     )
                     security_profile = SecurityProfile(network_isolation=True)
 
@@ -97,14 +92,12 @@ class AutonomicFleetManager:
                         bid.temporal_mesh_ip = self.temporal_mesh_ip
 
                         result = await self.driver.provision_node(bid)
-                        logger.info(
-                            f"Provisioning Complete: {result['stack_name']}"
-                        )
+                        logger.info(f"Provisioning Complete: {result['stack_name']}")
                     else:
                         logger.warning(
                             "No viable bids found under budget for current requirements."
                         )
-                elif node_count == 0:
+                elif betti_0 == 0:
                     # Scale Down Logic
                     active_stacks = await self.driver.reconcile_state()
                     if active_stacks:
