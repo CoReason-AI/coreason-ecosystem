@@ -16,7 +16,7 @@ app = FastAPI(title="coreason-neo4j-mcp")
 mcp_server = mcp.server.Server("coreason-neo4j-mcp")
 
 
-@mcp_server.list_tools()  # type: ignore[misc]
+@mcp_server.list_tools()  # type: ignore[no-untyped-call,untyped-decorator]
 async def list_tools() -> list[types.Tool]:
     """Expose the query_property_graph tool schema."""
     return [
@@ -37,7 +37,7 @@ async def list_tools() -> list[types.Tool]:
     ]
 
 
-@mcp_server.call_tool()  # type: ignore[misc]
+@mcp_server.call_tool()  # type: ignore[untyped-decorator]
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Dispatch tool execution to the appropriate handler."""
     if name != "query_property_graph":

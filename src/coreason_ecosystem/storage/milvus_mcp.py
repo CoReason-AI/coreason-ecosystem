@@ -16,7 +16,7 @@ app = FastAPI(title="coreason-milvus-mcp")
 mcp_server = mcp.server.Server("coreason-milvus-mcp")
 
 
-@mcp_server.list_tools()  # type: ignore[misc]
+@mcp_server.list_tools()  # type: ignore[no-untyped-call,untyped-decorator]
 async def list_tools() -> list[types.Tool]:
     """Expose the query_vector_db tool schema."""
     return [
@@ -42,7 +42,7 @@ async def list_tools() -> list[types.Tool]:
     ]
 
 
-@mcp_server.call_tool()  # type: ignore[misc]
+@mcp_server.call_tool()  # type: ignore[untyped-decorator]
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
     """Dispatch tool execution to the appropriate handler."""
     if name != "query_vector_db":
