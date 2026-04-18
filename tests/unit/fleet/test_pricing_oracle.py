@@ -15,7 +15,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
-from coreason_manifest.spec.ontology import AcceleratorProfile  # type: ignore[attr-defined, unused-ignore]
 from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile
 
 
@@ -93,7 +92,7 @@ async def test_calculate_optimal_bid_provider_not_whitelisted(
     profile = HardwareProfile(
         min_vram_gb=10.0,
         provider_whitelist=["gcp"],
-        accelerator_type=AcceleratorProfile.BF16_TENSOR,
+        accelerator_type="urn:coreason:accelerator:bf16_tensor",
     )
     bid = await oracle.calculate_optimal_bid(profile, max_budget_hr=5.0)
     assert bid is None

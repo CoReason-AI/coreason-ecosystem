@@ -22,13 +22,6 @@ from coreason_manifest.spec.ontology import (
     SemanticClassificationProfile,
 )
 
-# Determine the correct tenant field name across manifest versions.
-_TENANT_FIELD = (
-    "receiving_tenant_cid"
-    if "receiving_tenant_cid" in FederatedBilateralSLA.model_fields
-    else "receiving_tenant_id"
-)
-
 
 @pytest.fixture
 def populated_registry() -> CapabilityRegistry:
@@ -193,12 +186,10 @@ class TestSLABasedFiltering:
         populated_registry: CapabilityRegistry,
     ) -> None:
         """SLA with 'public' ceiling strips CONFIDENTIAL and RESTRICTED URNs."""
-        sla = FederatedBilateralSLA.model_validate(
-            {
-                _TENANT_FIELD: "tenant-001",
-                "max_permitted_classification": SemanticClassificationProfile.PUBLIC,
-                "liability_limit_magnitude": 100,
-            }
+        sla = FederatedBilateralSLA(
+            receiving_tenant_cid="tenant-001",
+            max_permitted_classification=SemanticClassificationProfile.PUBLIC,
+            liability_limit_magnitude=100,
         )
         available = _all_urns(populated_registry)
         result = epistemic_filter.filter_capabilities(
@@ -217,12 +208,10 @@ class TestSLABasedFiltering:
         populated_registry: CapabilityRegistry,
     ) -> None:
         """SLA with 'confidential' ceiling allows PUBLIC + CONFIDENTIAL."""
-        sla = FederatedBilateralSLA.model_validate(
-            {
-                _TENANT_FIELD: "tenant-002",
-                "max_permitted_classification": SemanticClassificationProfile.CONFIDENTIAL,
-                "liability_limit_magnitude": 100,
-            }
+        sla = FederatedBilateralSLA(
+            receiving_tenant_cid="tenant-002",
+            max_permitted_classification=SemanticClassificationProfile.CONFIDENTIAL,
+            liability_limit_magnitude=100,
         )
         available = _all_urns(populated_registry)
         result = epistemic_filter.filter_capabilities(

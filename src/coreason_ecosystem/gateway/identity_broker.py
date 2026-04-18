@@ -163,17 +163,9 @@ class IdentityBroker:
         Raises:
             ValueError: If any SLA constraint is violated.
         """
-        # 1. Validate receiving tenant CID/ID is non-empty.
-        # Support both `receiving_tenant_cid` (manifest >=0.51) and
-        # `receiving_tenant_id` (manifest <=0.50) field names.
-        tenant_identifier: str = str(
-            getattr(sla, "receiving_tenant_cid", None)
-            or getattr(sla, "receiving_tenant_id", "")
-        )
-        if not tenant_identifier:
-            raise ValueError(
-                "Federation Severance: receiving tenant identifier is empty."
-            )
+        # 1. Validate receiving_tenant_cid is non-empty.
+        if not sla.receiving_tenant_cid:
+            raise ValueError("Federation Severance: receiving_tenant_cid is empty.")
 
         # 2. Classification dominance check
         agent_level = _CLASSIFICATION_LEVELS.get(agent_classification, 0)
