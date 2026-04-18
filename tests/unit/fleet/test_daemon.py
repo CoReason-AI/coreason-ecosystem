@@ -53,7 +53,7 @@ async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
         hourly_cost=3.0,
         vram_gb=16.0,
         escrow_policy=EscrowPolicy(
-            escrow_locked_magnitude=5,
+            escrow_locked_magnitude=50000,
             release_condition_metric="test",
             refund_target_node_cid="did:coreason:fleet:aws",
         ),

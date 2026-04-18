@@ -29,7 +29,7 @@ async def test_pulumi_actuator_compile_payload() -> None:
         mesh_auth_key="ts-12345",
         temporal_mesh_ip="100.1.1.1",
         escrow_policy=EscrowPolicy(
-            escrow_locked_magnitude=5,
+            escrow_locked_magnitude=50000,
             release_condition_metric="test",
             refund_target_node_cid="did:coreason:fleet:aws",
         ),

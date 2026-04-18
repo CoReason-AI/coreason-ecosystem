@@ -44,7 +44,7 @@ async def test_provision_node_aws(
         hourly_cost=0.01,
         vram_gb=0.0,
         escrow_policy=EscrowPolicy(
-            escrow_locked_magnitude=1,
+            escrow_locked_magnitude=10000,
             release_condition_metric="test",
             refund_target_node_cid="did:coreason:fleet:aws",
         ),
@@ -79,7 +79,7 @@ async def test_provision_node_vast(
         hourly_cost=0.40,
         vram_gb=24.0,
         escrow_policy=EscrowPolicy(
-            escrow_locked_magnitude=1,
+            escrow_locked_magnitude=10000,
             release_condition_metric="test",
             refund_target_node_cid="did:coreason:fleet:vast",
         ),

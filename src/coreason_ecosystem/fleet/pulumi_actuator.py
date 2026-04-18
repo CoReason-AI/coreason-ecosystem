@@ -60,15 +60,11 @@ class PulumiFleetDriver:
 
         # Compare using atomic magnitude units to avoid float truncation.
         cost_atomic = int(target.hourly_cost * ATOMIC_MAGNITUDE_MULTIPLIER)
-        escrow_atomic = (
-            target.escrow_policy.escrow_locked_magnitude * ATOMIC_MAGNITUDE_MULTIPLIER
-        )
-        if cost_atomic > escrow_atomic:
+        if cost_atomic > target.escrow_policy.escrow_locked_magnitude:
             raise ValueError(
                 f"Hardware Guillotine: hourly_cost {target.hourly_cost} "
                 f"(atomic={cost_atomic}) exceeds escrow_locked_magnitude "
-                f"{target.escrow_policy.escrow_locked_magnitude} "
-                f"(atomic={escrow_atomic})."
+                f"({target.escrow_policy.escrow_locked_magnitude})."
             )
 
         stack_name = f"fleet-worker-{uuid.uuid4().hex[:8]}"
