@@ -19,6 +19,13 @@ from coreason_manifest.spec.ontology import (
     SemanticClassificationProfile,
 )
 
+# Determine the correct tenant field name across manifest versions.
+_TENANT_FIELD = (
+    "receiving_tenant_cid"
+    if "receiving_tenant_cid" in FederatedBilateralSLA.model_fields
+    else "receiving_tenant_id"
+)
+
 
 @pytest.fixture
 def broker() -> IdentityBroker:
@@ -121,10 +128,12 @@ class TestVerifyFederationSLA:
 
     @pytest.fixture
     def valid_sla(self) -> FederatedBilateralSLA:
-        return FederatedBilateralSLA(
-            receiving_tenant_id="tenant-001",
-            max_permitted_classification=SemanticClassificationProfile.CONFIDENTIAL,
-            liability_limit_magnitude=1000000,
+        return FederatedBilateralSLA.model_validate(
+            {
+                _TENANT_FIELD: "tenant-001",
+                "max_permitted_classification": SemanticClassificationProfile.CONFIDENTIAL,
+                "liability_limit_magnitude": 1000000,
+            }
         )
 
     def test_valid_sla_public_agent(
@@ -146,10 +155,12 @@ class TestVerifyFederationSLA:
             broker.verify_federation_sla(valid_sla, "restricted")
 
     def test_sla_with_public_ceiling(self, broker: IdentityBroker) -> None:
-        sla = FederatedBilateralSLA(
-            receiving_tenant_id="tenant-002",
-            max_permitted_classification=SemanticClassificationProfile.PUBLIC,
-            liability_limit_magnitude=100,
+        sla = FederatedBilateralSLA.model_validate(
+            {
+                _TENANT_FIELD: "tenant-002",
+                "max_permitted_classification": SemanticClassificationProfile.PUBLIC,
+                "liability_limit_magnitude": 100,
+            }
         )
         assert broker.verify_federation_sla(sla, "public") is True
         with pytest.raises(ValueError, match="Federation Severance"):

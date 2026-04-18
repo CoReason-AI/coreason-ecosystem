@@ -147,7 +147,7 @@ class IdentityBroker:
         Enforces the manifest's mathematical contract for multi-tenant
         federation.  Checks:
 
-          1. ``receiving_tenant_id`` is non-empty and conforms to CID pattern.
+          1. ``receiving_tenant_cid`` is non-empty and conforms to CID pattern.
           2. Agent's classification does not exceed
              ``max_permitted_classification``.
           3. ``liability_limit_magnitude`` is within bounds (0–1B).
@@ -163,9 +163,17 @@ class IdentityBroker:
         Raises:
             ValueError: If any SLA constraint is violated.
         """
-        # 1. Validate receiving_tenant_id is non-empty
-        if not sla.receiving_tenant_id:
-            raise ValueError("Federation Severance: receiving_tenant_id is empty.")
+        # 1. Validate receiving tenant CID/ID is non-empty.
+        # Support both `receiving_tenant_cid` (manifest >=0.51) and
+        # `receiving_tenant_id` (manifest <=0.50) field names.
+        tenant_identifier: str = str(
+            getattr(sla, "receiving_tenant_cid", None)
+            or getattr(sla, "receiving_tenant_id", "")
+        )
+        if not tenant_identifier:
+            raise ValueError(
+                "Federation Severance: receiving tenant identifier is empty."
+            )
 
         # 2. Classification dominance check
         agent_level = _CLASSIFICATION_LEVELS.get(agent_classification, 0)
