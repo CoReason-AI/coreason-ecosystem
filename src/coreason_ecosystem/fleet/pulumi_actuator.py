@@ -21,6 +21,7 @@ from coreason_ecosystem.fleet.mesh_injector import MeshInjector
 from coreason_manifest.spec.ontology import (
     SpatialHardwareProfile as HardwareProfile,
     EpistemicSecurityProfile as SecurityProfile,
+    EscrowPolicy,
 )
 
 
@@ -33,6 +34,13 @@ class ComputeNodeTarget(BaseModel):
     security_profile: SecurityProfile | None = None
     mesh_auth_key: str | None = None
     temporal_mesh_ip: str | None = None
+    escrow_policy: EscrowPolicy | None = None
+
+
+# Atomic magnitude unit: 1 atomic unit = 0.0001 dollars (0.01 cents).
+# This prevents IEEE 754 float truncation when comparing cloud provider
+# hourly_cost (float) against EscrowPolicy.escrow_locked_magnitude (int).
+ATOMIC_MAGNITUDE_MULTIPLIER = 10000
 
 
 class PulumiFleetDriver:
@@ -41,6 +49,28 @@ class PulumiFleetDriver:
         self.injector = MeshInjector()
 
     async def provision_node(self, target: ComputeNodeTarget) -> dict[str, str]:
+        # ── Hardware Guillotine ──────────────────────────────────────
+        # The runtime must transmit a ComputeProvisioningIntent with a
+        # valid EscrowPolicy proving it has the token budget.
+        if target.escrow_policy is None:
+            raise ValueError(
+                "Hardware Guillotine: Provisioning rejected — no EscrowPolicy attached. "
+                "The runtime must transmit a ComputeProvisioningIntent with a valid escrow."
+            )
+
+        # Compare using atomic magnitude units to avoid float truncation.
+        cost_atomic = int(target.hourly_cost * ATOMIC_MAGNITUDE_MULTIPLIER)
+        escrow_atomic = (
+            target.escrow_policy.escrow_locked_magnitude * ATOMIC_MAGNITUDE_MULTIPLIER
+        )
+        if cost_atomic > escrow_atomic:
+            raise ValueError(
+                f"Hardware Guillotine: hourly_cost {target.hourly_cost} "
+                f"(atomic={cost_atomic}) exceeds escrow_locked_magnitude "
+                f"{target.escrow_policy.escrow_locked_magnitude} "
+                f"(atomic={escrow_atomic})."
+            )
+
         stack_name = f"fleet-worker-{uuid.uuid4().hex[:8]}"
         provider_dir = self.templates_dir / (
             "aws_spot" if target.provider == "aws" else "vast_ai"

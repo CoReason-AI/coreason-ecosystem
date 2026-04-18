@@ -16,6 +16,7 @@ from coreason_ecosystem.fleet.pulumi_actuator import (
     PulumiFleetDriver,
     ComputeNodeTarget,
 )
+from coreason_manifest.spec.ontology import EscrowPolicy
 
 
 @pytest.fixture
@@ -38,7 +39,15 @@ async def test_provision_node_aws(
     mock_auto: MagicMock, driver: PulumiFleetDriver
 ) -> None:
     target = ComputeNodeTarget(
-        provider="aws", instance_id="t3.micro", hourly_cost=0.01, vram_gb=0.0
+        provider="aws",
+        instance_id="t3.micro",
+        hourly_cost=0.01,
+        vram_gb=0.0,
+        escrow_policy=EscrowPolicy(
+            escrow_locked_magnitude=1,
+            release_condition_metric="test",
+            refund_target_node_cid="did:coreason:fleet:aws",
+        ),
     )
 
     mock_stack = MagicMock()
@@ -65,7 +74,15 @@ async def test_provision_node_vast(
     mock_auto: MagicMock, driver: PulumiFleetDriver
 ) -> None:
     target = ComputeNodeTarget(
-        provider="vast", instance_id="12345", hourly_cost=0.40, vram_gb=24.0
+        provider="vast",
+        instance_id="12345",
+        hourly_cost=0.40,
+        vram_gb=24.0,
+        escrow_policy=EscrowPolicy(
+            escrow_locked_magnitude=1,
+            release_condition_metric="test",
+            refund_target_node_cid="did:coreason:fleet:vast",
+        ),
     )
 
     mock_stack = MagicMock()
@@ -130,3 +147,35 @@ async def test_reconcile_state_exception(
 
     orphans = await driver.reconcile_state()
     assert orphans == []
+
+
+@pytest.mark.asyncio
+async def test_provision_node_rejects_missing_escrow(
+    driver: PulumiFleetDriver,
+) -> None:
+    """Hardware Guillotine: no EscrowPolicy → provisioning rejected."""
+    target = ComputeNodeTarget(
+        provider="aws", instance_id="t3.micro", hourly_cost=0.01, vram_gb=0.0
+    )
+    with pytest.raises(ValueError, match="Hardware Guillotine"):
+        await driver.provision_node(target)
+
+
+@pytest.mark.asyncio
+async def test_provision_node_rejects_exceeded_budget(
+    driver: PulumiFleetDriver,
+) -> None:
+    """Hardware Guillotine: hourly_cost > escrow_locked_magnitude → rejected."""
+    target = ComputeNodeTarget(
+        provider="aws",
+        instance_id="p5.48xlarge",
+        hourly_cost=99.0,
+        vram_gb=640.0,
+        escrow_policy=EscrowPolicy(
+            escrow_locked_magnitude=1,
+            release_condition_metric="test",
+            refund_target_node_cid="did:coreason:fleet:aws",
+        ),
+    )
+    with pytest.raises(ValueError, match="Hardware Guillotine"):
+        await driver.provision_node(target)

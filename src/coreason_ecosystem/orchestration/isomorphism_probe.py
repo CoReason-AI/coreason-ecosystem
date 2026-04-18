@@ -8,7 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-"""Isomorphism Probe — Ontological Isomorphism Diagnostic Tool.
+"""Isomorphism Probe — Ontological Isomorphism Diagnostic Oracle.
 
 Probes the Tripartite Manifold boundaries to prove Ontological Isomorphism
 across the Governance, Epistemic, and Kinetic planes:

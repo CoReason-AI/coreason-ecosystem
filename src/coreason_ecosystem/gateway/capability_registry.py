@@ -10,10 +10,12 @@
 
 """Capability Registry — Dynamic URN Routing Table.
 
-Maps URN boundaries to deployed action spaces. The registry initializes
-as an empty substrate and hydrates its routing table dynamically by reading
-an external ``capabilities.matrix.yaml`` configuration file or querying an
-upstream discovery port. No URN-to-endpoint mappings are hardcoded.
+Maps URN boundaries to deployed actuator/oracle action spaces. The registry
+initializes as an empty substrate and hydrates its routing table dynamically
+by reading an external ``capabilities.matrix.yaml`` configuration file,
+querying an upstream discovery port, or passively scanning for modules
+bearing the ``__action_space_urn__`` attribute (Passive Ontological Projection).
+No URN-to-endpoint mappings are hardcoded.
 
 Each capability entry tracks:
   - ``endpoint``: Physical network URI of the deployed action space.
@@ -30,8 +32,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import ast
+import warnings
+
 import httpx
 from loguru import logger
+
+_LEGACY_URN_PREFIXES = ("urn:coreason:oracle:", "urn:coreason:state:")
+_ACTIONSPACE_URN_PREFIX = "urn:coreason:actionspace:"
 
 
 class CapabilityRegistry:
@@ -84,6 +92,13 @@ class CapabilityRegistry:
             clearance = entry.get("clearance", "RESTRICTED")
             epistemic_status = entry.get("epistemic_status", "DRAFT")
             if urn and endpoint:
+                if urn.startswith(_LEGACY_URN_PREFIXES):
+                    warnings.warn(
+                        f"Legacy URN prefix detected: '{urn}'. "
+                        "'oracle:' and 'state:' are deprecated in favor of 'actionspace:'.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                 self._cache[urn] = {
                     "endpoint": endpoint,
                     "clearance": clearance,
@@ -115,6 +130,13 @@ class CapabilityRegistry:
                 clearance = entry.get("clearance", "RESTRICTED")
                 epistemic_status = entry.get("epistemic_status", "DRAFT")
                 if urn and endpoint:
+                    if urn.startswith(_LEGACY_URN_PREFIXES):
+                        warnings.warn(
+                            f"Legacy URN prefix detected: '{urn}'. "
+                            "'oracle:' and 'state:' are deprecated in favor of 'actionspace:'.",
+                            DeprecationWarning,
+                            stacklevel=2,
+                        )
                     self._cache[urn] = {
                         "endpoint": endpoint,
                         "clearance": clearance,
@@ -184,3 +206,105 @@ class CapabilityRegistry:
         if entry is None:
             return "DRAFT"
         return entry.get("epistemic_status", "DRAFT")
+
+    @staticmethod
+    def validate_actionspace_urn(urn: str) -> None:
+        """Zero-trust URN prefix validation for newly forged action spaces.
+
+        Rejects any URN that does not begin with the canonical
+        ``urn:coreason:actionspace:`` prefix.
+
+        Args:
+            urn: The URN string to validate.
+
+        Raises:
+            ValueError: If the URN does not bear the required prefix.
+        """
+        if not urn.startswith(_ACTIONSPACE_URN_PREFIX):
+            raise ValueError(
+                f"URN Topology Breach: '{urn}' does not bear the "
+                f"canonical '{_ACTIONSPACE_URN_PREFIX}' prefix. "
+                "Rejecting hallucinated capability."
+            )
+
+    def scan_action_space_modules(self, scan_dirs: list[Path] | None = None) -> int:
+        """Passively discover assets bearing ``__action_space_urn__`` via AST parsing.
+
+        Uses Python's ``ast`` module to parse source files into Abstract Syntax
+        Trees — NO module-level code is ever executed (Zero-Trust Passive
+        Projection).  Extracts ``__action_space_urn__`` string assignments and
+        validates them against the ``urn:coreason:actionspace:`` prefix.
+
+        Args:
+            scan_dirs: Directories to scan for ``.py`` files.  Defaults to
+                ``['./action_spaces/']`` relative to the current working
+                directory.
+
+        Returns:
+            Number of newly discovered action spaces registered in the cache.
+        """
+        if scan_dirs is None:
+            scan_dirs = [Path.cwd() / "action_spaces"]
+
+        discovered = 0
+        for scan_dir in scan_dirs:
+            if not scan_dir.is_dir():
+                logger.debug(
+                    f"Passive Ontological Projection: scan directory "
+                    f"{scan_dir} does not exist — skipping."
+                )
+                continue
+
+            for py_file in scan_dir.rglob("*.py"):
+                try:
+                    source = py_file.read_text(encoding="utf-8")
+                    tree = ast.parse(source, filename=str(py_file))
+                except (SyntaxError, UnicodeDecodeError) as e:
+                    logger.warning(
+                        f"Passive Ontological Projection: failed to parse "
+                        f"{py_file}: {e}"
+                    )
+                    continue
+
+                for node in ast.walk(tree):
+                    if not isinstance(node, ast.Assign):
+                        continue
+                    for target in node.targets:
+                        if (
+                            isinstance(target, ast.Name)
+                            and target.id == "__action_space_urn__"
+                        ):
+                            if isinstance(node.value, ast.Constant) and isinstance(
+                                node.value.value, str
+                            ):
+                                urn_value = node.value.value
+                                try:
+                                    self.validate_actionspace_urn(urn_value)
+                                except ValueError:
+                                    logger.warning(
+                                        f"Passive Ontological Projection: "
+                                        f"invalid URN '{urn_value}' in {py_file}. "
+                                        "Skipping."
+                                    )
+                                    continue
+
+                                # Register the discovered action space.
+                                # Endpoint defaults to the URN itself until
+                                # a runtime deployment resolves the physical URI.
+                                if urn_value not in self._cache:
+                                    self._cache[urn_value] = {
+                                        "endpoint": urn_value,
+                                        "clearance": "RESTRICTED",
+                                        "epistemic_status": "DRAFT",
+                                    }
+                                    discovered += 1
+                                    logger.info(
+                                        f"Passive Ontological Projection: "
+                                        f"discovered '{urn_value}' in {py_file.name}"
+                                    )
+
+        logger.info(
+            f"Passive Ontological Projection: {discovered} new action "
+            f"space(s) discovered."
+        )
+        return discovered

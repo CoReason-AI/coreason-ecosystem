@@ -17,8 +17,8 @@ import pytest
 
 from coreason_ecosystem.gateway.master_mcp import (
     app,
-    list_tools,
-    call_tool,
+    list_actuators,
+    invoke_actuator,
     current_clearance,
     registry,
     compute_schema_seal,
@@ -139,7 +139,7 @@ async def test_messages_endpoint_direct() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_tools() -> None:
+async def test_list_actuators() -> None:
     """Test the Master MCP discovery proxy behavior with mocked sub-MCP."""
     sub_mcp_url = "http://svc-pubmed-mcp.internal:8000/tools"
 
@@ -155,7 +155,7 @@ async def test_list_tools() -> None:
         mock_get.return_value = mock_response
 
         current_clearance.set("PUBLIC")
-        tools = await list_tools()
+        tools = await list_actuators()
 
         assert len(tools) >= 1
         assert isinstance(tools[0], Tool)
@@ -167,7 +167,7 @@ async def test_list_tools() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_tools_request_error() -> None:
+async def test_list_actuators_request_error() -> None:
     """Test that offline substrates are dropped from the projection (Zero-Trust)."""
 
     def raise_request_error(*args: typing.Any, **kwargs: typing.Any) -> None:
@@ -179,7 +179,7 @@ async def test_list_tools_request_error() -> None:
         mock_get.side_effect = raise_request_error
 
         current_clearance.set("PUBLIC")
-        tools = await list_tools()
+        tools = await list_actuators()
 
         # Unreachable substrates must not be projected — they do not exist
         # in the active topology.
@@ -187,7 +187,7 @@ async def test_list_tools_request_error() -> None:
 
 
 @pytest.mark.asyncio
-async def test_call_tool_and_receipt() -> None:
+async def test_invoke_actuator_and_receipt() -> None:
     """Test execution proxying and OracleExecutionReceipt generation."""
     tool_name = "urn_coreason_oracle_clinical_extractor_extract"
     action_space_url = "http://svc-pubmed-mcp.internal:8000/execute"
@@ -205,7 +205,7 @@ async def test_call_tool_and_receipt() -> None:
             "coreason_ecosystem.gateway.master_mcp.emit_span_event"
         ) as mock_telemetry:
             arguments = {"query": "clinical test"}
-            result = await call_tool(name=tool_name, arguments=arguments)
+            result = await invoke_actuator(name=tool_name, arguments=arguments)
 
             assert isinstance(result, list)
             assert len(result) == 1
@@ -228,7 +228,7 @@ async def test_call_tool_and_receipt() -> None:
 
 
 @pytest.mark.asyncio
-async def test_call_tool_http_status_error() -> None:
+async def test_invoke_actuator_http_status_error() -> None:
     """Test execution when sub-MCP returns an HTTP error."""
     tool_name = "urn_coreason_oracle_clinical_extractor_fail"
 
@@ -244,13 +244,13 @@ async def test_call_tool_http_status_error() -> None:
         mock_post.side_effect = raise_http_status_error
 
         arguments = {"query": "fail test"}
-        result = await call_tool(name=tool_name, arguments=arguments)
+        result = await invoke_actuator(name=tool_name, arguments=arguments)
 
         assert "Sub-MCP failure: 500" in result[0].text
 
 
 @pytest.mark.asyncio
-async def test_call_tool_request_error() -> None:
+async def test_invoke_actuator_request_error() -> None:
     """Test execution fallback status on network request failures."""
     tool_name = "urn_coreason_oracle_clinical_extractor_fail"
 
@@ -264,7 +264,7 @@ async def test_call_tool_request_error() -> None:
 
         arguments = {"query": "fallback test"}
         with pytest.raises(RuntimeError, match="Topological Severance Event"):
-            await call_tool(name=tool_name, arguments=arguments)
+            await invoke_actuator(name=tool_name, arguments=arguments)
 
 
 @pytest.mark.asyncio
@@ -275,7 +275,7 @@ async def test_the_guillotine() -> None:
     arguments = {"query": "phantom call"}
 
     with pytest.raises(ValueError, match="Geometrical topology fault"):
-        await call_tool(name=unregistered_tool, arguments=arguments)
+        await invoke_actuator(name=unregistered_tool, arguments=arguments)
 
 
 @pytest.mark.asyncio

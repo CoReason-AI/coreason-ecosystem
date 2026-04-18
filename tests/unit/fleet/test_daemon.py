@@ -21,6 +21,7 @@ from coreason_ecosystem.fleet.telemetry_topology import (
     coreason_active_agents_total,
 )
 from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
+from coreason_manifest.spec.ontology import EscrowPolicy
 
 
 @pytest.fixture
@@ -47,7 +48,15 @@ async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
 
     bid = ComputeNodeTarget(
-        provider="aws", instance_id="p3.2xlarge", hourly_cost=3.0, vram_gb=16.0
+        provider="aws",
+        instance_id="p3.2xlarge",
+        hourly_cost=3.0,
+        vram_gb=16.0,
+        escrow_policy=EscrowPolicy(
+            escrow_locked_magnitude=5,
+            release_condition_metric="test",
+            refund_target_node_cid="did:coreason:fleet:aws",
+        ),
     )
     setattr(manager.oracle, "calculate_optimal_bid", AsyncMock(return_value=bid))
     setattr(

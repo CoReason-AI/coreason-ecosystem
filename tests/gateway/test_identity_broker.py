@@ -8,132 +8,149 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-import typing
+"""Tests for IdentityBroker — W3C DID validation and FederatedBilateralSLA enforcement."""
 
 import pytest
 from fastapi import HTTPException
 
-from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
 from coreason_ecosystem.gateway.identity_broker import IdentityBroker
+from coreason_manifest.spec.ontology import (
+    FederatedBilateralSLA,
+    SemanticClassificationProfile,
+)
 
 
-def _seed_test_registry() -> CapabilityRegistry:
-    """Create a CapabilityRegistry seeded with test capabilities."""
-    registry = CapabilityRegistry()
-    registry._cache = {
-        "urn:coreason:oracle:clinical_extractor": {
-            "endpoint": "http://svc-pubmed-mcp.internal:8000",
-            "clearance": "PUBLIC",
-        },
-        "urn:coreason:oracle:mathematics": {
-            "endpoint": "http://svc-math-mcp.internal:8000",
-            "clearance": "CONFIDENTIAL",
-        },
-    }
-    return registry
+@pytest.fixture
+def broker() -> IdentityBroker:
+    return IdentityBroker()
 
 
-@pytest.mark.asyncio
-async def test_sybil_rejection() -> None:
-    """A fraudulent payload bearing did:web:hack.com must mathematically fail."""
-    broker = IdentityBroker()
-    payload: dict[str, typing.Any] = {
-        "domain_filter": [],
-        "receipt": {
-            "issuer_did": "did:web:hack.com",
-            "authorization_claims": {"clearance": "PUBLIC"},
-        },
-    }
-    with pytest.raises(HTTPException) as exc:
-        await broker.verify_connection_handshake(payload)
-    assert exc.value.status_code == 401
-    assert "Invalid issuer_did" in exc.value.detail
+class TestVerifyConnectionHandshake:
+    """W3C DID-based authentication via NodeCIDState TypeAdapter."""
+
+    @pytest.mark.asyncio
+    async def test_valid_did_passes(self, broker: IdentityBroker) -> None:
+        payload = {
+            "receipt": {
+                "issuer_did": "did:coreason:swarm-node-001",
+                "authorization_claims": {"clearance": "PUBLIC"},
+            }
+        }
+        result = await broker.verify_connection_handshake(payload)
+        assert result["issuer_did"] == "did:coreason:swarm-node-001"
+        assert result["clearance"] == "PUBLIC"
+
+    @pytest.mark.asyncio
+    async def test_missing_receipt_raises(self, broker: IdentityBroker) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            await broker.verify_connection_handshake({})
+        assert exc_info.value.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_invalid_did_format_raises(self, broker: IdentityBroker) -> None:
+        payload = {
+            "receipt": {
+                "issuer_did": "web:hack.com",
+                "authorization_claims": {"clearance": "PUBLIC"},
+            }
+        }
+        with pytest.raises(HTTPException) as exc_info:
+            await broker.verify_connection_handshake(payload)
+        assert exc_info.value.status_code == 401
+        assert "DID geometry" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
+    async def test_short_did_raises(self, broker: IdentityBroker) -> None:
+        """DIDs shorter than 7 characters violate NodeCIDState min_length."""
+        payload = {
+            "receipt": {
+                "issuer_did": "did:a",
+                "authorization_claims": {"clearance": "PUBLIC"},
+            }
+        }
+        with pytest.raises(HTTPException) as exc_info:
+            await broker.verify_connection_handshake(payload)
+        assert exc_info.value.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_missing_clearance_raises(self, broker: IdentityBroker) -> None:
+        payload = {
+            "receipt": {
+                "issuer_did": "did:coreason:node-001",
+                "authorization_claims": {},
+            }
+        }
+        with pytest.raises(HTTPException) as exc_info:
+            await broker.verify_connection_handshake(payload)
+        assert exc_info.value.status_code == 401
+        assert "clearance" in str(exc_info.value.detail).lower()
+
+    @pytest.mark.asyncio
+    async def test_empty_did_raises(self, broker: IdentityBroker) -> None:
+        payload = {
+            "receipt": {
+                "issuer_did": "",
+                "authorization_claims": {"clearance": "PUBLIC"},
+            }
+        }
+        with pytest.raises(HTTPException) as exc_info:
+            await broker.verify_connection_handshake(payload)
+        assert exc_info.value.status_code == 401
 
 
-@pytest.mark.asyncio
-async def test_missing_receipt() -> None:
-    """Test payload lacking cryptographic receipt fails."""
-    broker = IdentityBroker()
-    payload: dict[str, typing.Any] = {"domain_filter": []}
-    with pytest.raises(HTTPException) as exc:
-        await broker.verify_connection_handshake(payload)
-    assert exc.value.status_code == 401
-    assert "Missing cryptographic receipt" in exc.value.detail
+class TestClearanceLattice:
+    """LBAC lattice dominance verification."""
+
+    def test_public_dominates_public(self, broker: IdentityBroker) -> None:
+        assert broker.validate_clearance_lattice("PUBLIC", "PUBLIC") is True
+
+    def test_restricted_dominates_all(self, broker: IdentityBroker) -> None:
+        assert broker.validate_clearance_lattice("RESTRICTED", "PUBLIC") is True
+        assert broker.validate_clearance_lattice("RESTRICTED", "CONFIDENTIAL") is True
+        assert broker.validate_clearance_lattice("RESTRICTED", "RESTRICTED") is True
+
+    def test_public_cannot_access_restricted(self, broker: IdentityBroker) -> None:
+        assert broker.validate_clearance_lattice("PUBLIC", "RESTRICTED") is False
+
+    def test_unknown_clearance_fails(self, broker: IdentityBroker) -> None:
+        assert broker.validate_clearance_lattice("UNKNOWN", "PUBLIC") is False
 
 
-@pytest.mark.asyncio
-async def test_missing_clearance() -> None:
-    """Test payload lacking semantic clearance fails."""
-    broker = IdentityBroker()
-    payload: dict[str, typing.Any] = {
-        "domain_filter": [],
-        "receipt": {"issuer_did": "did:coreason:oracle:empty"},
-    }
-    with pytest.raises(HTTPException) as exc:
-        await broker.verify_connection_handshake(payload)
-    assert exc.value.status_code == 401
-    assert "Missing semantic clearance" in exc.value.detail
+class TestVerifyFederationSLA:
+    """FederatedBilateralSLA enforcement from coreason_manifest."""
 
+    @pytest.fixture
+    def valid_sla(self) -> FederatedBilateralSLA:
+        return FederatedBilateralSLA(
+            receiving_tenant_id="tenant-001",
+            max_permitted_classification=SemanticClassificationProfile.CONFIDENTIAL,
+            liability_limit_magnitude=1000000,
+        )
 
-@pytest.mark.asyncio
-async def test_successful_handshake() -> None:
-    """Test payload passing successfully."""
-    broker = IdentityBroker()
-    payload: dict[str, typing.Any] = {
-        "domain_filter": [],
-        "receipt": {
-            "issuer_did": "did:coreason:oracle:test",
-            "authorization_claims": {"clearance": "PUBLIC"},
-        },
-    }
-    result = await broker.verify_connection_handshake(payload)
-    assert result["issuer_did"] == "did:coreason:oracle:test"
-    assert result["clearance"] == "PUBLIC"
+    def test_valid_sla_public_agent(
+        self, broker: IdentityBroker, valid_sla: FederatedBilateralSLA
+    ) -> None:
+        result = broker.verify_federation_sla(valid_sla, "public")
+        assert result is True
 
+    def test_valid_sla_confidential_agent(
+        self, broker: IdentityBroker, valid_sla: FederatedBilateralSLA
+    ) -> None:
+        result = broker.verify_federation_sla(valid_sla, "confidential")
+        assert result is True
 
-@pytest.mark.asyncio
-async def test_registry_resolve() -> None:
-    """Test registry direct resolution with seeded capabilities."""
-    registry = _seed_test_registry()
-    assert (
-        registry.resolve_urn("urn:coreason:oracle:clinical_extractor")
-        == "http://svc-pubmed-mcp.internal:8000"
-    )
-    with pytest.raises(KeyError):
-        registry.resolve_urn("urn:coreason:oracle:fake")
+    def test_classification_exceeds_sla(
+        self, broker: IdentityBroker, valid_sla: FederatedBilateralSLA
+    ) -> None:
+        with pytest.raises(ValueError, match="Federation Severance"):
+            broker.verify_federation_sla(valid_sla, "restricted")
 
-
-@pytest.mark.asyncio
-async def test_lbac_masking() -> None:
-    """An agent possessing PUBLIC clearance only discovers PUBLIC endpoints."""
-    registry = _seed_test_registry()
-    masked_endpoints = await registry.discover_active_substrates(
-        agent_clearance="PUBLIC"
-    )
-
-    assert "urn:coreason:oracle:clinical_extractor" in masked_endpoints
-    assert "urn:coreason:oracle:mathematics" not in masked_endpoints
-    assert "urn:coreason:oracle:weapon_systems" not in masked_endpoints
-
-
-def test_lbac_validate_clearance_dominates() -> None:
-    """RESTRICTED agent dominates PUBLIC capability."""
-    broker = IdentityBroker()
-    assert broker.validate_clearance_lattice("RESTRICTED", "PUBLIC") is True
-    assert broker.validate_clearance_lattice("CONFIDENTIAL", "PUBLIC") is True
-    assert broker.validate_clearance_lattice("PUBLIC", "PUBLIC") is True
-
-
-def test_lbac_validate_clearance_insufficient() -> None:
-    """PUBLIC agent cannot access RESTRICTED capability."""
-    broker = IdentityBroker()
-    assert broker.validate_clearance_lattice("PUBLIC", "RESTRICTED") is False
-    assert broker.validate_clearance_lattice("PUBLIC", "CONFIDENTIAL") is False
-
-
-def test_lbac_validate_clearance_unknown() -> None:
-    """Unknown clearance level defaults to most restrictive."""
-    broker = IdentityBroker()
-    # Unknown agent gets level 0, unknown required gets level 3.
-    assert broker.validate_clearance_lattice("UNKNOWN", "PUBLIC") is False
-    assert broker.validate_clearance_lattice("RESTRICTED", "UNKNOWN") is True
+    def test_sla_with_public_ceiling(self, broker: IdentityBroker) -> None:
+        sla = FederatedBilateralSLA(
+            receiving_tenant_id="tenant-002",
+            max_permitted_classification=SemanticClassificationProfile.PUBLIC,
+            liability_limit_magnitude=100,
+        )
+        assert broker.verify_federation_sla(sla, "public") is True
+        with pytest.raises(ValueError, match="Federation Severance"):
+            broker.verify_federation_sla(sla, "internal")

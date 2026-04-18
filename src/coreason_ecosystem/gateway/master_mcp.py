@@ -27,7 +27,7 @@ from fastapi import FastAPI
 from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
 from coreason_ecosystem.gateway.epistemic_filter import EpistemicFilter
 from coreason_ecosystem.gateway.identity_broker import IdentityBroker
-from coreason_ecosystem.gateway.models import (
+from coreason_ecosystem.gateway.state_manifests import (
     OracleExecutionReceipt,
 )
 from coreason_ecosystem.utils.telemetry import emit_span_event
@@ -83,11 +83,14 @@ def compute_schema_seal(schema: dict[str, Any]) -> str:
 
 @app.on_event("startup")
 async def _hydrate_registry() -> None:
-    """Hydrate the capability registry from the matrix file on startup."""
+    """Hydrate the capability registry from the matrix file and passive discovery on startup."""
     from pathlib import Path
 
     matrix_path = Path.cwd() / "capabilities.matrix.yaml"
     registry.hydrate_from_matrix(matrix_path)
+
+    # Passive Ontological Projection: scan for modules bearing __action_space_urn__
+    registry.scan_action_space_modules()
 
 
 async def extract_and_verify_identity(request: Request) -> None:
@@ -134,10 +137,10 @@ async def handle_messages(request: Request) -> None:
 
 
 @mcp_server.list_tools()  # type: ignore
-async def list_tools() -> list[types.Tool]:
-    """Federated tool discovery from registry with cryptographic schema sealing.
+async def list_actuators() -> list[types.Tool]:
+    """Federated actuator/oracle discovery from registry with cryptographic schema sealing.
 
-    Each tool schema is sealed with SHA-256 of its RFC 8785 canonical form
+    Each actuator schema is sealed with SHA-256 of its RFC 8785 canonical form
     before being projected to the kinetic plane.
     """
     clearance = current_clearance.get()
@@ -151,7 +154,7 @@ async def list_tools() -> list[types.Tool]:
         available_urns=discovered_capabilities,
     )
 
-    tool_objects: list[types.Tool] = []
+    actuator_manifests: list[types.Tool] = []
 
     async with httpx.AsyncClient() as client:
         for urn, endpoint in discovered_capabilities.items():
@@ -162,7 +165,7 @@ async def list_tools() -> list[types.Tool]:
                     schemas = response.json()
                     for schema in schemas:
                         schema["name"] = (
-                            f"{sanitized_name}_{schema.get('name', 'tool')}"
+                            f"{sanitized_name}_{schema.get('name', 'actuator')}"
                         )
 
                         # Cryptographic sealing: compute SHA-256 of the canonical
@@ -172,11 +175,11 @@ async def list_tools() -> list[types.Tool]:
                         )
                         schema_seal = compute_schema_seal(input_schema)
 
-                        tool_objects.append(
+                        actuator_manifests.append(
                             types.Tool(
                                 name=schema["name"][:64],
                                 description=(
-                                    f"{schema.get('description', 'A proxied tool')} "
+                                    f"{schema.get('description', 'A proxied actuator')} "
                                     f"[seal:{schema_seal[:16]}]"
                                 ),
                                 inputSchema=input_schema,
@@ -190,11 +193,13 @@ async def list_tools() -> list[types.Tool]:
                 )
                 continue
 
-    return tool_objects
+    return actuator_manifests
 
 
 @mcp_server.call_tool()  # type: ignore
-async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
+async def invoke_actuator(
+    name: str, arguments: dict[str, Any]
+) -> list[types.TextContent]:
     """Proxies execution request to physical action space with cryptographic receipt."""
     # Resolve the matching URN from the registry cache
     discovered = await registry.discover_active_substrates()

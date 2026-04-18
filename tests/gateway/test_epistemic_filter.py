@@ -171,3 +171,69 @@ class TestCapabilityRegistryEpistemicStatus:
             populated_registry.get_epistemic_status("urn:coreason:oracle:nonexistent")
             == "DRAFT"
         )
+
+
+class TestSLABasedFiltering:
+    """FederatedBilateralSLA classification ceiling enforcement."""
+
+    def test_sla_strips_restricted_urns(
+        self,
+        epistemic_filter: EpistemicFilter,
+        populated_registry: CapabilityRegistry,
+    ) -> None:
+        """SLA with 'public' ceiling strips CONFIDENTIAL and RESTRICTED URNs."""
+        from coreason_manifest.spec.ontology import (
+            FederatedBilateralSLA,
+            SemanticClassificationProfile,
+        )
+
+        sla = FederatedBilateralSLA(
+            receiving_tenant_id="tenant-001",
+            max_permitted_classification=SemanticClassificationProfile.PUBLIC,
+            liability_limit_magnitude=100,
+        )
+        available = _all_urns(populated_registry)
+        result = epistemic_filter.filter_capabilities(
+            available, "DRAFT", federation_sla=sla
+        )
+        # Only PUBLIC clearance URNs should pass
+        assert "urn:coreason:oracle:medical_kg" in result
+        assert "urn:coreason:oracle:staging_tool" in result
+        # CONFIDENTIAL and RESTRICTED are stripped
+        assert "urn:coreason:oracle:clinical_vector" not in result
+        assert "urn:coreason:oracle:experimental_prover" not in result
+
+    def test_sla_confidential_allows_public_and_confidential(
+        self,
+        epistemic_filter: EpistemicFilter,
+        populated_registry: CapabilityRegistry,
+    ) -> None:
+        """SLA with 'confidential' ceiling allows PUBLIC + CONFIDENTIAL."""
+        from coreason_manifest.spec.ontology import (
+            FederatedBilateralSLA,
+            SemanticClassificationProfile,
+        )
+
+        sla = FederatedBilateralSLA(
+            receiving_tenant_id="tenant-002",
+            max_permitted_classification=SemanticClassificationProfile.CONFIDENTIAL,
+            liability_limit_magnitude=100,
+        )
+        available = _all_urns(populated_registry)
+        result = epistemic_filter.filter_capabilities(
+            available, "DRAFT", federation_sla=sla
+        )
+        assert "urn:coreason:oracle:medical_kg" in result
+        assert "urn:coreason:oracle:clinical_vector" in result
+        assert "urn:coreason:oracle:staging_tool" in result
+        assert "urn:coreason:oracle:experimental_prover" not in result
+
+    def test_no_sla_returns_all_at_draft(
+        self,
+        epistemic_filter: EpistemicFilter,
+        populated_registry: CapabilityRegistry,
+    ) -> None:
+        """Without SLA, DRAFT returns everything (existing behavior preserved)."""
+        available = _all_urns(populated_registry)
+        result = epistemic_filter.filter_capabilities(available, "DRAFT")
+        assert result == available
