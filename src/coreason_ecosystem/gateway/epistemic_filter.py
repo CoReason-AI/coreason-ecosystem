@@ -30,6 +30,11 @@ from loguru import logger
 if TYPE_CHECKING:
     from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
 
+from coreason_manifest.spec.ontology import (
+    FederatedBilateralSLA,
+    SemanticClassificationProfile,
+)
+
 # SRB Governance Lifecycle — strictly ordered by epistemic maturity.
 EPISTEMIC_LIFECYCLE_ORDER: dict[str, int] = {
     "DRAFT": 0,
@@ -54,6 +59,7 @@ class EpistemicFilter:
         self,
         available_urns: dict[str, str],
         minimum_epistemic_status: str = "DRAFT",
+        federation_sla: FederatedBilateralSLA | None = None,
     ) -> dict[str, str]:
         """Apply the Epistemic Guillotine to the discovered capability set.
 
@@ -62,16 +68,37 @@ class EpistemicFilter:
             minimum_epistemic_status: The minimum SRB lifecycle phase
                 required for projection.  Defaults to ``"DRAFT"`` (no
                 filtering).
+            federation_sla: Optional ``FederatedBilateralSLA`` from the
+                manifest.  When provided, URNs whose clearance exceeds
+                the SLA's ``max_permitted_classification`` are stripped.
 
         Returns:
             A filtered mapping containing only URNs whose epistemic
-            status meets or exceeds the requested minimum.
+            status meets or exceeds the requested minimum, and whose
+            clearance satisfies any federation SLA constraints.
         """
         min_level = EPISTEMIC_LIFECYCLE_ORDER.get(minimum_epistemic_status, 0)
 
-        if min_level == 0:
+        if min_level == 0 and federation_sla is None:
             # DRAFT is the floor — no filtering required.
             return available_urns
+
+        # Resolve the SLA classification ceiling if provided.
+        _classification_levels: dict[str, int] = {
+            "public": 0,
+            "internal": 1,
+            "confidential": 2,
+            "restricted": 3,
+        }
+        sla_max_level: int | None = None
+        if federation_sla is not None:
+            sla_cls = federation_sla.max_permitted_classification
+            sla_cls_value = (
+                sla_cls.value
+                if isinstance(sla_cls, SemanticClassificationProfile)
+                else str(sla_cls)
+            )
+            sla_max_level = _classification_levels.get(sla_cls_value, 0)
 
         filtered: dict[str, str] = {}
         for urn, endpoint in available_urns.items():
@@ -79,6 +106,20 @@ class EpistemicFilter:
             urn_level = EPISTEMIC_LIFECYCLE_ORDER.get(urn_status, 0)
 
             if urn_level >= min_level:
+                # SLA classification check: map LBAC clearance to classification.
+                if sla_max_level is not None:
+                    assert federation_sla is not None  # narrowing for mypy
+                    urn_clearance = self._registry._cache.get(urn, {}).get(
+                        "clearance", "RESTRICTED"
+                    )
+                    urn_cls_level = _classification_levels.get(urn_clearance.lower(), 3)
+                    if urn_cls_level > sla_max_level:
+                        logger.debug(
+                            f"Federation SLA Guillotine: stripping {urn} "
+                            f"(clearance={urn_clearance}, "
+                            f"SLA max={federation_sla.max_permitted_classification})"
+                        )
+                        continue
                 filtered[urn] = endpoint
             else:
                 logger.debug(

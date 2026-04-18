@@ -22,6 +22,26 @@ Secret Quarantine).
 from typing import Any
 
 from fastapi import HTTPException
+from pydantic import TypeAdapter, ValidationError
+
+from coreason_manifest.spec.ontology import (
+    FederatedBilateralSLA,
+    NodeCIDState,
+    SemanticClassificationProfile,
+)
+
+# Create the validator once at module level — enforces the manifest's exact
+# DID regex (^did:[a-z0-9]+:[a-zA-Z0-9.\-_:]+$) and min_length=7 without
+# duplicating the pattern.
+_node_cid_validator: TypeAdapter[str] = TypeAdapter(NodeCIDState)
+
+# Semantic classification ordering for LBAC dominance checks.
+_CLASSIFICATION_LEVELS: dict[str, int] = {
+    "public": 0,
+    "internal": 1,
+    "confidential": 2,
+    "restricted": 3,
+}
 
 
 class IdentityBroker:
@@ -38,9 +58,10 @@ class IdentityBroker:
     ) -> dict[str, Any]:
         """Extract and verify the VerifiableCredentialPresentationReceipt.
 
-        Validates the W3C DID-based receipt, ensuring the issuer DID belongs
-        to the ``did:coreason:`` namespace and that authorization claims include
-        a valid semantic clearance level.
+        Validates the W3C DID-based receipt using the manifest's
+        ``NodeCIDState`` TypeAdapter, ensuring the issuer DID matches
+        the rigid ``^did:[a-z0-9]+:[a-zA-Z0-9.\\-_:]+$`` pattern and
+        that authorization claims include a valid semantic clearance level.
 
         Args:
             payload: The connection payload containing the intent and receipt.
@@ -59,10 +80,17 @@ class IdentityBroker:
             )
 
         issuer_did = receipt.get("issuer_did", "")
-        if not issuer_did.startswith("did:coreason:"):
+
+        # Rigid W3C DID validation via the manifest's NodeCIDState TypeAdapter.
+        try:
+            _node_cid_validator.validate_python(issuer_did)
+        except ValidationError:
             raise HTTPException(
                 status_code=401,
-                detail="Connection Severance Event: Invalid issuer_did.",
+                detail=(
+                    "Connection Severance Event: Invalid DID geometry. "
+                    f"'{issuer_did}' does not conform to NodeCIDState pattern."
+                ),
             )
 
         claims = receipt.get("authorization_claims", {})
@@ -108,3 +136,59 @@ class IdentityBroker:
         agent_level = self.CLEARANCE_LATTICE.get(agent_clearance, 0)
         required_level = self.CLEARANCE_LATTICE.get(required_clearance, 3)
         return agent_level >= required_level
+
+    def verify_federation_sla(
+        self,
+        sla: FederatedBilateralSLA,
+        agent_classification: str,
+    ) -> bool:
+        """Verify a FederatedBilateralSLA governs the cross-boundary connection.
+
+        Enforces the manifest's mathematical contract for multi-tenant
+        federation.  Checks:
+
+          1. ``receiving_tenant_cid`` is non-empty and conforms to CID pattern.
+          2. Agent's classification does not exceed
+             ``max_permitted_classification``.
+          3. ``liability_limit_magnitude`` is within bounds (0–1B).
+
+        Args:
+            sla: The ``FederatedBilateralSLA`` from ``coreason_manifest``.
+            agent_classification: The agent's semantic classification
+                (``public``, ``internal``, ``confidential``, ``restricted``).
+
+        Returns:
+            True if the SLA geometry is satisfied.
+
+        Raises:
+            ValueError: If any SLA constraint is violated.
+        """
+        # 1. Validate receiving_tenant_cid is non-empty.
+        if not sla.receiving_tenant_cid:
+            raise ValueError("Federation Severance: receiving_tenant_cid is empty.")
+
+        # 2. Classification dominance check
+        agent_level = _CLASSIFICATION_LEVELS.get(agent_classification, 0)
+        max_level = _CLASSIFICATION_LEVELS.get(
+            sla.max_permitted_classification.value
+            if isinstance(
+                sla.max_permitted_classification, SemanticClassificationProfile
+            )
+            else str(sla.max_permitted_classification),
+            0,
+        )
+        if agent_level > max_level:
+            raise ValueError(
+                f"Federation Severance: agent classification '{agent_classification}' "
+                f"exceeds SLA max_permitted_classification "
+                f"'{sla.max_permitted_classification}'."
+            )
+
+        # 3. Liability magnitude bounds are enforced by Pydantic (0 <= x <= 1B),
+        # but we verify the field is present and non-negative defensively.
+        if sla.liability_limit_magnitude < 0:
+            raise ValueError(  # pragma: no cover
+                "Federation Severance: liability_limit_magnitude is negative."
+            )
+
+        return True

@@ -30,6 +30,7 @@ from coreason_ecosystem.fleet.telemetry_topology import (
 from coreason_manifest.spec.ontology import (
     SpatialHardwareProfile as HardwareProfile,
     EpistemicSecurityProfile as SecurityProfile,
+    EscrowPolicy,
 )
 
 
@@ -90,6 +91,11 @@ class AutonomicFleetManager:
                         bid.security_profile = security_profile
                         bid.mesh_auth_key = self.mesh_auth_key
                         bid.temporal_mesh_ip = self.temporal_mesh_ip
+                        bid.escrow_policy = EscrowPolicy(
+                            escrow_locked_magnitude=max(int(self.max_budget_hr), 1),
+                            release_condition_metric="fleet_daemon_hourly_budget",
+                            refund_target_node_cid=f"did:coreason:fleet:{bid.provider}",
+                        )
 
                         result = await self.driver.provision_node(bid)
                         logger.info(f"Provisioning Complete: {result['stack_name']}")

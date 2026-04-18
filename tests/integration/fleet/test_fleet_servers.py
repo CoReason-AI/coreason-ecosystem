@@ -10,6 +10,7 @@ from coreason_ecosystem.fleet.pulumi_actuator import (
 from coreason_manifest.spec.ontology import (
     SpatialHardwareProfile as HardwareProfile,
     EpistemicSecurityProfile as SecurityProfile,
+    EscrowPolicy,
 )
 
 
@@ -27,6 +28,11 @@ async def test_pulumi_actuator_compile_payload() -> None:
         security_profile=SecurityProfile(network_isolation=True),
         mesh_auth_key="ts-12345",
         temporal_mesh_ip="100.1.1.1",
+        escrow_policy=EscrowPolicy(
+            escrow_locked_magnitude=50000,
+            release_condition_metric="test",
+            refund_target_node_cid="did:coreason:fleet:aws",
+        ),
     )
 
     with patch("coreason_ecosystem.fleet.pulumi_actuator.auto") as mock_auto:

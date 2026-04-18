@@ -80,7 +80,9 @@ from coreason_ecosystem.orchestration.up import execute_up  # noqa: E402
 from coreason_ecosystem.fleet.daemon import AutonomicFleetManager  # noqa: E402
 
 fleet_app = typer.Typer()
-app.add_typer(fleet_app, name="fleet", help="Manage the autonomic compute fleet.")
+app.add_typer(
+    fleet_app, name="fleet", help="Manage the autonomic Cognitive Entity compute fleet."
+)
 
 
 @fleet_app.command("start")
