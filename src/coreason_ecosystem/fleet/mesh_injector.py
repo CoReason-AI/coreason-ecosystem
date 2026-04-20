@@ -15,8 +15,6 @@ import math
 from typing import Any, Literal
 
 
-
-
 class MeshInjector:
     def inject_ocap_middleware(self, token: str, payload: Any) -> Any:
         """
@@ -233,7 +231,9 @@ class MeshInjector:
         urn: str,
         endpoint: str,
         clearance: Literal["PUBLIC", "CONFIDENTIAL", "RESTRICTED"],
-        epistemic_status: Literal["DRAFT", "SRB_APPROVED", "CLIENT_APPROVED", "PUBLISHED"],
+        epistemic_status: Literal[
+            "DRAFT", "SRB_APPROVED", "CLIENT_APPROVED", "PUBLISHED"
+        ],
     ) -> None:
         """Autonomously monitor the external capability registry and dynamically
         establish the network path in capabilities.matrix.yaml to route JSON-RPC intents.
@@ -250,10 +250,10 @@ class MeshInjector:
             / "local"
             / "capabilities.matrix.yaml"
         )
-        
+
         with open(matrix_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {"capabilities": []}
-            
+
         found = False
         for cap in data.get("capabilities", []):
             if cap.get("urn") == urn:
@@ -262,14 +262,16 @@ class MeshInjector:
                 cap["epistemic_status"] = epistemic_status
                 found = True
                 break
-                
+
         if not found:
-            data.setdefault("capabilities", []).append({
-                "urn": urn,
-                "endpoint": endpoint,
-                "clearance": clearance,
-                "epistemic_status": epistemic_status,
-            })
-            
+            data.setdefault("capabilities", []).append(
+                {
+                    "urn": urn,
+                    "endpoint": endpoint,
+                    "clearance": clearance,
+                    "epistemic_status": epistemic_status,
+                }
+            )
+
         with open(matrix_path, "w", encoding="utf-8") as f:
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)

@@ -13,7 +13,9 @@
 import pytest
 from fastapi import HTTPException
 
-from coreason_ecosystem.gateway.ontological_identity_router import OntologicalIdentityRouter
+from coreason_ecosystem.gateway.ontological_identity_router import (
+    OntologicalIdentityRouter,
+)
 from coreason_manifest.spec.ontology import (
     FederatedBilateralSLA,
     SemanticClassificationProfile,
@@ -41,13 +43,17 @@ class TestVerifyConnectionHandshake:
         assert result["clearance"] == "PUBLIC"
 
     @pytest.mark.asyncio
-    async def test_missing_receipt_raises(self, broker: OntologicalIdentityRouter) -> None:
+    async def test_missing_receipt_raises(
+        self, broker: OntologicalIdentityRouter
+    ) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await broker.authorize_coordinate({})
         assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_invalid_did_format_raises(self, broker: OntologicalIdentityRouter) -> None:
+    async def test_invalid_did_format_raises(
+        self, broker: OntologicalIdentityRouter
+    ) -> None:
         payload = {
             "receipt": {
                 "issuer_did": "web:hack.com",
@@ -73,7 +79,9 @@ class TestVerifyConnectionHandshake:
         assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_missing_clearance_raises(self, broker: OntologicalIdentityRouter) -> None:
+    async def test_missing_clearance_raises(
+        self, broker: OntologicalIdentityRouter
+    ) -> None:
         payload = {
             "receipt": {
                 "issuer_did": "did:coreason:node-001",
@@ -109,7 +117,9 @@ class TestClearanceLattice:
         assert broker.validate_clearance_lattice("RESTRICTED", "CONFIDENTIAL") is True
         assert broker.validate_clearance_lattice("RESTRICTED", "RESTRICTED") is True
 
-    def test_public_cannot_access_restricted(self, broker: OntologicalIdentityRouter) -> None:
+    def test_public_cannot_access_restricted(
+        self, broker: OntologicalIdentityRouter
+    ) -> None:
         assert broker.validate_clearance_lattice("PUBLIC", "RESTRICTED") is False
 
     def test_unknown_clearance_fails(self, broker: OntologicalIdentityRouter) -> None:

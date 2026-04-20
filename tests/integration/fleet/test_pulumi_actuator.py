@@ -35,9 +35,7 @@ def driver(tmp_templates_dir: Path) -> PulumiActuator:
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.fleet.pulumi_actuator.auto")
-async def test_provision_node_aws(
-    mock_auto: MagicMock, driver: PulumiActuator
-) -> None:
+async def test_provision_node_aws(mock_auto: MagicMock, driver: PulumiActuator) -> None:
     target = ComputeNodeTarget(
         provider="aws",
         instance_id="t3.micro",
@@ -112,9 +110,7 @@ async def test_destroy_node(mock_auto: MagicMock, driver: PulumiActuator) -> Non
 
 
 @pytest.mark.asyncio
-async def test_reconcile_state(
-    driver: PulumiActuator, tmp_templates_dir: Path
-) -> None:
+async def test_reconcile_state(driver: PulumiActuator, tmp_templates_dir: Path) -> None:
     mock_workspace = MagicMock()
     mock_stack1 = MagicMock()
     mock_stack1.name = "fleet-worker-abc"

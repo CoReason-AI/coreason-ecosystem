@@ -93,7 +93,7 @@ class ProxmoxProvider(CloudProvider):
         node_name = config.get("node_name") or "coreason-swarm-01"
         hw_profile = BOOTSTRAP_CONFIG.get("hardware_profile", {})
         min_vram_gb = float(hw_profile.get("min_vram_gb", 32.0))
-        
+
         cpu_cores = config.get_int("cpu_cores") or max(8, int(min_vram_gb))
         memory_mb = config.get_int("memory_mb") or int(min_vram_gb * 1024)
         disk_size = config.get_int("disk_size") or max(100, int(min_vram_gb * 2))

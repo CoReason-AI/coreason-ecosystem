@@ -1,5 +1,4 @@
 import pytest
-from pydantic import ValidationError
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from coreason_ecosystem.fleet.mesh_injector import MeshInjector

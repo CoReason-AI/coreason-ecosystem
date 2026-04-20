@@ -1,6 +1,5 @@
 from typing import Any
 from hypothesis import given, settings, strategies as st
-from pydantic import ValidationError
 from unittest.mock import patch, AsyncMock
 from typer.testing import CliRunner
 
