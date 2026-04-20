@@ -32,7 +32,7 @@ To prevent semantic confusion and latent boundary drift, you must strictly diffe
 
 ### **1.2 The Sovereign MCP Projection Law**
 **ABSOLUTE RULE:** You are strictly forbidden from writing or committing domain-specific logic, stateful database queries, or "prompts" into this repository.
-* If a task requires clinical knowledge (e.g., querying OMOP), it must be routed to a Sovereign MCP (e.g., `urn:coreason:oracle:medical_kg`).
+* If a task requires clinical knowledge (e.g., querying OMOP), it must be routed to a Sovereign MCP (e.g., `urn:coreason:oracle:_kg`).
 * If a task requires economic state (e.g., a Treasury ledger), it must be routed to `urn:coreason:state:treasury`.
 * The `coreason-ecosystem` only knows how to route JSON-RPC intents via `capabilities.matrix.yaml`. **It must remain hollow.**
 

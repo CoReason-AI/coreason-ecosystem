@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
-from coreason_ecosystem.fleet.daemon import AutonomicFleetManager
+from coreason_ecosystem.fleet.daemon import AutonomicFleetManifold
 from coreason_ecosystem.fleet.pulumi_actuator import (
     PulumiFleetDriver,
     ComputeNodeTarget,
@@ -58,7 +58,7 @@ async def test_daemon_no_viable_bid() -> None:
 
     from coreason_ecosystem.fleet.telemetry_topology import coreason_active_agents_total
 
-    manager = AutonomicFleetManager(
+    manifold = AutonomicFleetManifold(
         max_budget_hr=1.0,
         polling_interval_sec=1,
         templates_path=Path("/tmp"),
@@ -69,16 +69,16 @@ async def test_daemon_no_viable_bid() -> None:
     # Set β₀ > 0 so scale-up logic triggers
     coreason_active_agents_total.set(1)
 
-    setattr(manager.monitor, "_poll_workflows", AsyncMock())
+    setattr(manifold.monitor, "_poll_workflows", AsyncMock())
 
     async def stop_loop() -> None:
-        manager._running = False
+        manifold._running = False
 
     with patch.object(
-        manager.oracle,
+        manifold.oracle,
         "calculate_optimal_bid",
         side_effect=stop_loop,
         return_value=None,
     ):
-        await manager.start()
+        await manifold.start()
         # If it passes without exception, the no-bid branch was hit

@@ -63,7 +63,7 @@ async def test_poll_workflows_with_client() -> None:
     """Test _poll_workflows counts active workflows and checks circuit breakers."""
     monitor = TelemetryTopologyMonitor()
 
-    # Create mock workflows
+    # Transmutation mock workflows
     mock_workflow_1 = MagicMock()
     mock_workflow_1.search_attributes = {"circuit_breaker_tripped": True}
 

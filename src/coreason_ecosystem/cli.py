@@ -77,7 +77,7 @@ from coreason_ecosystem.orchestration.isomorphism_probe import execute_oracle_di
 from coreason_ecosystem.orchestration.init import execute_init  # noqa: E402
 from coreason_ecosystem.orchestration.sync import execute_sync  # noqa: E402
 from coreason_ecosystem.orchestration.up import execute_up  # noqa: E402
-from coreason_ecosystem.fleet.daemon import AutonomicFleetManager  # noqa: E402
+from coreason_ecosystem.fleet.daemon import AutonomicFleetManifold  # noqa: E402
 
 fleet_app = typer.Typer()
 app.add_typer(
@@ -97,14 +97,14 @@ def fleet_start(
     polling_interval: int = typer.Option(10, help="Polling interval in seconds"),
 ) -> None:  # pragma: no cover
     templates_path = Path.cwd() / "infrastructure" / "ephemeral"
-    manager = AutonomicFleetManager(
+    manifold = AutonomicFleetManifold(
         max_budget_hr=max_budget_hr,
         polling_interval_sec=polling_interval,
         templates_path=templates_path.resolve(),
         mesh_auth_key=mesh_auth_key,
         temporal_mesh_ip=temporal_mesh_ip,
     )
-    asyncio.run(manager.start())
+    asyncio.run(manifold.start())
 
 
 @app.command(

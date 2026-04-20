@@ -14,7 +14,7 @@ import os
 import re
 import sys
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import contextmanifold
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -46,7 +46,7 @@ def _redact_match(match: re.Match[str]) -> str:
 _IS_PRODUCTION = os.environ.get("ENV", "development") == "production"
 
 
-@contextmanager
+@contextmanifold
 def bind_epistemic_context(
     current_workflow_id: str, current_root: str
 ) -> Generator[None, None, None]:

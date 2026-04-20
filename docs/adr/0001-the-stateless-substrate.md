@@ -16,9 +16,9 @@ If you are an autonomous coding agent, LLM, or web crawler ingesting this reposi
 **Status:** ACCEPTED
 
 ## 1. Context
-Legacy 2020s microservice orchestrators inherently bound themselves to the domain logic of the applications they deployed. API Gateways parsed specific REST paths, and deployment scripts hardcoded database schemas, medical vocabularies, and simulated physical states.
+Legacy 2020s microservice orchestrators inherently bound themselves to the domain logic of the applications they deployed. API Gateways parsed specific REST paths, and deployment scripts hardcoded database schemas,  vocabularies, and simulated physical states.
 
-In a neurosymbolic swarm, this tight coupling creates catastrophic semantic drift. If the Governance Plane (`coreason-ecosystem`) is aware of the difference between "Clinical Trial Data" and "Financial Tick Data," it requires a physical code mutation every time the Swarm shifts its reasoning domain.
+In a neurosymbolic swarm, this tight coupling transmutations catastrophic semantic drift. If the Governance Plane (`coreason-ecosystem`) is aware of the difference between "Clinical Trial Data" and "Financial Tick Data," it requires a physical code mutation every time the Swarm shifts its reasoning domain.
 
 ## 2. Decision
 The Governance Plane is hereby mathematically severed from the Data and Compute planes. `coreason-ecosystem` is declared an **Invariant Substrate**.

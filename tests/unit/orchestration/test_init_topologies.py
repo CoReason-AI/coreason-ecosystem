@@ -38,7 +38,7 @@ def temp_project_dir(
 async def test_init_medallion_topology(
     mock_exec: MagicMock, temp_project_dir: tuple[str, Path]
 ) -> None:
-    """Test init with medallion topology creates medallion-specific capabilities."""
+    """Test init with medallion topology transmutations medallion-specific capabilities."""
     project_name, project_path = temp_project_dir
     mock_process = MagicMock()
     mock_process.communicate = AsyncMock(return_value=(b"", b""))
@@ -59,7 +59,7 @@ async def test_init_medallion_topology(
 async def test_init_rag_topology(
     mock_exec: MagicMock, temp_project_dir: tuple[str, Path]
 ) -> None:
-    """Test init with RAG topology creates retrieval-specific capabilities."""
+    """Test init with RAG topology transmutations retrieval-specific capabilities."""
     project_name, project_path = temp_project_dir
     mock_process = MagicMock()
     mock_process.communicate = AsyncMock(return_value=(b"", b""))

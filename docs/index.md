@@ -36,7 +36,7 @@ These documents codify the pure mathematical physics governing the Governance Pl
 |---|----------|-------------------|
 | 1 | [Topological Data Analysis & Persistent Homology](topological_data_analysis.md) | Causal graph homology — Betti number invariants ($\beta_0$, $\beta_1$), simplicial complex projection, and the `TopologicalHaltIntent` immune response. |
 | 2 | [Thermodynamic Provisioning & The Economic Guillotine](thermodynamic_provisioning.md) | Ashby's Law of Requisite Variety, Variational Free Energy as KL-divergence, and the `PulumiActuator` severance protocol. |
-| 3 | [Game Theory & Epistemic Market Dynamics](game_theory_and_markets.md) | Non-cooperative fleet economics — Nash Equilibrium enforcement, LMSR pricing oracle, and the TreasuryManager SMPC automaton. |
+| 3 | [Game Theory & Epistemic Market Dynamics](game_theory_and_markets.md) | Non-cooperative fleet economics — Nash Equilibrium enforcement, LMSR pricing oracle, and the TreasuryManifold SMPC automaton. |
 
 ### L1: Architectural Axioms
 These documents define the rigid boundaries and absolute laws of the Governance Plane. They are written to be parsed by compliance compilers and AI agents, leaving zero room for human interpretation or legacy DevOps drift.

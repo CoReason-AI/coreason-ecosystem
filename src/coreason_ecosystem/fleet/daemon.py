@@ -8,7 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-"""Autonomic Fleet Manager — Thermodynamic Provisioning Daemon.
+"""Autonomic Fleet Manifold — Thermodynamic Provisioning Daemon.
 
 Continuously polls the TelemetryTopologyMonitor for the β₀ Betti number
 (connected components) and drives scale-up/scale-down actuation via the
@@ -34,7 +34,7 @@ from coreason_manifest.spec.ontology import (
 )
 
 
-class AutonomicFleetManager:
+class AutonomicFleetManifold:
     """Thermodynamic provisioning daemon.
 
     Derives scaling decisions from the topological invariants exposed by
@@ -62,7 +62,7 @@ class AutonomicFleetManager:
 
     async def start(self) -> None:
         self._running = True
-        logger.info("Starting Autonomic Fleet Manager...")
+        logger.info("Starting Autonomic Fleet Manifold...")
 
         while self._running:
             try:
@@ -122,7 +122,7 @@ class AutonomicFleetManager:
 
             except asyncio.CancelledError:
                 self._running = False
-                logger.info("Fleet Manager shutdown requested.")
+                logger.info("Fleet Manifold shutdown requested.")
                 break
             except Exception as e:
                 logger.error(f"Error in control loop: {e}")
@@ -131,5 +131,5 @@ class AutonomicFleetManager:
                 await asyncio.sleep(self.polling_interval_sec)
             except asyncio.CancelledError:
                 self._running = False
-                logger.info("Fleet Manager shutdown requested during sleep.")
+                logger.info("Fleet Manifold shutdown requested during sleep.")
                 break

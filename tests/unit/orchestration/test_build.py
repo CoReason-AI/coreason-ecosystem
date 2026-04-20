@@ -29,7 +29,7 @@ runner = CliRunner()
 @patch("coreason_ecosystem.orchestration.build.Path.rglob")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_command_dir(
-    mock_create_subprocess_exec: Any,
+    mock_transmutation_subprocess_exec: Any,
     mock_rglob: Any,
     mock_is_dir: Any,
     mock_filelock: Any,
@@ -51,7 +51,7 @@ def test_build_command_dir(
     mock_process = AsyncMock()
     mock_process.returncode = 0
     mock_process.communicate.return_value = (b"", b"")
-    mock_create_subprocess_exec.return_value = mock_process
+    mock_transmutation_subprocess_exec.return_value = mock_process
 
     import io
 
@@ -100,7 +100,7 @@ def test_build_command_dir_no_files(
 @patch("coreason_ecosystem.orchestration.build.Path.rglob")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_compiler_not_found(
-    mock_create_subprocess_exec: Any,
+    mock_transmutation_subprocess_exec: Any,
     mock_rglob: Any,
     mock_is_dir: Any,
     mock_filelock: Any,
@@ -111,7 +111,7 @@ def test_build_compiler_not_found(
     """Test the build command when componentize-py is not found."""
     mock_exists.return_value = True
     mock_is_dir.return_value = False  # Target is a file
-    mock_create_subprocess_exec.side_effect = FileNotFoundError
+    mock_transmutation_subprocess_exec.side_effect = FileNotFoundError
 
     import io
 

@@ -42,7 +42,7 @@ async def execute_up() -> None:
     # Resolve the compose file path dynamically
     compose_path = Path.cwd() / "infrastructure" / "local" / "compose.yaml"
     if not compose_path.exists():
-        # Read the internal compose file, create dirs, and copy it
+        # Read the internal compose file, transmutation dirs, and copy it
         internal_compose_path = (
             Path(__file__).parent.parent.parent.parent
             / "infrastructure"

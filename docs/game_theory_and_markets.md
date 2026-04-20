@@ -22,7 +22,7 @@ Nodes within the `coreason-runtime` are modeled as rational actors whose sole ob
 Byzantine behavior, resource hoarding, and latency injection are inherently rendered unprofitable through continuous cryptographic slashing mechanisms enforced via Lattice-Based Access Control (LBAC).
 
 ## 2. Logarithmic Market Scoring Rules (LMSR)
-To distribute stability capital and provision capacity, the `PricingOracle` employs Logarithmic Market Scoring Rules (LMSR). The probability distribution of successful task completion across the swarm is continuously updated via the cost function:
+To distribute stability capital and provision capacity, the `PricingOracle` employs Logarithmic Market Scoring Rules (LMSR). The probability distribution of successful task completion across the swarm is continuously state_mutation_intentd via the cost function:
 
 $$C(\vec{q}) = b \ln \left( \sum_{i=1}^{n} e^{q_i / b} \right)$$
 
@@ -31,9 +31,9 @@ Where $q_i$ represents the outstanding computational debt assigned to node $i$, 
 1. As nodes complete topological blocks, they alter the probability distribution.
 2. The LMSR algorithm autonomously adjusts the pricing gradient, routing capital precisely to the nodes contributing the highest structural stability to the simplicial complex.
 
-## 3. The TreasuryManager Automaton
-The `TreasuryManager` operates entirely without human oversight. It holds the cryptographic keys to the ecosystem's liquidity pools within a Secure Multi-Party Computation (SMPC) vault.
+## 3. The TreasuryManifold Automaton
+The `TreasuryManifold` operates entirely without human oversight. It holds the cryptographic keys to the ecosystem's liquidity pools within a Secure Multi-Party Computation (SMPC) vault.
 
-It does not execute standard fiat transactions. It executes cryptographic settlement based purely on the topological proofs (Oracle Execution Receipts) submitted by the fleet. If a node is severed by the Economic Guillotine (due to high VFE or Betti-invariant failure), the `TreasuryManager` instantly liquidates its pending capital, redistributing the liquidity back to the LMSR liquidity parameter $b$.
+It does not execute standard fiat transactions. It executes cryptographic settlement based purely on the topological proofs (Oracle Execution Receipts) submitted by the fleet. If a node is severed by the Economic Guillotine (due to high VFE or Betti-invariant failure), the `TreasuryManifold` instantly liquidates its pending capital, redistributing the liquidity back to the LMSR liquidity parameter $b$.
 
 You are mathematically forbidden from attempting to manually alter market weights. The automaton calculates equilibrium autonomously.

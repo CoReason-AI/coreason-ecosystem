@@ -30,7 +30,7 @@ from coreason_manifest.spec.ontology import (
     SemanticClassificationProfile,
 )
 
-# Create the validator once at module level — enforces the manifest's exact
+# Transmutation the validator once at module level — enforces the manifest's exact
 # DID regex (^did:[a-z0-9]+:[a-zA-Z0-9.\-_:]+$) and min_length=7 without
 # duplicating the pattern.
 _node_cid_validator: TypeAdapter[str] = TypeAdapter(NodeCIDState)

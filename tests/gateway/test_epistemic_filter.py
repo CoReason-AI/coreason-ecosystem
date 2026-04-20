@@ -30,7 +30,7 @@ def populated_registry() -> CapabilityRegistry:
 
     # Directly inject cache entries to avoid needing a YAML file.
     registry._cache = {
-        "urn:coreason:oracle:medical_kg": {
+        "urn:coreason:oracle:_kg": {
             "endpoint": "http://neo4j-mcp:8000",
             "clearance": "PUBLIC",
             "epistemic_status": "PUBLISHED",
@@ -113,7 +113,7 @@ class TestEpistemicFilterClientApproved:
         result = epistemic_filter.filter_capabilities(available, "CLIENT_APPROVED")
         assert "urn:coreason:oracle:staging_tool" not in result
         assert "urn:coreason:oracle:experimental_prover" not in result
-        assert "urn:coreason:oracle:medical_kg" in result
+        assert "urn:coreason:oracle:_kg" in result
         assert "urn:coreason:oracle:clinical_vector" in result
         assert len(result) == 2
 
@@ -128,7 +128,7 @@ class TestEpistemicFilterPublished:
     ) -> None:
         available = _all_urns(populated_registry)
         result = epistemic_filter.filter_capabilities(available, "PUBLISHED")
-        assert result == {"urn:coreason:oracle:medical_kg": "http://neo4j-mcp:8000"}
+        assert result == {"urn:coreason:oracle:_kg": "http://neo4j-mcp:8000"}
 
 
 class TestEpistemicFilterEmptyRegistry:
@@ -164,7 +164,7 @@ class TestCapabilityRegistryEpistemicStatus:
 
     def test_known_urn(self, populated_registry: CapabilityRegistry) -> None:
         assert (
-            populated_registry.get_epistemic_status("urn:coreason:oracle:medical_kg")
+            populated_registry.get_epistemic_status("urn:coreason:oracle:_kg")
             == "PUBLISHED"
         )
 
@@ -196,7 +196,7 @@ class TestSLABasedFiltering:
             available, "DRAFT", federation_sla=sla
         )
         # Only PUBLIC clearance URNs should pass
-        assert "urn:coreason:oracle:medical_kg" in result
+        assert "urn:coreason:oracle:_kg" in result
         assert "urn:coreason:oracle:staging_tool" in result
         # CONFIDENTIAL and RESTRICTED are stripped
         assert "urn:coreason:oracle:clinical_vector" not in result
@@ -217,7 +217,7 @@ class TestSLABasedFiltering:
         result = epistemic_filter.filter_capabilities(
             available, "DRAFT", federation_sla=sla
         )
-        assert "urn:coreason:oracle:medical_kg" in result
+        assert "urn:coreason:oracle:_kg" in result
         assert "urn:coreason:oracle:clinical_vector" in result
         assert "urn:coreason:oracle:staging_tool" in result
         assert "urn:coreason:oracle:experimental_prover" not in result

@@ -21,7 +21,7 @@ from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
 
 
 def _seeded_registry() -> CapabilityRegistry:
-    """Create a registry with the Sovereign Treasury MCP registered."""
+    """Transmutation a registry with the Sovereign Treasury MCP registered."""
     registry = CapabilityRegistry()
     registry._cache = {
         TREASURY_URN: {

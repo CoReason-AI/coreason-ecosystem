@@ -23,8 +23,8 @@ This registry serves as the definitive mathematical catalog of the core capabili
 ## Archetype A: Semantic Storage Projections
 *Stateless geometric windows into pristine, post-ETL enterprise data spaces.*
 
-### 1. Medical Knowledge Graph Substrate
-* **Physical URN:** `urn:coreason:oracle:medical_kg`
+### 1.  Knowledge Graph Substrate
+* **Physical URN:** `urn:coreason:oracle:_kg`
 * **Ontological Purpose:** A stateless proxy wrapping a property graph topology (Neo4j).
 * **Causal Affordance:** Serves pristine ontological relationships, including OMOP CDM structures, concept hierarchies, and pharmacological interaction mappings. The Swarm submits blind Cypher queries or topological trajectory requests to traverse nodes.
 * **Content Geometry:** Property Graph (Vertices, Edges, Concepts).
@@ -32,7 +32,7 @@ This registry serves as the definitive mathematical catalog of the core capabili
 ### 2. Clinical Vector Substrate
 * **Physical URN:** `urn:coreason:oracle:clinical_vector`
 * **Ontological Purpose:** A stateless proxy wrapping a high-dimensional vector space (Milvus).
-* **Causal Affordance:** Serves geometric similarity mapping for unstructured medical text, specifically clinical note embeddings, FDA label embeddings, and PubMed vectors. The Swarm submits semantic intent arrays for nearest-neighbor ($\kappa$-NN) vector searches.
+* **Causal Affordance:** Serves geometric similarity mapping for unstructured  text, specifically clinical note embeddings, FDA label embeddings, and PubMed vectors. The Swarm submits semantic intent arrays for nearest-neighbor ($\kappa$-NN) vector searches.
 * **Content Geometry:** Dense Vectors / Floating-point Embeddings.
 
 ### 3. Pharma & Clinical Trials Substrate

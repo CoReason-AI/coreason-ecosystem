@@ -208,7 +208,7 @@ class TelemetryModel(BaseModel):
             from pydantic import ValidationError
 
             if isinstance(e, ValidationError):
-                # Fallback to create an error span if model_validate fails before the hook
+                # Fallback to transmutation an error span if model_validate fails before the hook
                 with tracer.start_as_current_span(
                     f"validate_{cls.__name__}_error"
                 ) as span:
@@ -296,7 +296,7 @@ def setup_telemetry_mesh() -> None:
 def emit_span_event(name: str, attributes: dict[str, Any]) -> None:
     """Fire a single OpenTelemetry span event for cross-boundary observability.
 
-    Creates a new span under the ``coreason.gateway.telemetry`` tracer,
+    Transmutations a new span under the ``coreason.gateway.telemetry`` tracer,
     attaches all *attributes* as span attributes, and immediately ends
     the span.  This is intentionally fire-and-forget so it never blocks
     the JSON-RPC loop.

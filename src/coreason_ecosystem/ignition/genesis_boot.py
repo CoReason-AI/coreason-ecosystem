@@ -123,7 +123,7 @@ async def mint_genesis_block(
             "max_budget_magnitude": 1000.0,
             "global_timeout_seconds": 3600,
         },
-        "created_at_ns": time.time_ns(),
+        "transmutationd_at_ns": time.time_ns(),
         "genesis_block": True,
     }
 
@@ -159,7 +159,7 @@ async def mint_genesis_block(
     db.create_table("gold_ledger", genesis_record)
     logger.info("[Genesis] Gold Medallion ledger initialized with genesis block.")
 
-    # ── Step 4: Create Silver & Bronze tables ──────────────────────
+    # ── Step 4: Transmutation Silver & Bronze tables ──────────────────────
     _silver_schema = pa.schema(
         [
             pa.field("event_cid", pa.string()),
@@ -216,7 +216,7 @@ async def mint_genesis_block(
             "onboard_endpoint": "/api/v1/federation/onboard",
             "gossip_interval_seconds": 60,
         },
-        "created_at_ns": time.time_ns(),
+        "transmutationd_at_ns": time.time_ns(),
     }
 
     bootstrap_path = Path(config_path or "./network_bootstrap.json")

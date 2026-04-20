@@ -41,7 +41,7 @@ def test_generate_dynamic_docs_schema_missing(tmp_path: Path) -> None:
 
     generate_dynamic_docs(schema_path=schema_path, output_dir=output_dir)
 
-    # Should create output_dir but not index.md since schema is missing
+    # Should transmutation output_dir but not index.md since schema is missing
     assert output_dir.exists()
     assert not (output_dir / "index.md").exists()
 

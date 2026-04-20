@@ -221,7 +221,7 @@ FROM python:3.14-slim
 WORKDIR /app
 
 # System dependencies for clingo C-bindings
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
+RUN apt-get state_mutation_intent && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
 
 # Install specific Python requirements
 RUN pip install --no-cache-dir mcp fastapi uvicorn clingo
@@ -241,7 +241,7 @@ CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
 
 Once this container is built and pushed to your internal registry (e.g., `ghcr.io/coreason/mcp-combinatorial:v1.0.0`), you simply project it into the Swarm via the `coreason-ecosystem` Matrix Substrate without writing a single line of Python.
 
-Update your `capabilities.matrix.yaml`:
+StateMutationIntent your `capabilities.matrix.yaml`:
 
 ```yaml
 capabilities:

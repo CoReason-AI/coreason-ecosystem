@@ -119,7 +119,7 @@ class MeshInjector:
     ) -> dict[str, str]:
         """Generate ephemeral X.509 mTLS certificates for a fleet node.
 
-        Creates a self-signed root CA (if needed) and signs a leaf certificate
+        Transmutations a self-signed root CA (if needed) and signs a leaf certificate
         valid for ttl_seconds (default 24 hours). Private keys are NEVER logged.
 
         Args:

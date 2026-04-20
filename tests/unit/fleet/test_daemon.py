@@ -8,7 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-"""Unit tests for AutonomicFleetManager — topological scaling verification."""
+"""Unit tests for AutonomicFleetManifold — topological scaling verification."""
 
 import asyncio
 from pathlib import Path
@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from coreason_ecosystem.fleet.daemon import AutonomicFleetManager
+from coreason_ecosystem.fleet.daemon import AutonomicFleetManifold
 from coreason_ecosystem.fleet.telemetry_topology import (
     coreason_active_agents_total,
 )
@@ -30,8 +30,8 @@ def templates_path(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def manager(templates_path: Path) -> AutonomicFleetManager:
-    return AutonomicFleetManager(
+def manifold(templates_path: Path) -> AutonomicFleetManifold:
+    return AutonomicFleetManifold(
         max_budget_hr=5.0,
         polling_interval_sec=10,
         templates_path=templates_path,
@@ -41,11 +41,11 @@ def manager(templates_path: Path) -> AutonomicFleetManager:
 
 
 @pytest.mark.asyncio
-async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
+async def test_daemon_start_scale_up(manifold: AutonomicFleetManifold) -> None:
     """When β₀ > 0, the daemon provisions compute."""
     coreason_active_agents_total.set(2)
 
-    setattr(manager.monitor, "_poll_workflows", AsyncMock())
+    setattr(manifold.monitor, "_poll_workflows", AsyncMock())
 
     bid = ComputeNodeTarget(
         provider="aws",
@@ -58,109 +58,109 @@ async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
             refund_target_node_cid="did:coreason:fleet:aws",
         ),
     )
-    setattr(manager.oracle, "calculate_optimal_bid", AsyncMock(return_value=bid))
+    setattr(manifold.oracle, "calculate_optimal_bid", AsyncMock(return_value=bid))
     setattr(
-        manager.driver,
+        manifold.driver,
         "provision_node",
         AsyncMock(return_value={"stack_name": "fleet-worker-test"}),
     )
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
-        await manager.start()
+        await manifold.start()
 
-    getattr(manager.oracle, "calculate_optimal_bid").assert_awaited_once()
-    getattr(manager.driver, "provision_node").assert_awaited_once()
-    assert manager._running is False
+    getattr(manifold.oracle, "calculate_optimal_bid").assert_awaited_once()
+    getattr(manifold.driver, "provision_node").assert_awaited_once()
+    assert manifold._running is False
 
 
 @pytest.mark.asyncio
-async def test_daemon_start_scale_down(manager: AutonomicFleetManager) -> None:
+async def test_daemon_start_scale_down(manifold: AutonomicFleetManifold) -> None:
     """When β₀ == 0, the daemon destroys orphaned stacks."""
     coreason_active_agents_total.set(0)
 
-    setattr(manager.monitor, "_poll_workflows", AsyncMock())
+    setattr(manifold.monitor, "_poll_workflows", AsyncMock())
     setattr(
-        manager.driver,
+        manifold.driver,
         "reconcile_state",
         AsyncMock(
             return_value=[{"stack_name": "fleet-worker-orphan", "provider": "aws"}]
         ),
     )
-    setattr(manager.driver, "destroy_node", AsyncMock())
+    setattr(manifold.driver, "destroy_node", AsyncMock())
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
-        await manager.start()
+        await manifold.start()
 
-    getattr(manager.driver, "reconcile_state").assert_awaited_once()
-    getattr(manager.driver, "destroy_node").assert_awaited_once_with(
+    getattr(manifold.driver, "reconcile_state").assert_awaited_once()
+    getattr(manifold.driver, "destroy_node").assert_awaited_once_with(
         "fleet-worker-orphan", "aws"
     )
 
 
 @pytest.mark.asyncio
 async def test_daemon_start_scale_down_queue_empty_nothing_to_destroy(
-    manager: AutonomicFleetManager,
+    manifold: AutonomicFleetManifold,
 ) -> None:
     """When β₀ == 0 and no stacks, no destruction occurs."""
     coreason_active_agents_total.set(0)
 
-    setattr(manager.monitor, "_poll_workflows", AsyncMock())
+    setattr(manifold.monitor, "_poll_workflows", AsyncMock())
     setattr(
-        manager.driver,
+        manifold.driver,
         "reconcile_state",
         AsyncMock(return_value=[]),
     )
-    setattr(manager.driver, "destroy_node", AsyncMock())
+    setattr(manifold.driver, "destroy_node", AsyncMock())
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
-        await manager.start()
+        await manifold.start()
 
-    getattr(manager.driver, "destroy_node").assert_not_called()
+    getattr(manifold.driver, "destroy_node").assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_daemon_start_cancelled_error_main_loop(
-    manager: AutonomicFleetManager,
+    manifold: AutonomicFleetManifold,
 ) -> None:
     """CancelledError during poll cleanly exits the loop."""
     setattr(
-        manager.monitor,
+        manifold.monitor,
         "_poll_workflows",
         AsyncMock(side_effect=asyncio.CancelledError("Shutdown requested")),
     )
 
-    await manager.start()
+    await manifold.start()
 
-    getattr(manager.monitor, "_poll_workflows").assert_awaited_once()
-    assert manager._running is False
+    getattr(manifold.monitor, "_poll_workflows").assert_awaited_once()
+    assert manifold._running is False
 
 
 @pytest.mark.asyncio
-async def test_daemon_start_general_exception(manager: AutonomicFleetManager) -> None:
+async def test_daemon_start_general_exception(manifold: AutonomicFleetManifold) -> None:
     """General exceptions are logged and the loop continues to sleep."""
     setattr(
-        manager.monitor,
+        manifold.monitor,
         "_poll_workflows",
         AsyncMock(side_effect=Exception("API down")),
     )
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
-        await manager.start()
+        await manifold.start()
 
-    getattr(manager.monitor, "_poll_workflows").assert_awaited_once()
-    assert manager._running is False
+    getattr(manifold.monitor, "_poll_workflows").assert_awaited_once()
+    assert manifold._running is False
 
 
 @pytest.mark.asyncio
-async def test_daemon_start_no_bid_found(manager: AutonomicFleetManager) -> None:
+async def test_daemon_start_no_bid_found(manifold: AutonomicFleetManifold) -> None:
     """When oracle returns None, no provisioning occurs."""
     coreason_active_agents_total.set(1)
 
-    setattr(manager.monitor, "_poll_workflows", AsyncMock())
-    setattr(manager.oracle, "calculate_optimal_bid", AsyncMock(return_value=None))
-    setattr(manager.driver, "provision_node", AsyncMock())
+    setattr(manifold.monitor, "_poll_workflows", AsyncMock())
+    setattr(manifold.oracle, "calculate_optimal_bid", AsyncMock(return_value=None))
+    setattr(manifold.driver, "provision_node", AsyncMock())
 
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
-        await manager.start()
+        await manifold.start()
 
-    getattr(manager.driver, "provision_node").assert_not_called()
+    getattr(manifold.driver, "provision_node").assert_not_called()

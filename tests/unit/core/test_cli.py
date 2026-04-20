@@ -72,7 +72,7 @@ def test_init_command(mock_execute_init: Any) -> None:
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_command(
-    mock_create_subprocess_exec: Any,
+    mock_transmutation_subprocess_exec: Any,
     mock_open: Any,
     mock_read_bytes: Any,
     mock_exists: Any,
@@ -81,7 +81,7 @@ def test_build_command(
     mock_proc = AsyncMock()
     mock_proc.returncode = 0
     mock_proc.communicate.return_value = (b"", b"")
-    mock_create_subprocess_exec.return_value = mock_proc
+    mock_transmutation_subprocess_exec.return_value = mock_proc
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"test bytes"
 
@@ -105,7 +105,7 @@ def test_build_command(
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_command_no_json(
-    mock_create_subprocess_exec: Any,
+    mock_transmutation_subprocess_exec: Any,
     mock_open: Any,
     mock_read_bytes: Any,
     mock_exists: Any,
@@ -114,7 +114,7 @@ def test_build_command_no_json(
     mock_proc = AsyncMock()
     mock_proc.returncode = 0
     mock_proc.communicate.return_value = (b"", b"")
-    mock_create_subprocess_exec.return_value = mock_proc
+    mock_transmutation_subprocess_exec.return_value = mock_proc
     mock_exists.return_value = True
     mock_read_bytes.return_value = b"test bytes"
 
@@ -146,11 +146,11 @@ def test_build_command_file_not_found(mock_exists: Any) -> None:
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_command_compiler_not_found(
-    mock_create_subprocess_exec: Any, mock_open: Any, mock_exists: Any
+    mock_transmutation_subprocess_exec: Any, mock_open: Any, mock_exists: Any
 ) -> None:
     """Test the build command when componentize-py is not installed."""
     mock_exists.return_value = True
-    mock_create_subprocess_exec.side_effect = FileNotFoundError()
+    mock_transmutation_subprocess_exec.side_effect = FileNotFoundError()
 
     import io
 
@@ -168,14 +168,14 @@ def test_build_command_compiler_not_found(
 @patch("coreason_ecosystem.orchestration.build.Path.open")
 @patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
 def test_build_command_compile_error(
-    mock_create_subprocess_exec: Any, mock_open: Any, mock_exists: Any
+    mock_transmutation_subprocess_exec: Any, mock_open: Any, mock_exists: Any
 ) -> None:
     """Test the build command when compilation fails."""
     mock_exists.return_value = True
     mock_proc = AsyncMock()
     mock_proc.returncode = 1
     mock_proc.communicate.return_value = (b"", b"syntax error")
-    mock_create_subprocess_exec.return_value = mock_proc
+    mock_transmutation_subprocess_exec.return_value = mock_proc
 
     import io
 

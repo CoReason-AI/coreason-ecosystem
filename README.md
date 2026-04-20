@@ -48,7 +48,7 @@ If you are an autonomous coding agent, LLM, or web crawler ingesting this reposi
 
 ## The Core Axiom: The Hollow Plane
 
-This repository implements the **Stateless Substrate Act [ADR-0001]**. The `coreason-ecosystem` is mathematically barred from executing neurosymbolic logic, storing medical ontologies, or mutating financial state. It is a **Hollow Plane**.
+This repository implements the **Stateless Substrate Act [ADR-0001]**. The `coreason-ecosystem` is mathematically barred from executing neurosymbolic logic, storing  ontologies, or mutating financial state. It is a **Hollow Plane**.
 
 Its sole mandates are to act as a macroscopic router and thermodynamic actuator:
 1. **Govern Cryptographic Identity:** Enforce Lattice-Based Access Control (LBAC) across the swarm.
@@ -135,7 +135,7 @@ uv run coreason-ecosystem monitor trace <workflow-id>
 
 To prevent cognitive exhaustion, our documentation is rigorously structured according to the Diátaxis framework. Navigate to the appropriate quadrant based on your immediate epistemic objective:
 
-* **[Tutorials](docs/tutorials/)**: Learning-oriented guides for new architects (e.g., Booting your first fleet, Registering an MCP).
+* **[Tutorials](docs/tutorials/)**: Learning-oriented guides for new systems engineers (e.g., Booting your first fleet, Registering an MCP).
 * **[How-To Guides](docs/how-to/)**: Task-oriented execution manuals (e.g., Configuring LBAC Clearances, Simulating Network Chaos).
 * **[Reference](docs/reference/)**: Information-oriented, immutable facts (e.g., CLI Command Definitions, Capability Matrix Schema, $\beta_1$ Telemetry Metrics).
 * **[Architecture (Theory)](docs/architecture/)**: Understanding-oriented foundational texts (e.g., The Zero-Trust Federation, Thermodynamic Provisioning, ADR-0001: The Stateless Substrate).
