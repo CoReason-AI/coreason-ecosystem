@@ -14,7 +14,7 @@ import queue
 import sys
 import time
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 from loguru import logger
 from opentelemetry import trace
@@ -191,7 +191,7 @@ class TelemetryModel(BaseModel):
     # or hooking into Pydantic's core schema directly. For this architecture, we provide a
     # robust instrumented initialization method.
     @classmethod
-    def validate_with_telemetry(cls, data: dict[str, Any]) -> "TelemetryModel":
+    def validate_with_telemetry(cls, data: dict[str, Any]) -> Self:
         settings = get_observability_settings()
         tracer = trace.get_tracer("coreason.pydantic.telemetry")
 

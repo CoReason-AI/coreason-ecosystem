@@ -24,12 +24,21 @@ import httpx
 import mcp.server
 from fastapi import FastAPI
 
-from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
-from coreason_ecosystem.gateway.epistemic_filter import EpistemicFilter
-from coreason_ecosystem.gateway.identity_broker import IdentityBroker
+from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
+from coreason_ecosystem.gateway.epistemic_filter import EpistemicTransmuter
+from coreason_ecosystem.gateway.ontological_identity_router import (
+    OntologicalIdentityRouter,
+)
 from coreason_ecosystem.gateway.state_manifests import (
     OracleExecutionReceipt,
 )
+from coreason_manifest.spec.ontology import (
+    CognitiveSwarmDeploymentManifest,
+    FederatedSecurityMacroManifest,
+    ChaosExperimentTask,
+)
+from coreason_ecosystem.orchestration import up, sync
+from coreason_ecosystem.fleet import pulumi_actuator
 from coreason_ecosystem.utils.telemetry import emit_span_event
 
 import time
@@ -46,9 +55,9 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="coreason-master-gateway")
 mcp_server = mcp.server.Server("coreason-master-gateway")
 
-registry = CapabilityRegistry()
-epistemic_filter = EpistemicFilter(registry)
-identity_broker = IdentityBroker()
+registry = SovereignMCPRegistry()
+epistemic_transmuter = EpistemicTransmuter(registry)
+identity_router = OntologicalIdentityRouter()
 
 current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
 
@@ -107,7 +116,7 @@ async def extract_and_verify_identity(request: Request) -> None:
         decoded_bytes = base64.b64decode(encoded_payload)
         payload = json.loads(decoded_bytes.decode("utf-8"))
 
-        profile = await identity_broker.verify_connection_handshake(payload)
+        profile = await identity_router.authorize_coordinate(payload)
         current_clearance.set(profile["clearance"])
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid identity sequence")
@@ -150,7 +159,7 @@ async def list_actuators() -> list[types.Tool]:
 
     # Apply the Epistemic Guillotine — strip URNs below the minimum
     # governance lifecycle phase before projection.
-    discovered_capabilities = epistemic_filter.filter_capabilities(
+    discovered_capabilities = epistemic_transmuter.project_capabilities(
         available_urns=discovered_capabilities,
     )
 
@@ -265,3 +274,39 @@ async def invoke_actuator(
 
     # The result data goes natively into TextContent
     return [types.TextContent(type="text", text=str(result_data))]
+
+
+@mcp_server.tool()  # type: ignore[attr-defined]
+async def deploy_cognitive_swarm(arguments: dict[str, Any]) -> str:
+    """Macro-Manifest Deployment: Deploy a cognitive swarm.
+
+    Hollow Plane proxy endpoint.
+    """
+    logger.info("Proxying deploy_cognitive_swarm intent to fleet module.")
+    manifest = CognitiveSwarmDeploymentManifest.model_validate(arguments)
+    await up.provision_swarm_topology(manifest)  # type: ignore[attr-defined]
+    return "Intent proxied to fleet: deploy_cognitive_swarm"
+
+
+@mcp_server.tool()  # type: ignore[attr-defined]
+async def establish_federated_link(arguments: dict[str, Any]) -> str:
+    """Macro-Manifest Deployment: Establish federated link.
+
+    Hollow Plane proxy endpoint.
+    """
+    logger.info("Proxying establish_federated_link intent to orchestration module.")
+    manifest = FederatedSecurityMacroManifest.model_validate(arguments)
+    await sync.establish_federated_link(manifest)  # type: ignore[attr-defined]
+    return "Intent proxied to orchestration: establish_federated_link"
+
+
+@mcp_server.tool()  # type: ignore[attr-defined]
+async def inject_chaos_fault(arguments: dict[str, Any]) -> str:
+    """Macro-Manifest Deployment: Inject chaos fault.
+
+    Hollow Plane proxy endpoint.
+    """
+    logger.info("Proxying inject_chaos_fault intent to fleet module.")
+    manifest = ChaosExperimentTask.model_validate(arguments)
+    await pulumi_actuator.inject_chaos_fault(manifest)  # type: ignore[attr-defined]
+    return "Intent proxied to fleet: inject_chaos_fault"

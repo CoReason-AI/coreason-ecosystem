@@ -4,7 +4,7 @@ from pathlib import Path
 
 from coreason_ecosystem.fleet.daemon import AutonomicFleetManager
 from coreason_ecosystem.fleet.pulumi_actuator import (
-    PulumiFleetDriver,
+    PulumiActuator,
     ComputeNodeTarget,
 )
 from coreason_manifest.spec.ontology import (
@@ -17,7 +17,7 @@ from coreason_manifest.spec.ontology import (
 @pytest.mark.asyncio
 async def test_pulumi_actuator_compile_payload() -> None:
     # Covers lines 61-68 in pulumi_actuator
-    driver = PulumiFleetDriver(templates_dir=Path("/tmp/templates"))
+    driver = PulumiActuator(templates_dir=Path("/tmp/templates"))
 
     target = ComputeNodeTarget(
         provider="aws",
