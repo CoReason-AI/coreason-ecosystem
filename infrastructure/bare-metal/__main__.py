@@ -18,11 +18,19 @@ for Fleet-wide Telemetry, and establishes a Zero-Trust WireGuard (wg0) interface
 """
 
 import os
+import json
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 import pulumi  # type: ignore
 from pulumi_command import remote  # type: ignore
+
+# Load bootstrap config if available
+BOOTSTRAP_PATH = Path("./network_bootstrap.json")
+BOOTSTRAP_CONFIG: dict[str, Any] = {}
+if BOOTSTRAP_PATH.exists():
+    BOOTSTRAP_CONFIG = json.loads(BOOTSTRAP_PATH.read_text(encoding="utf-8"))
 
 
 class CloudProvider(ABC):
@@ -83,9 +91,12 @@ class ProxmoxProvider(CloudProvider):
         import pulumi_proxmoxve as proxmox  # type: ignore
 
         node_name = config.get("node_name") or "coreason-swarm-01"
-        cpu_cores = config.get_int("cpu_cores") or 8
-        memory_mb = config.get_int("memory_mb") or 32768
-        disk_size = config.get_int("disk_size") or 100
+        hw_profile = BOOTSTRAP_CONFIG.get("hardware_profile", {})
+        min_vram_gb = float(hw_profile.get("min_vram_gb", 32.0))
+        
+        cpu_cores = config.get_int("cpu_cores") or max(8, int(min_vram_gb))
+        memory_mb = config.get_int("memory_mb") or int(min_vram_gb * 1024)
+        disk_size = config.get_int("disk_size") or max(100, int(min_vram_gb * 2))
 
         vm = proxmox.vm.VirtualMachine(
             "coreason-runtime-node",

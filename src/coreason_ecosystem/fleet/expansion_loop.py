@@ -12,7 +12,7 @@
 
 Monitors the sovereign treasury's on-chain balance via URN-based MCP
 projection and automatically provisions physical GPU hardware via the
-PricingOracle and PulumiFleetDriver when sufficient reinvestment capital
+PricingOracle and PulumiActuator when sufficient reinvestment capital
 is aggregated.
 
 No mutable in-memory state is held.  The treasury balance is queried

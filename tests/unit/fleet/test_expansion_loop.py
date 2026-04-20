@@ -17,12 +17,12 @@ from coreason_ecosystem.fleet.expansion_loop import (
     von_neumann_expansion_daemon,
 )
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
-from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
+from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 
 
-def _seeded_registry() -> CapabilityRegistry:
+def _seeded_registry() -> SovereignMCPRegistry:
     """Create a registry with the Sovereign Treasury MCP registered."""
-    registry = CapabilityRegistry()
+    registry = SovereignMCPRegistry()
     registry._cache = {
         TREASURY_URN: {
             "endpoint": "http://treasury-mcp:8000",
@@ -73,7 +73,7 @@ async def test_expansion_loop_economic_guillotine() -> None:
 @pytest.mark.asyncio
 async def test_expansion_loop_missing_treasury_urn() -> None:
     """When treasury URN is not registered, daemon exits cleanly with a log."""
-    empty_registry = CapabilityRegistry()
+    empty_registry = SovereignMCPRegistry()
     oracle = PricingOracle()
 
     # Should NOT raise — logs error and returns.

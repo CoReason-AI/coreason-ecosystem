@@ -13,7 +13,7 @@ from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 from coreason_ecosystem.fleet.pulumi_actuator import (
-    PulumiFleetDriver,
+    PulumiActuator,
     ComputeNodeTarget,
 )
 from coreason_manifest.spec.ontology import EscrowPolicy
@@ -29,14 +29,14 @@ def tmp_templates_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def driver(tmp_templates_dir: Path) -> PulumiFleetDriver:
-    return PulumiFleetDriver(tmp_templates_dir)
+def driver(tmp_templates_dir: Path) -> PulumiActuator:
+    return PulumiActuator(tmp_templates_dir)
 
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.fleet.pulumi_actuator.auto")
 async def test_provision_node_aws(
-    mock_auto: MagicMock, driver: PulumiFleetDriver
+    mock_auto: MagicMock, driver: PulumiActuator
 ) -> None:
     target = ComputeNodeTarget(
         provider="aws",
@@ -71,7 +71,7 @@ async def test_provision_node_aws(
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.fleet.pulumi_actuator.auto")
 async def test_provision_node_vast(
-    mock_auto: MagicMock, driver: PulumiFleetDriver
+    mock_auto: MagicMock, driver: PulumiActuator
 ) -> None:
     target = ComputeNodeTarget(
         provider="vast",
@@ -100,7 +100,7 @@ async def test_provision_node_vast(
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.fleet.pulumi_actuator.auto")
-async def test_destroy_node(mock_auto: MagicMock, driver: PulumiFleetDriver) -> None:
+async def test_destroy_node(mock_auto: MagicMock, driver: PulumiActuator) -> None:
     mock_stack = MagicMock()
     mock_auto.select_stack.return_value = mock_stack
 
@@ -113,7 +113,7 @@ async def test_destroy_node(mock_auto: MagicMock, driver: PulumiFleetDriver) -> 
 
 @pytest.mark.asyncio
 async def test_reconcile_state(
-    driver: PulumiFleetDriver, tmp_templates_dir: Path
+    driver: PulumiActuator, tmp_templates_dir: Path
 ) -> None:
     mock_workspace = MagicMock()
     mock_stack1 = MagicMock()
@@ -140,7 +140,7 @@ async def test_reconcile_state(
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.fleet.pulumi_actuator.auto")
 async def test_reconcile_state_exception(
-    mock_auto: MagicMock, driver: PulumiFleetDriver
+    mock_auto: MagicMock, driver: PulumiActuator
 ) -> None:
     # Trigger exception reading workspace
     mock_auto.LocalWorkspace.side_effect = Exception("Workspace fail")
@@ -151,7 +151,7 @@ async def test_reconcile_state_exception(
 
 @pytest.mark.asyncio
 async def test_provision_node_rejects_missing_escrow(
-    driver: PulumiFleetDriver,
+    driver: PulumiActuator,
 ) -> None:
     """Hardware Guillotine: no EscrowPolicy → provisioning rejected."""
     target = ComputeNodeTarget(
@@ -163,7 +163,7 @@ async def test_provision_node_rejects_missing_escrow(
 
 @pytest.mark.asyncio
 async def test_provision_node_rejects_exceeded_budget(
-    driver: PulumiFleetDriver,
+    driver: PulumiActuator,
 ) -> None:
     """Hardware Guillotine: hourly_cost > escrow_locked_magnitude → rejected."""
     target = ComputeNodeTarget(

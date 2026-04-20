@@ -326,7 +326,7 @@ async def test_extract_and_verify_identity_valid_token() -> None:
     request.headers = {"Authorization": f"Bearer {encoded}"}
 
     with patch(
-        "coreason_ecosystem.gateway.master_mcp.identity_broker.verify_connection_handshake",
+        "coreason_ecosystem.gateway.master_mcp.ontological_identity_router.verify_connection_handshake",
         new_callable=AsyncMock,
     ) as mock_verify:
         mock_verify.return_value = {"clearance": "SECRET"}
