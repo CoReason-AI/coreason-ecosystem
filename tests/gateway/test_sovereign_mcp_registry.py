@@ -16,30 +16,30 @@ from pathlib import Path
 import pytest
 import yaml
 
-from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
+from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 
 
 class TestValidateActionspaceURN:
     """Zero-trust URN prefix validation guard."""
 
     def test_valid_urn_passes(self) -> None:
-        CapabilityRegistry.validate_actionspace_urn(
+        SovereignMCPRegistry.validate_archetype_urn(
             "urn:coreason:actionspace:test:probe"
         )
 
     def test_invalid_prefix_raises(self) -> None:
         with pytest.raises(ValueError, match="URN Topology Breach"):
-            CapabilityRegistry.validate_actionspace_urn(
+            SovereignMCPRegistry.validate_archetype_urn(
                 "urn:coreason:oracle:clinical_extractor"
             )
 
     def test_empty_urn_raises(self) -> None:
         with pytest.raises(ValueError, match="URN Topology Breach"):
-            CapabilityRegistry.validate_actionspace_urn("")
+            SovereignMCPRegistry.validate_archetype_urn("")
 
     def test_hallucinated_urn_raises(self) -> None:
         with pytest.raises(ValueError, match="URN Topology Breach"):
-            CapabilityRegistry.validate_actionspace_urn(
+            SovereignMCPRegistry.validate_archetype_urn(
                 "urn:hallucinated:fake:capability"
             )
 
@@ -51,14 +51,14 @@ class TestScanActionSpaceModules:
         """Empty scan dir returns 0 discovered."""
         scan_dir = tmp_path / "action_spaces"
         scan_dir.mkdir()
-        registry = CapabilityRegistry()
+        registry = SovereignMCPRegistry()
         count = registry.scan_action_space_modules([scan_dir])
         assert count == 0
         assert len(registry._cache) == 0
 
     def test_nonexistent_directory(self, tmp_path: Path) -> None:
         """Non-existent scan dir is silently skipped."""
-        registry = CapabilityRegistry()
+        registry = SovereignMCPRegistry()
         count = registry.scan_action_space_modules([tmp_path / "does_not_exist"])
         assert count == 0
 
@@ -72,7 +72,7 @@ class TestScanActionSpaceModules:
             encoding="utf-8",
         )
 
-        registry = CapabilityRegistry()
+        registry = SovereignMCPRegistry()
         count = registry.scan_action_space_modules([scan_dir])
         assert count == 1
         assert "urn:coreason:actionspace:test:probe" in registry._cache
@@ -87,7 +87,7 @@ class TestScanActionSpaceModules:
             encoding="utf-8",
         )
 
-        registry = CapabilityRegistry()
+        registry = SovereignMCPRegistry()
         count = registry.scan_action_space_modules([scan_dir])
         assert count == 0
         assert len(registry._cache) == 0
@@ -99,7 +99,7 @@ class TestScanActionSpaceModules:
         bad_file = scan_dir / "broken.py"
         bad_file.write_text("def broken(\n", encoding="utf-8")
 
-        registry = CapabilityRegistry()
+        registry = SovereignMCPRegistry()
         count = registry.scan_action_space_modules([scan_dir])
         assert count == 0
 
@@ -113,7 +113,7 @@ class TestScanActionSpaceModules:
             encoding="utf-8",
         )
 
-        registry = CapabilityRegistry()
+        registry = SovereignMCPRegistry()
         registry._cache["urn:coreason:actionspace:test:duplicate"] = {
             "endpoint": "http://existing:8000",
             "clearance": "PUBLIC",
@@ -134,7 +134,7 @@ class TestScanActionSpaceModules:
         module_file = scan_dir / "numeric_urn.py"
         module_file.write_text("__action_space_urn__ = 12345\n", encoding="utf-8")
 
-        registry = CapabilityRegistry()
+        registry = SovereignMCPRegistry()
         count = registry.scan_action_space_modules([scan_dir])
         assert count == 0
 
@@ -149,7 +149,7 @@ class TestScanActionSpaceModules:
             encoding="utf-8",
         )
 
-        registry = CapabilityRegistry()
+        registry = SovereignMCPRegistry()
         count = registry.scan_action_space_modules([scan_dir])
         assert count == 1
         assert "urn:coreason:actionspace:deep:test" in registry._cache
@@ -171,7 +171,7 @@ class TestLegacyURNDeprecationWarnings:
         }
         matrix_file.write_text(yaml.dump(matrix_data), encoding="utf-8")
 
-        registry = CapabilityRegistry()
+        registry = SovereignMCPRegistry()
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             registry.hydrate_from_matrix(matrix_file)
@@ -194,7 +194,7 @@ class TestLegacyURNDeprecationWarnings:
         }
         matrix_file.write_text(yaml.dump(matrix_data), encoding="utf-8")
 
-        registry = CapabilityRegistry()
+        registry = SovereignMCPRegistry()
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             registry.hydrate_from_matrix(matrix_file)
@@ -216,7 +216,7 @@ class TestLegacyURNDeprecationWarnings:
         }
         matrix_file.write_text(yaml.dump(matrix_data), encoding="utf-8")
 
-        registry = CapabilityRegistry()
+        registry = SovereignMCPRegistry()
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             registry.hydrate_from_matrix(matrix_file)

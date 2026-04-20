@@ -12,7 +12,7 @@
 
 Continuously polls the TelemetryTopologyMonitor for the β₀ Betti number
 (connected components) and drives scale-up/scale-down actuation via the
-PricingOracle and PulumiFleetDriver. All scaling decisions are derived
+PricingOracle and PulumiActuator. All scaling decisions are derived
 from topological invariants — no scalar metrics are consumed.
 """
 
@@ -22,7 +22,7 @@ from pathlib import Path
 from loguru import logger
 
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
-from coreason_ecosystem.fleet.pulumi_actuator import PulumiFleetDriver
+from coreason_ecosystem.fleet.pulumi_actuator import PulumiActuator
 from coreason_ecosystem.fleet.telemetry_topology import (
     TelemetryTopologyMonitor,
     coreason_active_agents_total,
@@ -55,7 +55,7 @@ class AutonomicFleetManager:
         self.polling_interval_sec = polling_interval_sec
         self.mesh_auth_key = mesh_auth_key
         self.temporal_mesh_ip = temporal_mesh_ip
-        self.driver = PulumiFleetDriver(templates_dir=templates_path)
+        self.driver = PulumiActuator(templates_dir=templates_path)
         self.oracle = PricingOracle()
         self.monitor = TelemetryTopologyMonitor()
         self._running = False
@@ -114,7 +114,7 @@ class AutonomicFleetManager:
                         logger.info(
                             f"Scale to zero triggered. Destroying {stack_to_destroy} on {provider}..."
                         )
-                        await self.driver.destroy_node(stack_to_destroy, provider)  # type: ignore[arg-type]
+                        await self.driver.destroy_node(stack_to_destroy, provider)  # type: ignore
                     else:
                         logger.debug(
                             "Queue empty, but no active compute nodes to destroy."

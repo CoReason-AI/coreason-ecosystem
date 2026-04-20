@@ -14,40 +14,6 @@ import json
 import math
 from typing import Any, Literal
 
-from pydantic import field_validator
-
-from coreason_manifest.spec.ontology import (
-    CoreasonBaseState,
-    SpatialHardwareProfile as HardwareProfile,
-    EpistemicSecurityProfile as SecurityProfile,
-)
-
-
-class FederatedCapabilityAttestationReceipt(CoreasonBaseState):
-    token: str
-    payload: Any
-
-    @field_validator("token")
-    @classmethod
-    def validate_token(cls, v: str) -> str:
-        if not v or len(v.split(".")) != 3:
-            raise ValueError("Invalid JWT token format")
-        return v
-
-    @field_validator("payload")
-    @classmethod
-    def enforce_epistemic_bounding(cls, v: Any) -> Any:
-        def count_nodes(obj: Any) -> int:
-            if isinstance(obj, dict):
-                return sum(count_nodes(val) for val in obj.values()) + 1
-            elif isinstance(obj, list):
-                return sum(count_nodes(item) for item in obj) + 1
-            return 1
-
-        if count_nodes(v) > 10000:
-            raise ValueError("Payload exceeds 10,000 node limit")
-        return v
-
 
 class MeshInjector:
     def inject_ocap_middleware(self, token: str, payload: Any) -> Any:
@@ -56,16 +22,26 @@ class MeshInjector:
         Intercepts requests and validates cryptographic proofs before allowing
         the JSON-RPC payload through to the runtime layer.
         """
-        # Cryptographically validate the Macaroon/JWT proving cross-boundary authorization
-        # and parse the payload ensuring the 10,000 node limit.
-        receipt = FederatedCapabilityAttestationReceipt(token=token, payload=payload)
-        return receipt.payload
+        if not token or len(token.split(".")) != 3:
+            raise ValueError("Invalid JWT token format")
+
+        def count_nodes(obj: Any) -> int:
+            if isinstance(obj, dict):
+                return sum(count_nodes(val) for val in obj.values()) + 1
+            elif isinstance(obj, list):
+                return sum(count_nodes(item) for item in obj) + 1
+            return 1
+
+        if count_nodes(payload) > 10000:
+            raise ValueError("Payload exceeds 10,000 node limit")
+
+        return payload
 
     def compile_payload(
         self,
         provider: Literal["aws", "vast"],
-        hardware: HardwareProfile,
-        security: SecurityProfile,
+        hardware: dict[str, Any],
+        security: dict[str, Any],
         mesh_auth_key: str,
         temporal_mesh_ip: str,
     ) -> str:
@@ -78,7 +54,8 @@ class MeshInjector:
         from pathlib import Path
 
         # 1 page = 64KB
-        vram_bytes = hardware.min_vram_gb * 1024 * 1024 * 1024
+        min_vram_gb = float(hardware.get("min_vram_gb", 8.0))
+        vram_bytes = min_vram_gb * 1024 * 1024 * 1024
         wasm_pages = math.ceil(vram_bytes / 65536)
 
         # Resolve the deterministic IaC template
@@ -92,7 +69,7 @@ class MeshInjector:
 
         # Render firewall rules if network isolation is required
         firewall_rules = ""
-        if security.network_isolation:
+        if security.get("network_isolation", False):
             fw_lines = [
                 "  - iptables -A INPUT -i lo -j ACCEPT",
                 "  - iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT",
@@ -248,3 +225,53 @@ class MeshInjector:
             )
 
         return True
+
+    def register_capability(
+        self,
+        urn: str,
+        endpoint: str,
+        clearance: Literal["PUBLIC", "CONFIDENTIAL", "RESTRICTED"],
+        epistemic_status: Literal[
+            "DRAFT", "SRB_APPROVED", "CLIENT_APPROVED", "PUBLISHED"
+        ],
+    ) -> None:
+        """Autonomously monitor the external capability registry and dynamically
+        establish the network path in capabilities.matrix.yaml to route JSON-RPC intents.
+
+        The Governance Plane is domain-blind — it routes URNs statelessly without inspecting
+        semantic payloads or asserting Pydantic implementations.
+        """
+        import yaml
+        from pathlib import Path
+
+        matrix_path = (
+            Path(__file__).resolve().parents[3]
+            / "infrastructure"
+            / "local"
+            / "capabilities.matrix.yaml"
+        )
+
+        with open(matrix_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {"capabilities": []}
+
+        found = False
+        for cap in data.get("capabilities", []):
+            if cap.get("urn") == urn:
+                cap["endpoint"] = endpoint
+                cap["clearance"] = clearance
+                cap["epistemic_status"] = epistemic_status
+                found = True
+                break
+
+        if not found:
+            data.setdefault("capabilities", []).append(
+                {
+                    "urn": urn,
+                    "endpoint": endpoint,
+                    "clearance": clearance,
+                    "epistemic_status": epistemic_status,
+                }
+            )
+
+        with open(matrix_path, "w", encoding="utf-8") as f:
+            yaml.dump(data, f, default_flow_style=False, sort_keys=False)

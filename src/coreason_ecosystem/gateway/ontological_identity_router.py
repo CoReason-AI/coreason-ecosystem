@@ -8,12 +8,12 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-"""Identity Broker — W3C DID-based Zero-Trust Authentication.
+"""Ontological Identity Router — W3C DID-based Zero-Trust Attestation.
 
-Decentralized Identity Broker for enforcing Lattice-Based Access Control (LBAC)
+Decentralized Ontological Identity Router for enforcing Lattice-Based Access Control (LBAC)
 using W3C Decentralized Identifiers (DIDs) and Selective Disclosure JWTs.
 
-All authentication flows are routed through W3C DID verification —
+All attestation flows are routed through W3C DID verification —
 zero local trust assumptions or hardcoded RPC URLs exist in this module,
 per LAW 9 (Federated Epistemic Handshakes) and LAW 10 (Thermodynamic
 Secret Quarantine).
@@ -44,18 +44,16 @@ _CLASSIFICATION_LEVELS: dict[str, int] = {
 }
 
 
-class IdentityBroker:
-    """Decentralized Identity Broker enforcing Lattice-Based Access Control (LBAC).
+class OntologicalIdentityRouter:
+    """Decentralized Ontological Identity Router enforcing Lattice-Based Access Control (LBAC).
 
     Verifies W3C DID-based VerifiableCredentialPresentationReceipts to establish
     cross-boundary authorization. No RPC URLs, ABIs, or local trust assumptions
-    are hardcoded — all authentication is resolved from the DID document and
+    are hardcoded — all attestation is resolved from the DID document and
     the claims embedded in the Selective Disclosure JWT.
     """
 
-    async def verify_connection_handshake(
-        self, payload: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def authorize_coordinate(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Extract and verify the VerifiableCredentialPresentationReceipt.
 
         Validates the W3C DID-based receipt using the manifest's
@@ -79,17 +77,17 @@ class IdentityBroker:
                 detail="Connection Severance Event: Missing cryptographic receipt.",
             )
 
-        issuer_did = receipt.get("issuer_did", "")
+        principal_did = receipt.get("principal_did", receipt.get("issuer_did", ""))
 
         # Rigid W3C DID validation via the manifest's NodeCIDState TypeAdapter.
         try:
-            _node_cid_validator.validate_python(issuer_did)
+            _node_cid_validator.validate_python(principal_did)
         except ValidationError:
             raise HTTPException(
                 status_code=401,
                 detail=(
                     "Connection Severance Event: Invalid DID geometry. "
-                    f"'{issuer_did}' does not conform to NodeCIDState pattern."
+                    f"'{principal_did}' does not conform to NodeCIDState pattern."
                 ),
             )
 
@@ -103,7 +101,7 @@ class IdentityBroker:
 
         # Return validated agent profile
         return {
-            "issuer_did": issuer_did,
+            "principal_did": principal_did,
             "clearance": clearance,
         }
 

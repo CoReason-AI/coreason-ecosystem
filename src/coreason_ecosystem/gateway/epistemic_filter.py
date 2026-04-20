@@ -23,12 +23,12 @@ unapproved capabilities are never projected to the kinetic plane.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
 if TYPE_CHECKING:
-    from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
+    from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 
 from coreason_manifest.spec.ontology import (
     FederatedBilateralSLA,
@@ -44,18 +44,43 @@ EPISTEMIC_LIFECYCLE_ORDER: dict[str, int] = {
 }
 
 
-class EpistemicFilter:
+class EpistemicTransmuter:
     """Middleware guillotine enforcing SRB governance lifecycle constraints.
 
     Given a ``minimum_epistemic_status`` (e.g., ``"CLIENT_APPROVED"``),
-    this filter strips any URNs from the capability registry whose
+    this transmuter severs any URNs from the capability registry whose
     ``epistemic_status`` does not meet or exceed that threshold.
     """
 
-    def __init__(self, registry: CapabilityRegistry) -> None:
+    def __init__(self, registry: "SovereignMCPRegistry") -> None:
         self._registry = registry
 
-    def filter_capabilities(
+    def sever_causal_edge(self, reason: str) -> None:
+        """Actively sever the causal edge due to epistemic violation."""
+        from fastapi import HTTPException
+
+        logger.critical(f"Severing causal edge: {reason}")
+        raise HTTPException(status_code=401, detail=f"Causal Edge Severed: {reason}")
+
+    def transmute_canonical_payload(
+        self, payload: dict[str, Any], reported_hash: str
+    ) -> None:
+        """Verify the JSON payload matches its RFC 8785 canonical hash.
+        If a payload violates RFC 8785 canonical hashing, sever_causal_edge is invoked.
+        """
+        import json
+        import hashlib
+
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
+        canonical_hash = hashlib.sha256(canonical).hexdigest()
+        if canonical_hash != reported_hash:
+            self.sever_causal_edge(
+                f"RFC 8785 canonical hash mismatch. Expected {canonical_hash}, got {reported_hash}."
+            )
+
+    def project_capabilities(
         self,
         available_urns: dict[str, str],
         minimum_epistemic_status: str = "DRAFT",
@@ -106,7 +131,7 @@ class EpistemicFilter:
             urn_level = EPISTEMIC_LIFECYCLE_ORDER.get(urn_status, 0)
 
             if urn_level >= min_level:
-                # SLA classification check: map LBAC clearance to classification.
+                # SLA classification quarantine: map LBAC clearance to classification.
                 if sla_max_level is not None:
                     assert federation_sla is not None  # narrowing for mypy
                     urn_clearance = self._registry._cache.get(urn, {}).get(
@@ -115,7 +140,7 @@ class EpistemicFilter:
                     urn_cls_level = _classification_levels.get(urn_clearance.lower(), 3)
                     if urn_cls_level > sla_max_level:
                         logger.debug(
-                            f"Federation SLA Guillotine: stripping {urn} "
+                            f"Federation SLA Guillotine: quarantining {urn} "
                             f"(clearance={urn_clearance}, "
                             f"SLA max={federation_sla.max_permitted_classification})"
                         )
@@ -123,7 +148,7 @@ class EpistemicFilter:
                 filtered[urn] = endpoint
             else:
                 logger.debug(
-                    f"Epistemic Guillotine: stripping {urn} "
+                    f"Epistemic Guillotine: quarantining {urn} "
                     f"(status={urn_status}, required≥{minimum_epistemic_status})"
                 )
 

@@ -172,21 +172,27 @@ def create_ecs_cluster(region_name: str, private_subnet_id: pulumi.Output) -> di
         },
     )
 
+    # Read Thermodynamic Boundaries statelessly from the bootstrap manifest projection
+    hw_profile = BOOTSTRAP_CONFIG.get("hardware_profile", {})
+    min_vram_gb = float(hw_profile.get("min_vram_gb", 2.0))
+    temporal_mem = str(int(min_vram_gb * 1024))
+    temporal_cpu = "1024"
+
     # Temporal worker task definition
     temporal_task = aws.ecs.TaskDefinition(
         f"{PROJECT_NAME}-temporal-task-{region_name}",
         family=f"{PROJECT_NAME}-temporal-worker",
         network_mode="awsvpc",
         requires_compatibilities=["FARGATE"],
-        cpu="1024",
-        memory="2048",
+        cpu=temporal_cpu,
+        memory=temporal_mem,
         container_definitions=json.dumps(
             [
                 {
                     "name": "temporal-worker",
                     "image": "coreason/runtime-worker:latest",
-                    "cpu": 1024,
-                    "memory": 2048,
+                    "cpu": int(temporal_cpu),
+                    "memory": int(temporal_mem),
                     "essential": True,
                     "portMappings": [{"containerPort": 7233, "protocol": "tcp"}],
                     "environment": [
