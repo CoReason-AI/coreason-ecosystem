@@ -227,7 +227,12 @@ class SovereignMCPRegistry:
         Four Archetype prefixes.
         """
         match urn.split(":"):
-            case ["urn", "coreason", "archetype_a" | "archetype_b" | "archetype_c" | "archetype_d", *_]:
+            case [
+                "urn",
+                "coreason",
+                "archetype_a" | "archetype_b" | "archetype_c" | "archetype_d",
+                *_,
+            ]:
                 pass
             case _:
                 raise ValueError(

@@ -11,7 +11,10 @@
 import asyncio
 import uuid
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
 
 from loguru import logger
 from pydantic import BaseModel
@@ -180,7 +183,9 @@ class PulumiActuator:
 
         return await asyncio.to_thread(_reconcile)
 
-    async def execute_thermodynamic_guillotine(self, assessment: Any) -> None:
+    async def execute_thermodynamic_guillotine(
+        self, assessment: "ThermodynamicAssessment"
+    ) -> None:
         """Physically sever all kinetic nodes if VFE limits are breached."""
         if not assessment.threshold_breached:
             return
@@ -193,6 +198,7 @@ class PulumiActuator:
 
         active_stacks = await self.reconcile_state()
         from typing import cast
+
         for stack in active_stacks:
             try:
                 provider_val = cast(Literal["aws", "vast"], stack["provider"])

@@ -23,7 +23,7 @@ unapproved capabilities are never projected to the kinetic plane.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
@@ -58,19 +58,27 @@ class EpistemicTransmuter:
     def sever_causal_edge(self, reason: str) -> None:
         """Actively sever the causal edge due to epistemic violation."""
         from fastapi import HTTPException
+
         logger.critical(f"Severing causal edge: {reason}")
         raise HTTPException(status_code=401, detail=f"Causal Edge Severed: {reason}")
 
-    def transmute_canonical_payload(self, payload: dict[str, Any], reported_hash: str) -> None:
-        """Verify the JSON payload matches its RFC 8785 canonical hash. 
+    def transmute_canonical_payload(
+        self, payload: dict[str, Any], reported_hash: str
+    ) -> None:
+        """Verify the JSON payload matches its RFC 8785 canonical hash.
         If a payload violates RFC 8785 canonical hashing, sever_causal_edge is invoked.
         """
         import json
         import hashlib
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
         canonical_hash = hashlib.sha256(canonical).hexdigest()
         if canonical_hash != reported_hash:
-            self.sever_causal_edge(f"RFC 8785 canonical hash mismatch. Expected {canonical_hash}, got {reported_hash}.")
+            self.sever_causal_edge(
+                f"RFC 8785 canonical hash mismatch. Expected {canonical_hash}, got {reported_hash}."
+            )
 
     def project_capabilities(
         self,

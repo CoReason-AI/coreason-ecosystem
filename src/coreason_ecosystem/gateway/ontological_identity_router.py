@@ -53,9 +53,7 @@ class OntologicalIdentityRouter:
     the claims embedded in the Selective Disclosure JWT.
     """
 
-    async def authorize_coordinate(
-        self, payload: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def authorize_coordinate(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Extract and verify the VerifiableCredentialPresentationReceipt.
 
         Validates the W3C DID-based receipt using the manifest's

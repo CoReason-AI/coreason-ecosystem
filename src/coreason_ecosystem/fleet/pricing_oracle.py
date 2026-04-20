@@ -113,11 +113,7 @@ class PricingOracle:
                         )
                     return aws_nodes
                 except Exception as e:
-                    import logging
-
-                    logging.getLogger(__name__).warning(
-                        f"AWS Boto3 API oracle failed: {e}"
-                    )
+                    logger.warning(f"AWS Boto3 API oracle failed: {e}")
                     return []
 
             aws_nodes = await asyncio.to_thread(fetch_aws_spot)
@@ -147,9 +143,7 @@ class PricingOracle:
                             )
                         )
             except Exception as e:
-                import logging
-
-                logging.getLogger(__name__).warning(f"Vast.ai API oracle failed: {e}")
+                logger.warning(f"Vast.ai API oracle failed: {e}")
 
         # Filter nodes based on constraints
         filtered_nodes = []

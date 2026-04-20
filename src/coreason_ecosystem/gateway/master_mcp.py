@@ -26,10 +26,19 @@ from fastapi import FastAPI
 
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.gateway.epistemic_filter import EpistemicTransmuter
-from coreason_ecosystem.gateway.ontological_identity_router import OntologicalIdentityRouter
+from coreason_ecosystem.gateway.ontological_identity_router import (
+    OntologicalIdentityRouter,
+)
 from coreason_ecosystem.gateway.state_manifests import (
     OracleExecutionReceipt,
 )
+from coreason_manifest.spec.ontology import (
+    CognitiveSwarmDeploymentManifest,
+    FederatedSecurityMacroManifest,
+    ChaosExperimentTask,
+)
+from coreason_ecosystem.orchestration import up, sync
+from coreason_ecosystem.fleet import pulumi_actuator
 from coreason_ecosystem.utils.telemetry import emit_span_event
 
 import time
@@ -266,29 +275,38 @@ async def invoke_actuator(
     # The result data goes natively into TextContent
     return [types.TextContent(type="text", text=str(result_data))]
 
+
 @mcp_server.tool()
 async def deploy_cognitive_swarm(arguments: dict[str, Any]) -> str:
     """Macro-Manifest Deployment: Deploy a cognitive swarm.
-    
+
     Hollow Plane proxy endpoint.
     """
     logger.info("Proxying deploy_cognitive_swarm intent to fleet module.")
+    manifest = CognitiveSwarmDeploymentManifest.model_validate(arguments)
+    await up.provision_swarm_topology(manifest)
     return "Intent proxied to fleet: deploy_cognitive_swarm"
+
 
 @mcp_server.tool()
 async def establish_federated_link(arguments: dict[str, Any]) -> str:
     """Macro-Manifest Deployment: Establish federated link.
-    
+
     Hollow Plane proxy endpoint.
     """
     logger.info("Proxying establish_federated_link intent to orchestration module.")
+    manifest = FederatedSecurityMacroManifest.model_validate(arguments)
+    await sync.establish_federated_link(manifest)
     return "Intent proxied to orchestration: establish_federated_link"
+
 
 @mcp_server.tool()
 async def inject_chaos_fault(arguments: dict[str, Any]) -> str:
     """Macro-Manifest Deployment: Inject chaos fault.
-    
+
     Hollow Plane proxy endpoint.
     """
     logger.info("Proxying inject_chaos_fault intent to fleet module.")
+    manifest = ChaosExperimentTask.model_validate(arguments)
+    await pulumi_actuator.inject_chaos_fault(manifest)
     return "Intent proxied to fleet: inject_chaos_fault"
