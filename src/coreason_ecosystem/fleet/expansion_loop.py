@@ -33,7 +33,9 @@ from coreason_ecosystem.fleet.pricing_oracle import (
     PricingOracle,
     assess_thermodynamic_expenditure,
 )
-from coreason_ecosystem.gateway.capability_registry import CapabilityRegistry
+from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
+from coreason_ecosystem.fleet.pulumi_actuator import PulumiActuator
+from pathlib import Path
 
 # Hardware threshold (approx 10,000,000,000 Gwei / ~10 ETH at historical rates)
 HARDWARE_NODE_COST_GWEI = 10_000_000_000
@@ -47,7 +49,7 @@ TREASURY_URN = "urn:coreason:state:treasury"
 
 
 async def von_neumann_expansion_daemon(
-    registry: CapabilityRegistry,
+    registry: SovereignMCPRegistry,
     oracle: PricingOracle,
     max_budget_hr: float = 10.0,
     polling_interval_sec: float = DEFAULT_POLLING_INTERVAL_SEC,
@@ -64,7 +66,7 @@ async def von_neumann_expansion_daemon(
     to allow the fleet daemon to sever kinetic execution.
 
     Args:
-        registry: The CapabilityRegistry for URN-based treasury resolution.
+        registry: The SovereignMCPRegistry for URN-based treasury resolution.
         oracle: The PricingOracle for dynamic hardware profile resolution.
         max_budget_hr: Maximum hourly budget for compute provisioning.
         polling_interval_sec: Seconds between polling iterations.
@@ -103,6 +105,8 @@ async def von_neumann_expansion_daemon(
                 "[ExpansionLoop] Economic Guillotine triggered. "
                 "Halting expansion loop to prevent thermodynamic exhaustion."
             )
+            actuator = PulumiActuator(Path.cwd() / "infrastructure")
+            await actuator.execute_thermodynamic_guillotine(assessment)
             return
 
         # Query the Sovereign Treasury MCP for on-chain balance.

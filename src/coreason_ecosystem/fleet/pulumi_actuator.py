@@ -43,7 +43,7 @@ class ComputeNodeTarget(BaseModel):
 ATOMIC_MAGNITUDE_MULTIPLIER = 10000
 
 
-class PulumiFleetDriver:
+class PulumiActuator:
     def __init__(self, templates_dir: Path) -> None:
         self.templates_dir = templates_dir
         self.injector = MeshInjector()
@@ -179,3 +179,23 @@ class PulumiFleetDriver:
             return active_stacks
 
         return await asyncio.to_thread(_reconcile)
+
+    async def execute_thermodynamic_guillotine(self, assessment: Any) -> None:
+        """Physically sever all kinetic nodes if VFE limits are breached."""
+        if not assessment.threshold_breached:
+            return
+
+        logger.critical(
+            "[PulumiActuator] Economic Guillotine triggered! VFE divergence "
+            f"{assessment.vfe_divergence:.3f} breached threshold. "
+            "Severing all autonomous infrastructure..."
+        )
+
+        active_stacks = await self.reconcile_state()
+        from typing import cast
+        for stack in active_stacks:
+            try:
+                provider_val = cast(Literal["aws", "vast"], stack["provider"])
+                await self.destroy_node(stack["stack_name"], provider_val)
+            except Exception as e:
+                logger.error(f"Failed to sever node {stack['stack_name']}: {e}")

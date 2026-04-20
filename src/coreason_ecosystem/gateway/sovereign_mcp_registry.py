@@ -39,10 +39,15 @@ import httpx
 from loguru import logger
 
 _LEGACY_URN_PREFIXES = ("urn:coreason:oracle:", "urn:coreason:state:")
-_ACTIONSPACE_URN_PREFIX = "urn:coreason:actionspace:"
+_ARCHETYPE_PREFIXES = (
+    "urn:coreason:archetype_a:storage:",
+    "urn:coreason:archetype_b:tools:",
+    "urn:coreason:archetype_c:sensory:",
+    "urn:coreason:archetype_d:state:",
+)
 
 
-class CapabilityRegistry:
+class SovereignMCPRegistry:
     """Dynamic routing table linking URN boundaries to deployed action spaces.
 
     Initializes empty and must be hydrated via ``hydrate_from_matrix()``
@@ -92,13 +97,17 @@ class CapabilityRegistry:
             clearance = entry.get("clearance", "RESTRICTED")
             epistemic_status = entry.get("epistemic_status", "DRAFT")
             if urn and endpoint:
-                if urn.startswith(_LEGACY_URN_PREFIXES):
-                    warnings.warn(
-                        f"Legacy URN prefix detected: '{urn}'. "
-                        "'oracle:' and 'state:' are deprecated in favor of 'actionspace:'.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
+                match urn.split(":"):
+                    case ["urn", "coreason", "oracle" | "state", *_]:
+                        warnings.warn(
+                            f"Legacy URN prefix detected: '{urn}'. "
+                            "'oracle:' and 'state:' are deprecated in favor of 'archetype_*'.",
+                            DeprecationWarning,
+                            stacklevel=2,
+                        )
+                    case _:
+                        pass
+
                 self._cache[urn] = {
                     "endpoint": endpoint,
                     "clearance": clearance,
@@ -130,13 +139,16 @@ class CapabilityRegistry:
                 clearance = entry.get("clearance", "RESTRICTED")
                 epistemic_status = entry.get("epistemic_status", "DRAFT")
                 if urn and endpoint:
-                    if urn.startswith(_LEGACY_URN_PREFIXES):
-                        warnings.warn(
-                            f"Legacy URN prefix detected: '{urn}'. "
-                            "'oracle:' and 'state:' are deprecated in favor of 'actionspace:'.",
-                            DeprecationWarning,
-                            stacklevel=2,
-                        )
+                    match urn.split(":"):
+                        case ["urn", "coreason", "oracle" | "state", *_]:
+                            warnings.warn(
+                                f"Legacy URN prefix detected: '{urn}'. "
+                                "'oracle:' and 'state:' are deprecated in favor of 'archetype_*'.",
+                                DeprecationWarning,
+                                stacklevel=2,
+                            )
+                        case _:
+                            pass
                     self._cache[urn] = {
                         "endpoint": endpoint,
                         "clearance": clearance,
@@ -208,24 +220,21 @@ class CapabilityRegistry:
         return entry.get("epistemic_status", "DRAFT")
 
     @staticmethod
-    def validate_actionspace_urn(urn: str) -> None:
+    def validate_archetype_urn(urn: str) -> None:
         """Zero-trust URN prefix validation for newly forged action spaces.
 
-        Rejects any URN that does not begin with the canonical
-        ``urn:coreason:actionspace:`` prefix.
-
-        Args:
-            urn: The URN string to validate.
-
-        Raises:
-            ValueError: If the URN does not bear the required prefix.
+        Rejects any URN that does not begin with one of the canonical
+        Four Archetype prefixes.
         """
-        if not urn.startswith(_ACTIONSPACE_URN_PREFIX):
-            raise ValueError(
-                f"URN Topology Breach: '{urn}' does not bear the "
-                f"canonical '{_ACTIONSPACE_URN_PREFIX}' prefix. "
-                "Rejecting hallucinated capability."
-            )
+        match urn.split(":"):
+            case ["urn", "coreason", "archetype_a" | "archetype_b" | "archetype_c" | "archetype_d", *_]:
+                pass
+            case _:
+                raise ValueError(
+                    f"URN Topology Breach: '{urn}' does not bear a "
+                    f"canonical Archetype prefix. "
+                    "Rejecting hallucinated capability."
+                )
 
     def scan_action_space_modules(self, scan_dirs: list[Path] | None = None) -> int:
         """Passively discover assets bearing ``__action_space_urn__`` via AST parsing.
@@ -279,7 +288,7 @@ class CapabilityRegistry:
                             ):
                                 urn_value = node.value.value
                                 try:
-                                    self.validate_actionspace_urn(urn_value)
+                                    self.validate_archetype_urn(urn_value)
                                 except ValueError:
                                     logger.warning(
                                         f"Passive Ontological Projection: "
