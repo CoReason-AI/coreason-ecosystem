@@ -14,39 +14,7 @@ import json
 import math
 from typing import Any, Literal
 
-from pydantic import field_validator
 
-from coreason_manifest.spec.ontology import (
-    CoreasonBaseState,
-    SpatialHardwareProfile as HardwareProfile,
-    EpistemicSecurityProfile as SecurityProfile,
-)
-
-
-class FederatedCapabilityAttestationReceipt(CoreasonBaseState):
-    token: str
-    payload: Any
-
-    @field_validator("token")
-    @classmethod
-    def validate_token(cls, v: str) -> str:
-        if not v or len(v.split(".")) != 3:
-            raise ValueError("Invalid JWT token format")
-        return v
-
-    @field_validator("payload")
-    @classmethod
-    def enforce_epistemic_bounding(cls, v: Any) -> Any:
-        def count_nodes(obj: Any) -> int:
-            if isinstance(obj, dict):
-                return sum(count_nodes(val) for val in obj.values()) + 1
-            elif isinstance(obj, list):
-                return sum(count_nodes(item) for item in obj) + 1
-            return 1
-
-        if count_nodes(v) > 10000:
-            raise ValueError("Payload exceeds 10,000 node limit")
-        return v
 
 
 class MeshInjector:
@@ -56,16 +24,26 @@ class MeshInjector:
         Intercepts requests and validates cryptographic proofs before allowing
         the JSON-RPC payload through to the runtime layer.
         """
-        # Cryptographically validate the Macaroon/JWT proving cross-boundary authorization
-        # and parse the payload ensuring the 10,000 node limit.
-        receipt = FederatedCapabilityAttestationReceipt(token=token, payload=payload)
-        return receipt.payload
+        if not token or len(token.split(".")) != 3:
+            raise ValueError("Invalid JWT token format")
+
+        def count_nodes(obj: Any) -> int:
+            if isinstance(obj, dict):
+                return sum(count_nodes(val) for val in obj.values()) + 1
+            elif isinstance(obj, list):
+                return sum(count_nodes(item) for item in obj) + 1
+            return 1
+
+        if count_nodes(payload) > 10000:
+            raise ValueError("Payload exceeds 10,000 node limit")
+
+        return payload
 
     def compile_payload(
         self,
         provider: Literal["aws", "vast"],
-        hardware: HardwareProfile,
-        security: SecurityProfile,
+        hardware: dict[str, Any],
+        security: dict[str, Any],
         mesh_auth_key: str,
         temporal_mesh_ip: str,
     ) -> str:
@@ -78,7 +56,8 @@ class MeshInjector:
         from pathlib import Path
 
         # 1 page = 64KB
-        vram_bytes = hardware.min_vram_gb * 1024 * 1024 * 1024
+        min_vram_gb = float(hardware.get("min_vram_gb", 8.0))
+        vram_bytes = min_vram_gb * 1024 * 1024 * 1024
         wasm_pages = math.ceil(vram_bytes / 65536)
 
         # Resolve the deterministic IaC template
@@ -92,7 +71,7 @@ class MeshInjector:
 
         # Render firewall rules if network isolation is required
         firewall_rules = ""
-        if security.network_isolation:
+        if security.get("network_isolation", False):
             fw_lines = [
                 "  - iptables -A INPUT -i lo -j ACCEPT",
                 "  - iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT",

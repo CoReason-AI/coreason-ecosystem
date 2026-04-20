@@ -92,8 +92,8 @@ class PulumiActuator:
         ):
             payload_b64 = self.injector.compile_payload(
                 provider=target.provider,
-                hardware=target.hardware_profile,
-                security=target.security_profile,
+                hardware=target.hardware_profile.model_dump(),
+                security=target.security_profile.model_dump(),
                 mesh_auth_key=target.mesh_auth_key,
                 temporal_mesh_ip=target.temporal_mesh_ip,
             )

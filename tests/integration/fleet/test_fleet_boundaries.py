@@ -2,10 +2,7 @@ import pytest
 from pydantic import ValidationError
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from coreason_ecosystem.fleet.mesh_injector import (
-    FederatedCapabilityAttestationReceipt,
-    MeshInjector,
-)
+from coreason_ecosystem.fleet.mesh_injector import MeshInjector
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
 from coreason_ecosystem.fleet.telemetry_topology import TelemetryTopologyMonitor
 from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwareProfile
@@ -13,8 +10,8 @@ from coreason_manifest.spec.ontology import SpatialHardwareProfile as HardwarePr
 
 def test_mesh_injector_jwt_validation() -> None:
     # Lines 31-33
-    with pytest.raises(ValidationError):
-        FederatedCapabilityAttestationReceipt(token="invalid_token", payload="data")
+    with pytest.raises(ValueError):
+        MeshInjector().inject_ocap_middleware(token="invalid_token", payload="data")
 
 
 def test_mesh_injector_epistemic_bounding() -> None:
@@ -26,8 +23,8 @@ def test_mesh_injector_epistemic_bounding() -> None:
 
     # Needs to exceed 10000 nodes! We can use a large list.
     large_payload = [1] * 10001
-    with pytest.raises(ValidationError):
-        FederatedCapabilityAttestationReceipt(
+    with pytest.raises(ValueError):
+        MeshInjector().inject_ocap_middleware(
             token="valid.jwt.token", payload=large_payload
         )
 

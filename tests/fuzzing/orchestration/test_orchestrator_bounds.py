@@ -5,7 +5,7 @@ from unittest.mock import patch, AsyncMock
 from typer.testing import CliRunner
 
 from coreason_ecosystem.cli import app
-from coreason_ecosystem.fleet.mesh_injector import FederatedCapabilityAttestationReceipt
+from coreason_ecosystem.fleet.mesh_injector import MeshInjector
 
 runner = CliRunner()
 
@@ -44,9 +44,9 @@ def test_fuzz_cli_init_command(
 def test_fuzz_mesh_injector_payloads(token: str, payload: Any) -> None:
     """Fuzzing the configuration payloads passed into the Fleet mesh injectors."""
     try:
-        FederatedCapabilityAttestationReceipt(token=token, payload=payload)
-    except ValidationError:
-        # Pydantic handles validation rejections cleanly
+        MeshInjector().inject_ocap_middleware(token=token, payload=payload)
+    except ValueError:
+        # MeshInjector handles validation rejections cleanly
         pass
     except Exception as e:
         # We should NOT get any other raw exceptions (e.g., RecursionError)
