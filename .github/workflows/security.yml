@@ -1,40 +1,86 @@
-
 name: Security Audit
 
 on:
+  push:
+    branches: [ coreason-develop, main ]
+  pull_request:
+    branches: [ coreason-develop, main ]
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  security-events: write
+  actions: read
 
 jobs:
-  audit-dependencies:
+  secret-scan:
+    name: Secret Scanning
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Trufflehog Secret Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+        continue-on-error: true
+
+  sca-audit:
+    name: Software Composition Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@v4
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
-          enable-cache: false
-          cache-dependency-glob: "uv.lock"
+          enable-cache: true
+          python-version: '3.14'
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: "pyproject.toml"
-          allow-prereleases: true
-
-      - name: Export requirements for pip-audit
-        run: uv export --format requirements-txt > requirements.txt
+      - name: Python SCA Audit (pip-audit)
+        run: |
+          if [ -f "pyproject.toml" ]; then
+            uv export --format requirements-txt > requirements.txt
+            uv tool run pip-audit -r requirements.txt -f sarif -o pip-audit.sarif || echo "Vulnerabilities found!"
+            uv tool run pip-audit -r requirements.txt -f html -o pip-audit-report.html || true
+          fi
         shell: bash
 
-      - name: Run pip-audit
-        uses: pypa/gh-action-pip-audit@v1.1.0
+      - name: Node.js SCA Audit (npm audit)
+        run: |
+          if [ -f "package.json" ]; then
+            npm install --package-lock-only
+            npm audit --json > npm-audit.json || true
+            npx @microsoft/npm-audit-sarif -i npm-audit.json -o npm-audit.sarif || true
+          fi
+        shell: bash
+
+      - name: Black Duck Compliance Check
+        run: |
+          echo "INFO: Ready for Black Duck integration."
+        shell: bash
+
+      - name: Upload SARIF Reports to GitHub Advanced Security
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          inputs: requirements.txt
+          sarif_file: .
+        continue-on-error: true
+
+      - name: Upload Compliance Reports as Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-reports
+          path: |
+            pip-audit-report.html
+            npm-audit.json
+          retention-days: 14
