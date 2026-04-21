@@ -24,6 +24,7 @@ jobs:
   analysis:
     name: Scorecard Analysis
     runs-on: ubuntu-latest
+    if: github.event.repository.private == false
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@v2
