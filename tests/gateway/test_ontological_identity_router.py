@@ -39,7 +39,7 @@ class TestVerifyConnectionHandshake:
             }
         }
         result = await broker.authorize_coordinate(payload)
-        assert result["issuer_did"] == "did:coreason:swarm-node-001"
+        assert result["principal_did"] == "did:coreason:swarm-node-001"
         assert result["clearance"] == "PUBLIC"
 
     @pytest.mark.asyncio

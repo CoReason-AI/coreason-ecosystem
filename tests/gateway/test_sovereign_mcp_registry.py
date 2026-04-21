@@ -24,7 +24,7 @@ class TestValidateActionspaceURN:
 
     def test_valid_urn_passes(self) -> None:
         SovereignMCPRegistry.validate_archetype_urn(
-            "urn:coreason:actionspace:test:probe"
+            "urn:coreason:archetype_b:tools:probe"
         )
 
     def test_invalid_prefix_raises(self) -> None:
@@ -68,14 +68,14 @@ class TestScanActionSpaceModules:
         scan_dir.mkdir()
         module_file = scan_dir / "test_actuator.py"
         module_file.write_text(
-            '__action_space_urn__ = "urn:coreason:actionspace:test:probe"\n',
+            '__action_space_urn__ = "urn:coreason:archetype_b:tools:probe"\n',
             encoding="utf-8",
         )
 
         registry = SovereignMCPRegistry()
         count = registry.scan_action_space_modules([scan_dir])
         assert count == 1
-        assert "urn:coreason:actionspace:test:probe" in registry._cache
+        assert "urn:coreason:archetype_b:tools:probe" in registry._cache
 
     def test_rejects_invalid_prefix(self, tmp_path: Path) -> None:
         """Scanner rejects files with non-actionspace URN prefixes."""
@@ -109,12 +109,12 @@ class TestScanActionSpaceModules:
         scan_dir.mkdir()
         module_file = scan_dir / "actuator.py"
         module_file.write_text(
-            '__action_space_urn__ = "urn:coreason:actionspace:test:duplicate"\n',
+            '__action_space_urn__ = "urn:coreason:archetype_b:tools:duplicate"\n',
             encoding="utf-8",
         )
 
         registry = SovereignMCPRegistry()
-        registry._cache["urn:coreason:actionspace:test:duplicate"] = {
+        registry._cache["urn:coreason:archetype_b:tools:duplicate"] = {
             "endpoint": "http://existing:8000",
             "clearance": "PUBLIC",
             "epistemic_status": "PUBLISHED",
@@ -123,7 +123,7 @@ class TestScanActionSpaceModules:
         assert count == 0
         # Original cache entry preserved
         assert (
-            registry._cache["urn:coreason:actionspace:test:duplicate"]["endpoint"]
+            registry._cache["urn:coreason:archetype_b:tools:duplicate"]["endpoint"]
             == "http://existing:8000"
         )
 
@@ -145,14 +145,14 @@ class TestScanActionSpaceModules:
         nested.mkdir(parents=True)
         module_file = nested / "deep_actuator.py"
         module_file.write_text(
-            '__action_space_urn__ = "urn:coreason:actionspace:deep:test"\n',
+            '__action_space_urn__ = "urn:coreason:archetype_b:tools:test"\n',
             encoding="utf-8",
         )
 
         registry = SovereignMCPRegistry()
         count = registry.scan_action_space_modules([scan_dir])
         assert count == 1
-        assert "urn:coreason:actionspace:deep:test" in registry._cache
+        assert "urn:coreason:archetype_b:tools:test" in registry._cache
 
 
 class TestLegacyURNDeprecationWarnings:
@@ -208,7 +208,7 @@ class TestLegacyURNDeprecationWarnings:
         matrix_data = {
             "capabilities": [
                 {
-                    "urn": "urn:coreason:actionspace:test:clean",
+                    "urn": "urn:coreason:archetype_b:tools:clean",
                     "endpoint": "http://clean:8000",
                     "clearance": "PUBLIC",
                 }

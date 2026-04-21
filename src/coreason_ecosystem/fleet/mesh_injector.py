@@ -60,7 +60,7 @@ class MeshInjector:
 
         # Resolve the deterministic IaC template
         template_path = (
-            Path(__file__).resolve().parents[2]
+            Path(__file__).resolve().parents[3]
             / "infrastructure"
             / "ephemeral"
             / "cloud-init.yaml.tpl"

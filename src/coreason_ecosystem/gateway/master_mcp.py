@@ -202,6 +202,28 @@ async def list_actuators() -> list[types.Tool]:
                 )
                 continue
 
+    actuator_manifests.append(
+        types.Tool(
+            name="deploy_cognitive_swarm",
+            description="Macro-Manifest Deployment: Deploy a cognitive swarm. Hollow Plane proxy endpoint.",
+            inputSchema=CognitiveSwarmDeploymentManifest.model_json_schema(),
+        )
+    )
+    actuator_manifests.append(
+        types.Tool(
+            name="establish_federated_link",
+            description="Macro-Manifest Deployment: Establish federated link. Hollow Plane proxy endpoint.",
+            inputSchema=FederatedSecurityMacroManifest.model_json_schema(),
+        )
+    )
+    actuator_manifests.append(
+        types.Tool(
+            name="inject_chaos_fault",
+            description="Macro-Manifest Deployment: Inject chaos fault. Hollow Plane proxy endpoint.",
+            inputSchema=ChaosExperimentTask.model_json_schema(),
+        )
+    )
+
     return actuator_manifests
 
 
@@ -210,6 +232,16 @@ async def invoke_actuator(
     name: str, arguments: dict[str, Any]
 ) -> list[types.TextContent]:
     """Proxies execution request to physical action space with cryptographic receipt."""
+    if name == "deploy_cognitive_swarm":
+        res = await deploy_cognitive_swarm(arguments)
+        return [types.TextContent(type="text", text=res)]
+    if name == "establish_federated_link":
+        res = await establish_federated_link(arguments)
+        return [types.TextContent(type="text", text=res)]
+    if name == "inject_chaos_fault":
+        res = await inject_chaos_fault(arguments)
+        return [types.TextContent(type="text", text=res)]
+
     # Resolve the matching URN from the registry cache
     discovered = await registry.discover_active_substrates()
     endpoint_url: str | None = None
@@ -276,7 +308,6 @@ async def invoke_actuator(
     return [types.TextContent(type="text", text=str(result_data))]
 
 
-@mcp_server.tool()  # type: ignore[attr-defined]
 async def deploy_cognitive_swarm(arguments: dict[str, Any]) -> str:
     """Macro-Manifest Deployment: Deploy a cognitive swarm.
 
@@ -288,7 +319,6 @@ async def deploy_cognitive_swarm(arguments: dict[str, Any]) -> str:
     return "Intent proxied to fleet: deploy_cognitive_swarm"
 
 
-@mcp_server.tool()  # type: ignore[attr-defined]
 async def establish_federated_link(arguments: dict[str, Any]) -> str:
     """Macro-Manifest Deployment: Establish federated link.
 
@@ -300,7 +330,6 @@ async def establish_federated_link(arguments: dict[str, Any]) -> str:
     return "Intent proxied to orchestration: establish_federated_link"
 
 
-@mcp_server.tool()  # type: ignore[attr-defined]
 async def inject_chaos_fault(arguments: dict[str, Any]) -> str:
     """Macro-Manifest Deployment: Inject chaos fault.
 

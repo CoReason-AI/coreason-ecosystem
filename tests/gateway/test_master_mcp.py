@@ -182,8 +182,8 @@ async def test_list_actuators_request_error() -> None:
         tools = await list_actuators()
 
         # Unreachable substrates must not be projected — they do not exist
-        # in the active topology.
-        assert len(tools) == 0
+        # in the active topology. (Only the 3 internal hollow plane proxy tools remain)
+        assert len(tools) == 3
 
 
 @pytest.mark.asyncio
@@ -326,10 +326,68 @@ async def test_extract_and_verify_identity_valid_token() -> None:
     request.headers = {"Authorization": f"Bearer {encoded}"}
 
     with patch(
-        "coreason_ecosystem.gateway.master_mcp.ontological_identity_router.verify_connection_handshake",
+        "coreason_ecosystem.gateway.master_mcp.identity_router.authorize_coordinate",
         new_callable=AsyncMock,
     ) as mock_verify:
         mock_verify.return_value = {"clearance": "SECRET"}
         await extract_and_verify_identity(request)
         assert current_clearance.get() == "SECRET"
         mock_verify.assert_called_once_with(payload)
+
+
+@pytest.mark.asyncio
+async def test_invoke_actuator_deploy_cognitive_swarm() -> None:
+    arguments = {
+        "swarm_size": 3,
+        "swarm_name": "test_swarm",
+        "agent_urn": "urn:coreason:archetype:ai",
+    }
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.CognitiveSwarmDeploymentManifest.model_validate"
+    ) as mock_val, patch(
+        "coreason_ecosystem.gateway.master_mcp.up.provision_swarm_topology",
+        new_callable=AsyncMock,
+        create=True,
+    ) as mock_up:
+        result = await invoke_actuator(name="deploy_cognitive_swarm", arguments=arguments)
+        assert len(result) == 1
+        assert "deploy_cognitive_swarm" in result[0].text
+        mock_up.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_invoke_actuator_establish_federated_link() -> None:
+    arguments = {
+        "target_mesh_id": "mesh_123",
+        "auth_token": "token",
+    }
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.FederatedSecurityMacroManifest.model_validate"
+    ) as mock_val, patch(
+        "coreason_ecosystem.gateway.master_mcp.sync.establish_federated_link",
+        new_callable=AsyncMock,
+        create=True,
+    ) as mock_sync:
+        result = await invoke_actuator(name="establish_federated_link", arguments=arguments)
+        assert len(result) == 1
+        assert "establish_federated_link" in result[0].text
+        mock_sync.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_invoke_actuator_inject_chaos_fault() -> None:
+    arguments = {
+        "fault_type": "network_partition",
+        "duration_seconds": 60,
+    }
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.ChaosExperimentTask.model_validate"
+    ) as mock_val, patch(
+        "coreason_ecosystem.gateway.master_mcp.pulumi_actuator.inject_chaos_fault",
+        new_callable=AsyncMock,
+        create=True,
+    ) as mock_chaos:
+        result = await invoke_actuator(name="inject_chaos_fault", arguments=arguments)
+        assert len(result) == 1
+        assert "inject_chaos_fault" in result[0].text
+        mock_chaos.assert_called_once()

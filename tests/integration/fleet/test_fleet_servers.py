@@ -71,7 +71,7 @@ async def test_daemon_no_viable_bid() -> None:
 
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
 
-    async def stop_loop() -> None:
+    async def stop_loop(*args, **kwargs) -> None:
         manager._running = False
 
     with patch.object(
