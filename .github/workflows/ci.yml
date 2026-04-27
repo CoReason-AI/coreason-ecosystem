@@ -24,7 +24,7 @@ jobs:
       TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       CI_RUN_ID: ${{ github.run_id }}
-      PORT: 0 
+      PORT: 0
       UV_CACHE_DIR: ${{ github.workspace }}/.uv_cache
     steps:
       - name: Pre-Flight Workspace Purity
@@ -76,7 +76,7 @@ jobs:
       TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       CI_RUN_ID: ${{ github.run_id }}
-      PORT: 0 
+      PORT: 0
       UV_CACHE_DIR: ${{ github.workspace }}/.uv_cache
     steps:
       - name: Pre-Flight Workspace Purity
@@ -104,7 +104,7 @@ jobs:
       TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       CI_RUN_ID: ${{ github.run_id }}
-      PORT: 0 
+      PORT: 0
       UV_CACHE_DIR: ${{ github.workspace }}/.uv_cache
     steps:
       - name: Pre-Flight Workspace Purity
@@ -163,7 +163,7 @@ jobs:
       TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       CI_RUN_ID: ${{ github.run_id }}
-      PORT: 0 
+      PORT: 0
       UV_CACHE_DIR: ${{ github.workspace }}/.uv_cache
     steps:
       - name: Pre-Flight Workspace Purity
@@ -203,7 +203,7 @@ jobs:
       TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       CI_RUN_ID: ${{ github.run_id }}
-      PORT: 0 
+      PORT: 0
       UV_CACHE_DIR: ${{ github.workspace }}/.uv_cache
     steps:
       - name: Pre-Flight Workspace Purity
