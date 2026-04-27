@@ -59,9 +59,9 @@ jobs:
       - name: Node.js SCA Audit (npm audit)
         run: |
           if [ -f "package.json" ]; then
-            npm install --package-lock-only
+            npm ci
             npm audit --json > npm-audit.json || true
-            npx @microsoft/npm-audit-sarif -i npm-audit.json -o npm-audit.sarif || true
+            npx @microsoft/npm-audit-sarif@0.0.13 -i npm-audit.json -o npm-audit.sarif || true
           fi
         shell: bash
 
