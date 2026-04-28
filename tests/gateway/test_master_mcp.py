@@ -1,19 +1,10 @@
-# Copyright (c) 2026 CoReason, Inc.
-#
-# This software is proprietary and dual-licensed
-# Licensed under the Prosperity Public License 3.0 (the "License")
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
-# For details, see the LICENSE file
-# Commercial use beyond a 30-day trial requires a separate license
-#
-# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
-
 import unittest.mock
 import typing
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
 import pytest
+from mcp.types import Tool, TextContent
+from fastapi.testclient import TestClient
 
 from coreason_ecosystem.gateway.master_mcp import (
     app,
@@ -23,9 +14,7 @@ from coreason_ecosystem.gateway.master_mcp import (
     registry,
     compute_schema_seal,
 )
-from mcp.types import Tool, TextContent
-from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, patch
+from mcp.shared.exceptions import McpError
 
 
 def _seed_registry() -> None:
@@ -140,43 +129,55 @@ async def test_messages_endpoint_direct() -> None:
 
 @pytest.mark.asyncio
 async def test_list_actuators() -> None:
-    """Test the Master MCP discovery proxy behavior with mocked sub-MCP."""
-    sub_mcp_url = "http://svc-pubmed-mcp.internal:8000/tools"
-
-    mock_response = unittest.mock.Mock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = [
-        {"name": "extract", "description": "Mock clinical task", "inputSchema": {}}
-    ]
+    """Test the Master MCP discovery proxy behavior with mocked SSE sub-MCP."""
+    sub_mcp_url = "http://svc-pubmed-mcp.internal:8000/sse"
 
     with unittest.mock.patch(
-        "httpx.AsyncClient.get", new_callable=AsyncMock
-    ) as mock_get:
-        mock_get.return_value = mock_response
+        "coreason_ecosystem.gateway.master_mcp.sse_client",
+    ) as mock_sse_client:
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__.return_value = (AsyncMock(), AsyncMock())
+        mock_sse_client.return_value = mock_ctx
 
-        current_clearance.set("PUBLIC")
-        tools = await list_actuators()
+        with unittest.mock.patch(
+            "coreason_ecosystem.gateway.master_mcp.ClientSession"
+        ) as mock_session_cls:
+            mock_session = AsyncMock()
+            mock_session.initialize = AsyncMock()
 
-        assert len(tools) >= 1
-        assert isinstance(tools[0], Tool)
+            # mock response tooling
+            mock_tool = unittest.mock.Mock()
+            mock_tool.name = "extract"
+            mock_tool.description = "Mock clinical task"
+            mock_tool.inputSchema = {"type": "object", "properties": {}}
 
-        names = [tool.name for tool in tools]
-        assert "urn_coreason_oracle_clinical_extractor_extract" in names
+            mock_response = unittest.mock.Mock()
+            mock_response.tools = [mock_tool]
+            mock_session.list_tools.return_value = mock_response
 
-        mock_get.assert_any_call(sub_mcp_url)
+            mock_session_ctx = AsyncMock()
+            mock_session_ctx.__aenter__.return_value = mock_session
+            mock_session_cls.return_value = mock_session_ctx
+
+            current_clearance.set("PUBLIC")
+            tools = await list_actuators()
+
+            assert len(tools) >= 1
+            assert isinstance(tools[0], Tool)
+
+            names = [tool.name for tool in tools]
+            assert "urn_coreason_oracle_clinical_extractor_extract" in names
+
+            mock_sse_client.assert_any_call(sub_mcp_url)
 
 
 @pytest.mark.asyncio
 async def test_list_actuators_request_error() -> None:
     """Test that offline substrates are dropped from the projection (Zero-Trust)."""
-
-    def raise_request_error(*args: typing.Any, **kwargs: typing.Any) -> None:
-        raise httpx.RequestError("Connection failed")
-
     with unittest.mock.patch(
-        "httpx.AsyncClient.get", new_callable=AsyncMock
-    ) as mock_get:
-        mock_get.side_effect = raise_request_error
+        "coreason_ecosystem.gateway.master_mcp.sse_client"
+    ) as mock_sse_client:
+        mock_sse_client.side_effect = Exception("Connection failed")
 
         current_clearance.set("PUBLIC")
         tools = await list_actuators()
@@ -190,63 +191,100 @@ async def test_list_actuators_request_error() -> None:
 async def test_invoke_actuator_and_receipt() -> None:
     """Test execution proxying and OracleExecutionReceipt generation."""
     tool_name = "urn_coreason_oracle_clinical_extractor_extract"
-    action_space_url = "http://svc-pubmed-mcp.internal:8000/execute"
-
-    mock_response = unittest.mock.Mock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"status": "extracted", "entities": ["data"]}
+    action_space_url = "http://svc-pubmed-mcp.internal:8000/sse"
 
     with unittest.mock.patch(
-        "httpx.AsyncClient.post", new_callable=AsyncMock
-    ) as mock_post:
-        mock_post.return_value = mock_response
+        "coreason_ecosystem.gateway.master_mcp.sse_client",
+    ) as mock_sse_client:
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__.return_value = (AsyncMock(), AsyncMock())
+        mock_sse_client.return_value = mock_ctx
 
         with unittest.mock.patch(
-            "coreason_ecosystem.gateway.master_mcp.emit_span_event"
-        ) as mock_telemetry:
-            arguments = {"query": "clinical test"}
-            result = await invoke_actuator(name=tool_name, arguments=arguments)
+            "coreason_ecosystem.gateway.master_mcp.ClientSession"
+        ) as mock_session_cls:
+            mock_session = AsyncMock()
+            mock_session.initialize = AsyncMock()
 
-            assert isinstance(result, list)
-            assert len(result) == 1
-            assert isinstance(result[0], TextContent)
+            # Constructing a generic text return simulation
+            mock_content = unittest.mock.Mock()
+            mock_content.model_dump.return_value = {
+                "status": "extracted",
+                "entities": ["data"],
+            }
+            mock_response = unittest.mock.Mock()
+            mock_response.content = [mock_content]
 
-            mock_post.assert_called_with(action_space_url, json=arguments)
+            mock_session.call_tool = AsyncMock()
+            mock_session.call_tool.return_value = mock_response
 
-            # Telemetry bounding proof: emit_span_event must fire exactly once.
-            mock_telemetry.assert_called_once()
-            call_args = mock_telemetry.call_args
-            assert (
-                call_args.kwargs.get("name")
-                or call_args.args[0] == "mcp_tool_execution"
-            )
-            attrs = call_args.kwargs.get("attributes") or call_args.args[1]
-            assert attrs["executed_urn"] == "urn:coreason:oracle:clinical_extractor"
-            assert attrs["action_space_id"] == "urn_coreason_oracle_clinical_extractor"
-            assert "execution_time_ms" in attrs
-            assert isinstance(attrs["execution_time_ms"], float)
+            mock_session_ctx = AsyncMock()
+            mock_session_ctx.__aenter__.return_value = mock_session
+            mock_session_cls.return_value = mock_session_ctx
+
+            with unittest.mock.patch(
+                "coreason_ecosystem.gateway.master_mcp.emit_span_event"
+            ) as mock_telemetry:
+                arguments = {"query": "clinical test"}
+                result = await invoke_actuator(name=tool_name, arguments=arguments)
+
+                assert isinstance(result, list)
+                assert len(result) == 1
+                assert isinstance(result[0], TextContent)
+
+                mock_session.call_tool.assert_called_with(
+                    "extract", arguments=arguments
+                )
+                mock_sse_client.assert_called_with(action_space_url)
+
+                # Telemetry bounding proof: emit_span_event must fire exactly once.
+                mock_telemetry.assert_called_once()
+                call_args = mock_telemetry.call_args
+                assert (
+                    call_args.kwargs.get("name")
+                    or call_args.args[0] == "mcp_tool_execution"
+                )
+                attrs = call_args.kwargs.get("attributes") or call_args.args[1]
+                assert attrs["executed_urn"] == "urn:coreason:oracle:clinical_extractor"
+                assert (
+                    attrs["action_space_id"] == "urn_coreason_oracle_clinical_extractor"
+                )
+                assert "execution_time_ms" in attrs
+                assert isinstance(attrs["execution_time_ms"], float)
 
 
 @pytest.mark.asyncio
 async def test_invoke_actuator_http_status_error() -> None:
-    """Test execution when sub-MCP returns an HTTP error."""
+    """Test execution when sub-MCP returns an McpError."""
     tool_name = "urn_coreason_oracle_clinical_extractor_fail"
 
-    def raise_http_status_error(*args: typing.Any, **kwargs: typing.Any) -> None:
-        response = httpx.Response(500)
-        raise httpx.HTTPStatusError(
-            "Server Error", request=unittest.mock.Mock(), response=response
-        )
-
     with unittest.mock.patch(
-        "httpx.AsyncClient.post", new_callable=AsyncMock
-    ) as mock_post:
-        mock_post.side_effect = raise_http_status_error
+        "coreason_ecosystem.gateway.master_mcp.sse_client"
+    ) as mock_sse_client:
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__.return_value = (AsyncMock(), AsyncMock())
+        mock_sse_client.return_value = mock_ctx
 
-        arguments = {"query": "fail test"}
-        result = await invoke_actuator(name=tool_name, arguments=arguments)
+        with unittest.mock.patch(
+            "coreason_ecosystem.gateway.master_mcp.ClientSession"
+        ) as mock_session_cls:
+            mock_session = AsyncMock()
+            mock_session.initialize = AsyncMock()
 
-        assert "Sub-MCP failure: 500" in result[0].text
+            # Build a mock payload
+            error_data = unittest.mock.Mock()
+            error_data.message = "internal server error JSON-RPC"
+            mock_session.call_tool = AsyncMock()
+            mock_session.call_tool.side_effect = McpError(error=error_data)
+
+            mock_session_ctx = AsyncMock()
+            mock_session_ctx.__aenter__.return_value = mock_session
+            mock_session_cls.return_value = mock_session_ctx
+
+            arguments = {"query": "fail test"}
+            result = await invoke_actuator(name=tool_name, arguments=arguments)
+
+            assert "Sub-MCP failure: internal server error JSON-RPC" in result[0].text
 
 
 @pytest.mark.asyncio
@@ -254,13 +292,10 @@ async def test_invoke_actuator_request_error() -> None:
     """Test execution fallback status on network request failures."""
     tool_name = "urn_coreason_oracle_clinical_extractor_fail"
 
-    def raise_request_error(*args: typing.Any, **kwargs: typing.Any) -> None:
-        raise httpx.RequestError("Network error")
-
     with unittest.mock.patch(
-        "httpx.AsyncClient.post", new_callable=AsyncMock
-    ) as mock_post:
-        mock_post.side_effect = raise_request_error
+        "coreason_ecosystem.gateway.master_mcp.sse_client"
+    ) as mock_sse_client:
+        mock_sse_client.side_effect = Exception("Network error")
 
         arguments = {"query": "fallback test"}
         with pytest.raises(RuntimeError, match="Topological Severance Event"):
