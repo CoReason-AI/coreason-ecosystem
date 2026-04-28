@@ -29,7 +29,9 @@ async def test_reconcile_state_caching_hit(driver_caching: PulumiActuator) -> No
     # First call - cache miss
     with patch(
         "coreason_ecosystem.fleet.pulumi_actuator.auto.LocalWorkspace"
-    ) as mock_workspace:
+    ) as mock_workspace, patch(
+        "coreason_ecosystem.fleet.pulumi_actuator.auto.select_stack"
+    ):
         mock_ws_instance = MagicMock()
         mock_stack1 = MagicMock()
         mock_stack1.name = "fleet-worker-cache"
@@ -59,7 +61,9 @@ async def test_reconcile_state_ttl_expiration(driver_caching: PulumiActuator) ->
     """Boundary test: 600.0s TTL expires, forcing a hard refresh."""
     with patch(
         "coreason_ecosystem.fleet.pulumi_actuator.auto.LocalWorkspace"
-    ) as mock_workspace:
+    ) as mock_workspace, patch(
+        "coreason_ecosystem.fleet.pulumi_actuator.auto.select_stack"
+    ):
         mock_ws = MagicMock()
         mock_workspace.return_value = mock_ws
 

@@ -48,6 +48,7 @@ class ComputeNodeTarget(BaseModel):
     mesh_auth_key: str | None = None
     temporal_mesh_ip: str | None = None
     escrow_policy: EscrowPolicy | None = None
+    market_type: Literal["spot", "on-demand"] | None = None
 
 
 ATOMIC_MAGNITUDE_MULTIPLIER = 10000
@@ -137,6 +138,9 @@ class PulumiActuator:
                 temporal_mesh_ip=target.temporal_mesh_ip,
             )
             stack.set_config("boot_payload_b64", auto.ConfigValue(value=payload_b64))
+
+        if target.market_type:
+            stack.set_config("market_type", auto.ConfigValue(target.market_type))
 
         if target.provider == "aws":
             stack.set_config("instance_type", auto.ConfigValue(target.instance_id))
@@ -240,11 +244,14 @@ class PulumiActuator:
                             stacks = workspace.list_stacks()
                             for stack in stacks:
                                 if stack.name.startswith("fleet-worker-"):
+                                    s = auto.select_stack(stack_name=stack.name, work_dir=str(provider_dir))
+                                    outs = s.outputs()
+                                    m_type = outs["market_type"].value if "market_type" in outs else "spot"
                                     active_stacks.append(
-                                        {"stack_name": stack.name, "provider": provider}
+                                        {"stack_name": stack.name, "provider": provider, "market_type": m_type}
                                     )
                                     logger.warning(
-                                        f"Orphaned stack found: {stack.name} in {provider}"
+                                        f"Orphaned stack found: {stack.name} in {provider} ({m_type})"
                                     )
                         except Exception as e:
                             logger.warning(

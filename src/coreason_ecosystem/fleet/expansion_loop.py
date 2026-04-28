@@ -91,7 +91,6 @@ async def von_neumann_expansion_daemon(
         f"Treasury projected via {treasury_endpoint}."
     )
 
-    target_cost = HARDWARE_NODE_COST_GWEI + SAFETY_MARGIN_GWEI
     _running = True
 
     while _running:
@@ -116,11 +115,43 @@ async def von_neumann_expansion_daemon(
                 _running = False
                 continue
 
-            raise NotImplementedError(
-                "Von Neumann Expansion Loop requires the Sovereign Treasury MCP "
-                f"at {treasury_endpoint} to be deployed and serving JSON-RPC. "
-                f"Target cost threshold: {target_cost} Gwei."
+            actuator = PulumiActuator(Path.cwd() / "infrastructure")
+            active_stacks = await actuator.reconcile_state()
+            
+            total_active = len(active_stacks)
+            on_demand_count = sum(1 for s in active_stacks if s.get("market_type") == "on-demand")
+            
+            target_market_type: Literal["spot", "on-demand"] = "spot"
+            if total_active > 0 and (on_demand_count / total_active) < 0.3:
+                target_market_type = "on-demand"
+            elif total_active == 0:
+                target_market_type = "on-demand"
+                
+            bid = await oracle.calculate_optimal_bid(
+                hardware_profile=HardwareProfile(
+                    min_vram_gb=1.0, provider_whitelist=["aws", "vast"]
+                ),
+                max_budget_hr=max_budget_hr,
             )
+            
+            if bid:
+                from coreason_manifest.spec.ontology import EscrowPolicy, EpistemicSecurityProfile
+                from typing import Literal
+                bid.market_type = target_market_type
+                bid.hardware_profile = HardwareProfile(min_vram_gb=1.0, provider_whitelist=["aws", "vast"])
+                bid.security_profile = EpistemicSecurityProfile(network_isolation=True)
+                bid.mesh_auth_key = "auto-provisioned-daemon-key"
+                bid.temporal_mesh_ip = "10.0.0.5"
+                bid.escrow_policy = EscrowPolicy(
+                    escrow_locked_magnitude=max(int(max_budget_hr), 1),
+                    release_condition_metric="fleet_expansion_hourly_budget",
+                    refund_target_node_cid=f"did:coreason:fleet:{bid.provider}",
+                )
+                
+                logger.info(f"[ExpansionLoop] Active nodes: {total_active} (On-Demand: {on_demand_count}). Bidding {target_market_type} on {bid.provider}.")
+                await actuator.provision_node(bid)
+            else:
+                logger.warning("[ExpansionLoop] No viable bids found.")
         except Exception as e:
             if isinstance(e, NotImplementedError):
                 raise

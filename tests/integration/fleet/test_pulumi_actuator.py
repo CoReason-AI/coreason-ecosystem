@@ -122,7 +122,10 @@ async def test_reconcile_state(driver: PulumiActuator, tmp_templates_dir: Path) 
     with patch(
         "coreason_ecosystem.fleet.pulumi_actuator.auto.LocalWorkspace",
         return_value=mock_workspace,
-    ):
+    ), patch(
+        "coreason_ecosystem.fleet.pulumi_actuator.auto.select_stack"
+    ) as mock_select_stack:
+        mock_select_stack.return_value.outputs.return_value = {"market_type": MagicMock(value="spot")}
         active_stacks = await driver.reconcile_state()
 
         # 1 matching stack from aws_spot, 1 from vast_ai
