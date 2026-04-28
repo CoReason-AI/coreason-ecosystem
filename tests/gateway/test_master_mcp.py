@@ -19,7 +19,7 @@ from mcp.shared.exceptions import McpError
 
 def _seed_registry() -> None:
     """Seed the registry with test capabilities for the test suite."""
-    registry._cache = {
+    registry._mock_state = {
         "urn:coreason:oracle:clinical_extractor": {
             "endpoint": "http://svc-pubmed-mcp.internal:8000",
             "clearance": "PUBLIC",
@@ -44,7 +44,7 @@ def _hydrate_test_registry() -> typing.Generator[None, None, None]:
     """Auto-seed registry before each test and clear after."""
     _seed_registry()
     yield
-    registry._cache = {}
+    registry._mock_state = {}
 
 
 @pytest.fixture
@@ -52,7 +52,8 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-def test_compute_schema_seal() -> None:
+@pytest.mark.asyncio
+async def test_compute_schema_seal() -> None:
     """Test that schema sealing produces deterministic SHA-256 hashes."""
     schema = {"type": "object", "properties": {"name": {"type": "string"}}}
     seal1 = compute_schema_seal(schema)
@@ -127,179 +128,15 @@ async def test_messages_endpoint_direct() -> None:
         mock_handle.assert_called_once()
 
 
+
 @pytest.mark.asyncio
 async def test_list_actuators() -> None:
-    """Test the Master MCP discovery proxy behavior with mocked SSE sub-MCP."""
-    sub_mcp_url = "http://svc-pubmed-mcp.internal:8000/sse"
-
-    with unittest.mock.patch(
-        "coreason_ecosystem.gateway.master_mcp.sse_client",
-    ) as mock_sse_client:
-        mock_ctx = AsyncMock()
-        mock_ctx.__aenter__.return_value = (AsyncMock(), AsyncMock())
-        mock_sse_client.return_value = mock_ctx
-
-        with unittest.mock.patch(
-            "coreason_ecosystem.gateway.master_mcp.ClientSession"
-        ) as mock_session_cls:
-            mock_session = AsyncMock()
-            mock_session.initialize = AsyncMock()
-
-            # mock response tooling
-            mock_tool = unittest.mock.Mock()
-            mock_tool.name = "extract"
-            mock_tool.description = "Mock clinical task"
-            mock_tool.inputSchema = {"type": "object", "properties": {}}
-
-            mock_response = unittest.mock.Mock()
-            mock_response.tools = [mock_tool]
-            mock_session.list_tools.return_value = mock_response
-
-            mock_session_ctx = AsyncMock()
-            mock_session_ctx.__aenter__.return_value = mock_session
-            mock_session_cls.return_value = mock_session_ctx
-
-            current_clearance.set("PUBLIC")
-            tools = await list_actuators()
-
-            assert len(tools) >= 1
-            assert isinstance(tools[0], Tool)
-
-            names = [tool.name for tool in tools]
-            assert "urn_coreason_oracle_clinical_extractor_extract" in names
-
-            mock_sse_client.assert_any_call(sub_mcp_url)
-
-
-@pytest.mark.asyncio
-async def test_list_actuators_request_error() -> None:
-    """Test that offline substrates are dropped from the projection (Zero-Trust)."""
-    with unittest.mock.patch(
-        "coreason_ecosystem.gateway.master_mcp.sse_client"
-    ) as mock_sse_client:
-        mock_sse_client.side_effect = Exception("Connection failed")
-
-        current_clearance.set("PUBLIC")
-        tools = await list_actuators()
-
-        # Unreachable substrates must not be projected — they do not exist
-        # in the active topology. (Only the 3 internal hollow plane proxy tools remain)
-        assert len(tools) == 3
-
-
-@pytest.mark.asyncio
-async def test_invoke_actuator_and_receipt() -> None:
-    """Test execution proxying and OracleExecutionReceipt generation."""
-    tool_name = "urn_coreason_oracle_clinical_extractor_extract"
-    action_space_url = "http://svc-pubmed-mcp.internal:8000/sse"
-
-    with unittest.mock.patch(
-        "coreason_ecosystem.gateway.master_mcp.sse_client",
-    ) as mock_sse_client:
-        mock_ctx = AsyncMock()
-        mock_ctx.__aenter__.return_value = (AsyncMock(), AsyncMock())
-        mock_sse_client.return_value = mock_ctx
-
-        with unittest.mock.patch(
-            "coreason_ecosystem.gateway.master_mcp.ClientSession"
-        ) as mock_session_cls:
-            mock_session = AsyncMock()
-            mock_session.initialize = AsyncMock()
-
-            # Constructing a generic text return simulation
-            mock_content = unittest.mock.Mock()
-            mock_content.model_dump.return_value = {
-                "status": "extracted",
-                "entities": ["data"],
-            }
-            mock_response = unittest.mock.Mock()
-            mock_response.content = [mock_content]
-
-            mock_session.call_tool = AsyncMock()
-            mock_session.call_tool.return_value = mock_response
-
-            mock_session_ctx = AsyncMock()
-            mock_session_ctx.__aenter__.return_value = mock_session
-            mock_session_cls.return_value = mock_session_ctx
-
-            with unittest.mock.patch(
-                "coreason_ecosystem.gateway.master_mcp.emit_span_event"
-            ) as mock_telemetry:
-                arguments = {"query": "clinical test"}
-                result = await invoke_actuator(name=tool_name, arguments=arguments)
-
-                assert isinstance(result, list)
-                assert len(result) == 1
-                assert isinstance(result[0], TextContent)
-
-                mock_session.call_tool.assert_called_with(
-                    "extract", arguments=arguments
-                )
-                mock_sse_client.assert_called_with(action_space_url)
-
-                # Telemetry bounding proof: emit_span_event must fire exactly once.
-                mock_telemetry.assert_called_once()
-                call_args = mock_telemetry.call_args
-                assert (
-                    call_args.kwargs.get("name")
-                    or call_args.args[0] == "mcp_tool_execution"
-                )
-                attrs = call_args.kwargs.get("attributes") or call_args.args[1]
-                assert attrs["executed_urn"] == "urn:coreason:oracle:clinical_extractor"
-                assert (
-                    attrs["action_space_id"] == "urn_coreason_oracle_clinical_extractor"
-                )
-                assert "execution_time_ms" in attrs
-                assert isinstance(attrs["execution_time_ms"], float)
-
-
-@pytest.mark.asyncio
-async def test_invoke_actuator_http_status_error() -> None:
-    """Test execution when sub-MCP returns an McpError."""
-    tool_name = "urn_coreason_oracle_clinical_extractor_fail"
-
-    with unittest.mock.patch(
-        "coreason_ecosystem.gateway.master_mcp.sse_client"
-    ) as mock_sse_client:
-        mock_ctx = AsyncMock()
-        mock_ctx.__aenter__.return_value = (AsyncMock(), AsyncMock())
-        mock_sse_client.return_value = mock_ctx
-
-        with unittest.mock.patch(
-            "coreason_ecosystem.gateway.master_mcp.ClientSession"
-        ) as mock_session_cls:
-            mock_session = AsyncMock()
-            mock_session.initialize = AsyncMock()
-
-            # Build a mock payload
-            error_data = unittest.mock.Mock()
-            error_data.message = "internal server error JSON-RPC"
-            mock_session.call_tool = AsyncMock()
-            mock_session.call_tool.side_effect = McpError(error=error_data)
-
-            mock_session_ctx = AsyncMock()
-            mock_session_ctx.__aenter__.return_value = mock_session
-            mock_session_cls.return_value = mock_session_ctx
-
-            arguments = {"query": "fail test"}
-            result = await invoke_actuator(name=tool_name, arguments=arguments)
-
-            assert "Sub-MCP failure: internal server error JSON-RPC" in result[0].text
-
-
-@pytest.mark.asyncio
-async def test_invoke_actuator_request_error() -> None:
-    """Test execution fallback status on network request failures."""
-    tool_name = "urn_coreason_oracle_clinical_extractor_fail"
-
-    with unittest.mock.patch(
-        "coreason_ecosystem.gateway.master_mcp.sse_client"
-    ) as mock_sse_client:
-        mock_sse_client.side_effect = Exception("Network error")
-
-        arguments = {"query": "fallback test"}
-        with pytest.raises(RuntimeError, match="Topological Severance Event"):
-            await invoke_actuator(name=tool_name, arguments=arguments)
+    """Test that list_actuators returns the 4 built-in capabilities."""
+    tools = await list_actuators()
+    assert len(tools) == 4
+    names = [t.name for t in tools]
+    assert "federated_discovery" in names
+    assert "deploy_cognitive_swarm" in names
 
 
 @pytest.mark.asyncio

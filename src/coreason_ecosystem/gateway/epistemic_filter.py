@@ -135,9 +135,7 @@ class EpistemicTransmuter:
                 # SLA classification quarantine: map LBAC clearance to classification.
                 if sla_max_level is not None:
                     assert federation_sla is not None  # narrowing for mypy
-                    urn_clearance = state.get(urn, {}).get(
-                        "clearance", "RESTRICTED"
-                    )
+                    urn_clearance = state.get(urn, {}).get("clearance", "RESTRICTED")
                     urn_cls_level = _classification_levels.get(urn_clearance.lower(), 3)
                     if urn_cls_level > sla_max_level:
                         logger.debug(

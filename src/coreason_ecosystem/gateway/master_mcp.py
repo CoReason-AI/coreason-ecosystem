@@ -75,8 +75,16 @@ async def _hydrate_registry() -> None:
     from pathlib import Path
 
     await registry.initialize()
-    matrix_path = Path.cwd() / "capabilities.matrix.yaml"
-    await registry.hydrate_from_matrix(matrix_path)
+
+    json_path = Path.cwd() / "compiled_matrix.json"
+    yaml_path = Path.cwd() / "capabilities.matrix.yaml"
+
+    if json_path.exists():
+        # Will inherently hard-crash on JSONDecodeError or ValidationError
+        await registry.hydrate_from_compiled_matrix(json_path)
+    else:
+        await registry.hydrate_from_matrix(yaml_path)
+
     await registry.scan_action_space_modules()
 
 

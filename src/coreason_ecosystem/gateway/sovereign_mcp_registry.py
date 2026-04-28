@@ -200,6 +200,78 @@ class SovereignMCPRegistry:
 
         logger.info(f"Hydrated {count} capabilities from {matrix_path.name}")
 
+    async def hydrate_from_compiled_matrix(self, json_path: Path) -> None:
+        """Hydrate the URN routing table from a compiled JSON matrix.
+
+        Args:
+            json_path: Path to the JSON matrix file.
+        """
+        import json
+        from coreason_manifest.spec.ontology import (
+            FederatedSecurityMacroManifest,
+            SemanticClassificationProfile,
+        )
+
+        raw = json.loads(json_path.read_text(encoding="utf-8"))
+        count = 0
+        for urn, metadata in raw.items():
+            # Coerce clearance string to Enum for Pydantic V2 strict instance checks
+            if "required_clearance" in metadata and isinstance(metadata["required_clearance"], str):
+                try:
+                    metadata["required_clearance"] = SemanticClassificationProfile(
+                        metadata["required_clearance"].lower()
+                    )
+                except ValueError:
+                    pass  # Let Pydantic validation catch it
+
+            # Epistemic status might not be in the strict macro manifest, extract it first
+            epistemic_status = metadata.pop("epistemic_status", "DRAFT")
+
+            # Pass raw metadata through Pydantic schema for strict type-safety
+            manifest = FederatedSecurityMacroManifest.model_validate(metadata)
+
+            endpoint = manifest.target_endpoint_uri
+            clearance = str(
+                manifest.required_clearance.value
+                if hasattr(manifest.required_clearance, "value")
+                else manifest.required_clearance
+            )
+
+            match urn.split(":"):
+                case ["urn", "coreason", "actionspace", category, *_] if category in {
+                    "oracle",
+                    "solver",
+                    "effector",
+                    "substrate",
+                    "sensory",
+                    "node",
+                }:
+                    pass
+                case [
+                    "urn",
+                    "coreason",
+                    "archetype_a"
+                    | "archetype_b"
+                    | "archetype_c"
+                    | "archetype_d"
+                    | "oracle"
+                    | "state",
+                    *_,
+                ]:
+                    warnings.warn(
+                        f"Legacy URN prefix detected: '{urn}'. "
+                        "This format is deprecated. Use 'urn:coreason:actionspace:{category}:{name}'.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                case _:
+                    pass
+
+            await self._update_urn(urn, endpoint, clearance, epistemic_status)
+            count += 1
+
+        logger.info(f"Hydrated {count} capabilities from {json_path.name}")
+
     async def hydrate_from_discovery_port(self, discovery_url: str) -> None:
         """Hydrate the URN routing table from an upstream discovery endpoint.
 
