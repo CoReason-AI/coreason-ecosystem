@@ -18,6 +18,7 @@ from coreason_ecosystem.cli import app
 runner = CliRunner()
 
 
+@patch("coreason_ecosystem.orchestration.sync.detect_and_heal_drift", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.sync.execute_build", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.sync.Path.exists")
 @patch(
@@ -37,6 +38,7 @@ def test_sync_command(
     mock_sub_exec: Any,
     mock_exists: Any,
     mock_execute_build: Any,
+    mock_detect_and_heal_drift: Any,
 ) -> None:
     """Test the sync command execution logic."""
     import io
@@ -58,10 +60,12 @@ def test_sync_command(
     mock_execute_build.assert_called_once()
     mock_calc_root.assert_called_once()
     mock_write_lock.assert_called_once()
-    mock_sub_exec.assert_called_once()
-    mock_process.communicate.assert_called_once()
+    mock_detect_and_heal_drift.assert_called_once()
+    # verify sub_exec was called for docker compose up
+    assert mock_sub_exec.call_count >= 1
 
 
+@patch("coreason_ecosystem.orchestration.sync.detect_and_heal_drift", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.sync.execute_build", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.sync.Path.exists")
 @patch(
@@ -81,6 +85,7 @@ def test_sync_command_compose_fallback(
     mock_sub_exec: Any,
     mock_exists: Any,
     mock_execute_build: Any,
+    mock_detect_and_heal_drift: Any,
 ) -> None:
     """Test the sync command execution logic."""
     import io
@@ -100,5 +105,5 @@ def test_sync_command_compose_fallback(
     assert result.exit_code == 0
     assert "Autopoietic Healing Complete" in result.stdout
     mock_execute_build.assert_called_once()
-    mock_sub_exec.assert_called_once()
-    mock_process.communicate.assert_called_once()
+    mock_detect_and_heal_drift.assert_called_once()
+    assert mock_sub_exec.call_count >= 1

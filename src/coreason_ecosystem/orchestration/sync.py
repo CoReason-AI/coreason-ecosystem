@@ -24,12 +24,61 @@ from coreason_ecosystem.orchestration.registry import (
 )
 
 
+import shutil
+
+
+async def detect_and_heal_drift(docker_bin: str) -> None:
+    """Automated Drift Teardown sequence.
+
+    Actively detects network drift by forcefully pruning unused Docker networks
+    and systematically tearing down stale coreason-* bridge network segments.
+    This aggressive teardown enforces structural topology bounds before the
+    subsequent sync rebuilds the deterministic eBPF lattice.
+    """
+    proc = await asyncio.create_subprocess_exec(
+        docker_bin,
+        "network",
+        "prune",
+        "-f",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    await proc.communicate()
+
+    proc = await asyncio.create_subprocess_exec(
+        docker_bin,
+        "network",
+        "ls",
+        "--format",
+        "{{.Name}}",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, _ = await proc.communicate()
+    networks = stdout.decode().splitlines()
+    for net in networks:
+        if net.startswith("coreason") and net != "coreason-default":
+            rm_proc = await asyncio.create_subprocess_exec(
+                docker_bin,
+                "network",
+                "rm",
+                net,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            await rm_proc.communicate()
+
+
 async def execute_sync() -> None:
     """Autonomically heal Ontological Drift."""
 
     project_path = Path.cwd()
+    docker_bin = shutil.which("docker") or "docker"
 
     with Status("[cyan]Detecting Drift...[/cyan]", console=console) as status:
+        status.update("[cyan]Executing Automated Drift Teardown...[/cyan]")
+        await detect_and_heal_drift(docker_bin)
+
         status.update("[yellow]Regenerating Ontology...[/yellow]")
         schema = {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -64,10 +113,6 @@ async def execute_sync() -> None:
                     "[bold red]Error: Could not locate compose.yaml in workspace or fallback path.[/bold red]"
                 )
                 raise typer.Exit(1)
-
-        import shutil
-
-        docker_bin = shutil.which("docker") or "docker"
 
         env = os.environ.copy()
         env["EPISTEMIC_MERKLE_ROOT"] = root_hash

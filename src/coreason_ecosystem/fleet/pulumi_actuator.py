@@ -129,6 +129,7 @@ class PulumiActuator:
             and target.temporal_mesh_ip
         ):
             payload_b64 = self.injector.compile_payload(
+                node_cid=stack_name,
                 provider=target.provider,
                 hardware=target.hardware_profile.model_dump(),
                 security=target.security_profile.model_dump(),

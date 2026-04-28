@@ -5,7 +5,7 @@
 #   - {{MESH_AUTH_KEY}}: Tailscale authentication key
 #   - {{TEMPORAL_MESH_IP}}: Temporal cluster IP address
 #   - {{WASM_MAX_PAGES}}: Maximum WASM memory pages
-#   - {{FIREWALL_RULES}}: Rendered iptables commands (if network_isolation=True)
+#   - {{FIREWALL_RULES}}: Rendered declarative eBPF (Cilium) network policies (if network_isolation=True)
 #
 runcmd:
   - curl -fsSL https://tailscale.com/install.sh | sh
