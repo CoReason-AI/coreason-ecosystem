@@ -9,9 +9,10 @@
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
 import asyncio
+import time
 import uuid
 from pathlib import Path
-from typing import Literal, TYPE_CHECKING
+from typing import Literal, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
@@ -48,8 +49,22 @@ ATOMIC_MAGNITUDE_MULTIPLIER = 10000
 
 class PulumiActuator:
     def __init__(self, templates_dir: Path) -> None:
+        """Instantiate the Governance Plane Actuator with strict thermodynamic routing bounds.
+
+        Args:
+            templates_dir (Path): The Epistemic Substrate bounds directory housing Pulumi stacks.
+        """
         self.templates_dir = templates_dir
         self.injector = MeshInjector()
+        self._cached_stacks: list[dict[str, Any]] | None = None
+        self._last_sync_time = 0.0
+        self._lock: asyncio.Lock | None = None
+
+    @property
+    def lock(self) -> asyncio.Lock:
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
 
     async def provision_node(self, target: ComputeNodeTarget) -> dict[str, str]:
         # ── Hardware Guillotine ──────────────────────────────────────
@@ -133,6 +148,10 @@ class PulumiActuator:
         )
 
         logger.info(f"Node provisioned on stack {stack_name} successfully.")
+
+        """Invalidate the local thermodynamic cache ensuring eventual consistency and forcing hard structural updates downstream."""
+        self._last_sync_time = 0.0
+
         return {
             "stack_name": stack_name,
             "outputs": str({k: v.value for k, v in up_res.outputs.items()}),
@@ -157,31 +176,49 @@ class PulumiActuator:
         stack.workspace.remove_stack(stack_name)
         logger.info(f"Stack {stack_name} destroyed and removed.")
 
-    async def reconcile_state(self) -> list[dict[str, str]]:
-        def _reconcile() -> list[dict[str, str]]:
-            active_stacks: list[dict[str, str]] = []
-            for provider_dir in self.templates_dir.iterdir():
-                if provider_dir.is_dir():
-                    # Infer the provider from the directory name
-                    provider = "aws" if "aws" in provider_dir.name else "vast"
-                    try:
-                        workspace = auto.LocalWorkspace(work_dir=str(provider_dir))
-                        stacks = workspace.list_stacks()
-                        for stack in stacks:
-                            if stack.name.startswith("fleet-worker-"):
-                                active_stacks.append(
-                                    {"stack_name": stack.name, "provider": provider}
-                                )
-                                logger.warning(
-                                    f"Orphaned stack found: {stack.name} in {provider}"
-                                )
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to read Pulumi workspace in {provider_dir}: {e}"
-                        )
-            return active_stacks
+        """Invalidate the local thermodynamic cache mapping strictly ensuring accurate reconciliation."""
+        self._last_sync_time = 0.0
 
-        return await asyncio.to_thread(_reconcile)
+    async def reconcile_state(self) -> list[dict[str, Any]]:
+        """Determine structural matrix allocations bridging local cache mapping directly ensuring non-blocking operations.
+
+        Implements throttled hybrid polling strictly evaluating TTL constraints against 600.0 second boundaries preventing concurrent thread thundering execution profiles.
+        """
+        async with self.lock:
+            if (
+                self._cached_stacks is not None
+                and (time.time() - self._last_sync_time) < 600.0
+            ):
+                assert self._cached_stacks is not None
+                return self._cached_stacks
+
+            def _reconcile() -> list[dict[str, Any]]:
+                active_stacks: list[dict[str, Any]] = []
+                for provider_dir in self.templates_dir.iterdir():
+                    if provider_dir.is_dir():
+                        # Infer the provider from the directory name
+                        provider = "aws" if "aws" in provider_dir.name else "vast"
+                        try:
+                            workspace = auto.LocalWorkspace(work_dir=str(provider_dir))
+                            stacks = workspace.list_stacks()
+                            for stack in stacks:
+                                if stack.name.startswith("fleet-worker-"):
+                                    active_stacks.append(
+                                        {"stack_name": stack.name, "provider": provider}
+                                    )
+                                    logger.warning(
+                                        f"Orphaned stack found: {stack.name} in {provider}"
+                                    )
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to read Pulumi workspace in {provider_dir}: {e}"
+                            )
+                return active_stacks
+
+            active_stacks_resolved = await asyncio.to_thread(_reconcile)
+            self._cached_stacks = active_stacks_resolved
+            self._last_sync_time = time.time()
+            return active_stacks_resolved
 
     async def execute_thermodynamic_guillotine(
         self, assessment: "ThermodynamicAssessment"

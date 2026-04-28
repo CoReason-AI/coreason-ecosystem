@@ -13,6 +13,10 @@ import runpy
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
+from typer.testing import CliRunner
+
+from coreason_ecosystem.cli import app
+
 
 class CoroutineMock:
     def __init__(self, return_value=None):
@@ -23,22 +27,21 @@ class CoroutineMock:
     def __call__(self, *args, **kwargs):
         self.call_count += 1
         self.calls.append((args, kwargs))
+
         async def _coro():
             if isinstance(self.return_value, Exception):
                 raise self.return_value
             return self.return_value
+
         return _coro()
 
     def assert_called_once(self):
         assert self.call_count == 1
-    
+
     def assert_called_once_with(self, *args, **kwargs):
         assert self.call_count == 1
         assert self.calls[0] == (args, kwargs)
 
-from typer.testing import CliRunner
-
-from coreason_ecosystem.cli import app
 
 runner = CliRunner()
 
@@ -243,6 +246,7 @@ def test_up_command(
         def __init__(self, returncode: int, communicate_ret: tuple[bytes, bytes]):
             self.returncode = returncode
             self._communicate_ret = communicate_ret
+
         async def communicate(self):
             return self._communicate_ret
 
@@ -291,6 +295,7 @@ def test_up_command_failure(
         def __init__(self, returncode: int, communicate_ret: tuple[bytes, bytes]):
             self.returncode = returncode
             self._communicate_ret = communicate_ret
+
         async def communicate(self):
             return self._communicate_ret
 

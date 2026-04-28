@@ -175,7 +175,10 @@ async def test_up_wait_for_port() -> None:
     with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError):
         with pytest.raises(TimeoutError):
             await wait_for_port(8000, timeout=1.0)
-    with patch("asyncio.wait_for") as wait_for_mock, patch("asyncio.sleep", new_callable=AsyncMock):
+    with (
+        patch("asyncio.wait_for") as wait_for_mock,
+        patch("asyncio.sleep", new_callable=AsyncMock),
+    ):
         mock_writer = AsyncMock()
         wait_for_mock.return_value = (AsyncMock(), mock_writer)
         res = await wait_for_port(8000, timeout=1.0)
@@ -203,18 +206,20 @@ async def test_up_timeout_fallbacks(
         with patch("asyncio.sleep", AsyncMock()):
             # Test Postgres timeout
             with patch(
-                "coreason_ecosystem.orchestration.up.wait_for_postgres", side_effect=TimeoutError("PG fails")
+                "coreason_ecosystem.orchestration.up.wait_for_postgres",
+                side_effect=TimeoutError("PG fails"),
             ):
                 with pytest.raises(typer.Exit):
                     await execute_up()
 
         with patch("asyncio.sleep", AsyncMock()):
             # Test Temporal timeout by letting Postgres pass once
-            with patch(
-                "coreason_ecosystem.orchestration.up.wait_for_postgres"
-            ), patch(
-                "coreason_ecosystem.orchestration.up.wait_for_temporal",
-                side_effect=TimeoutError("Temporal fails")
+            with (
+                patch("coreason_ecosystem.orchestration.up.wait_for_postgres"),
+                patch(
+                    "coreason_ecosystem.orchestration.up.wait_for_temporal",
+                    side_effect=TimeoutError("Temporal fails"),
+                ),
             ):
                 with pytest.raises(typer.Exit):
                     with patch("coreason_ecosystem.orchestration.up.Progress"):
@@ -222,13 +227,13 @@ async def test_up_timeout_fallbacks(
 
         with patch("asyncio.sleep", AsyncMock()):
             # Test Daemon timeout by letting Postgres and Temporal pass but Daemon 8000 fail
-            with patch(
-                "coreason_ecosystem.orchestration.up.wait_for_postgres"
-            ), patch(
-                "coreason_ecosystem.orchestration.up.wait_for_temporal"
-            ), patch(
-                "coreason_ecosystem.orchestration.up.wait_for_port",
-                side_effect=TimeoutError("Daemon fails")
+            with (
+                patch("coreason_ecosystem.orchestration.up.wait_for_postgres"),
+                patch("coreason_ecosystem.orchestration.up.wait_for_temporal"),
+                patch(
+                    "coreason_ecosystem.orchestration.up.wait_for_port",
+                    side_effect=TimeoutError("Daemon fails"),
+                ),
             ):
                 with pytest.raises(typer.Exit):
                     with patch("coreason_ecosystem.orchestration.up.Progress"):
