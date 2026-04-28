@@ -1,8 +1,10 @@
 import base64
 import contextvars
 import hashlib
+import hmac
 import json
 import logging
+import os
 import time
 from typing import Any
 
@@ -15,20 +17,16 @@ from coreason_ecosystem.gateway.ontological_identity_router import (
 )
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.gateway.state_manifests import (
-    OracleExecutionReceipt,
+    FederatedDiscoveryIntent,
 )
 from coreason_ecosystem.orchestration import sync, up
-from coreason_ecosystem.utils.telemetry import emit_span_event
 from coreason_manifest.spec.ontology import (
     ChaosExperimentTask,
     CognitiveSwarmDeploymentManifest,
     FederatedSecurityMacroManifest,
 )
 from fastapi import Depends, FastAPI, HTTPException
-from mcp.client.session import ClientSession
-from mcp.client.sse import sse_client
 from mcp.server.sse import SseServerTransport
-from mcp.shared.exceptions import McpError
 from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
@@ -76,9 +74,10 @@ async def _hydrate_registry() -> None:
     """Hydrate the capability registry from the matrix file and passive discovery on startup."""
     from pathlib import Path
 
+    await registry.initialize()
     matrix_path = Path.cwd() / "capabilities.matrix.yaml"
-    registry.hydrate_from_matrix(matrix_path)
-    registry.scan_action_space_modules()
+    await registry.hydrate_from_matrix(matrix_path)
+    await registry.scan_action_space_modules()
 
 
 async def extract_and_verify_identity(request: Request) -> None:
@@ -129,56 +128,20 @@ async def handle_messages(request: Request) -> None:
 
 @mcp_server.list_tools()  # type: ignore
 async def list_actuators() -> list[types.Tool]:
-    """Federated actuator/oracle discovery from registry via strict SSE encapsulation limits.
+    """Federated actuator/oracle discovery projection without topological proxy coupling.
 
-    Each actuator schema is queried dynamically via the official JSON-RPC SSE protocol, bypassing old HTTP
-    constraints. Latency generated here enforces stateless Zero-Trust boundary decoupling without shared topology states.
-    Discovered endpoints failing initial JSON-RPC communication arrays are explicitly dropped.
+    Exposes the FederatedDiscoveryIntent capability enabling Peer-to-Peer (P2P) agent runtime
+    connections to strict Zero-Trust boundaries alongside core macro-manifest deployment tools.
     """
-    clearance = current_clearance.get()
-    discovered_capabilities = await registry.discover_active_substrates(
-        agent_clearance=clearance
-    )
-
-    discovered_capabilities = epistemic_transmuter.project_capabilities(
-        available_urns=discovered_capabilities,
-    )
-
     actuator_manifests: list[types.Tool] = []
 
-    for urn, endpoint in discovered_capabilities.items():
-        sanitized_name = urn.replace(":", "_")
-        try:
-            async with sse_client(f"{endpoint}/sse") as (read_stream, write_stream):
-                async with ClientSession(read_stream, write_stream) as session:
-                    await session.initialize()
-                    response = await session.list_tools()
-
-                    for tool in response.tools:
-                        tool_name_str = f"{sanitized_name}_{tool.name}"
-
-                        input_schema = (
-                            tool.inputSchema
-                            if tool.inputSchema
-                            else {"type": "object", "properties": {}}
-                        )
-                        schema_seal = compute_schema_seal(input_schema)
-
-                        actuator_manifests.append(
-                            types.Tool(
-                                name=tool_name_str[:64],
-                                description=(
-                                    f"{tool.description or 'A proxied actuator'} "
-                                    f"[seal:{schema_seal[:16]}]"
-                                ),
-                                inputSchema=input_schema,
-                            )
-                        )
-        except Exception as e:
-            logger.warning(
-                f"Topological absence: {urn} JSON-RPC linkage failed and will not be projected: {e}"
-            )
-            continue
+    actuator_manifests.append(
+        types.Tool(
+            name="federated_discovery",
+            description="Discovery-Only Endpoint: Resolves capabilities matching a domain filter and returns P2P routing boundaries.",
+            inputSchema=FederatedDiscoveryIntent.model_json_schema(),
+        )
+    )
 
     actuator_manifests.append(
         types.Tool(
@@ -209,11 +172,10 @@ async def list_actuators() -> list[types.Tool]:
 async def invoke_actuator(
     name: str, arguments: dict[str, Any]
 ) -> list[types.TextContent]:
-    """Execute proxy intent securely spanning Zero-Trust boundaries converting payloads directly via SSE JSON-RPC.
+    """Execute proxy intent securely spanning Zero-Trust boundaries or resolve P2P topologies.
 
-    Execution strictly utilizes fresh `ClientSession` structures for independent transactions guaranteeing
-    no persistent token cross-contamination and enforcing logical isolation boundaries at the cost of
-    a small connection handshake latency.
+    Execution strictly enforces logical isolation boundaries. For federated discovery, returns
+    physical network bounds and Epistemic Seals for direct P2P connections.
     """
     if name == "deploy_cognitive_swarm":
         res = await deploy_cognitive_swarm(arguments)
@@ -224,76 +186,13 @@ async def invoke_actuator(
     if name == "inject_chaos_fault":
         res = await inject_chaos_fault(arguments)
         return [types.TextContent(type="text", text=res)]
+    if name == "federated_discovery":
+        res_text = await federated_discovery(arguments)
+        return [types.TextContent(type="text", text=res_text)]
 
-    discovered = await registry.discover_active_substrates()
-    endpoint_url: str | None = None
-    real_urn: str | None = None
-    for urn in discovered.keys():
-        sanitized = urn.replace(":", "_")
-        if name.startswith(sanitized):
-            endpoint_url = discovered[urn]
-            real_urn = urn
-            break
-
-    if not endpoint_url or not real_urn:
-        raise ValueError(
-            f"Geometrical topology fault: unregistered URN for tool {name}"
-        )
-
-    sanitized_name = real_urn.replace(":", "_")
-    original_tool_name = (
-        name[len(sanitized_name) + 1 :]
-        if name.startswith(sanitized_name + "_")
-        else name
+    raise ValueError(
+        f"Geometrical topology fault: unregistered tool {name} or direct proxy strictly forbidden under Hollow Plane architecture."
     )
-
-    payload = arguments
-    execution_start = time.time()
-    result_data: Any = None
-
-    try:
-        async with sse_client(f"{endpoint_url}/sse") as (read_stream, write_stream):
-            async with ClientSession(read_stream, write_stream) as session:
-                await session.initialize()
-                response = await session.call_tool(
-                    original_tool_name, arguments=payload
-                )
-                result_data = [c.model_dump() for c in response.content]
-    except McpError as e:
-        # e.error.message contains JSON-RPC error mapping
-        result_data = {"error": f"Sub-MCP failure: {e.error.message if e.error else e}"}
-    except Exception as e:
-        raise RuntimeError(
-            f"Topological Severance Event: Sub-MCP unreachable - {e}"
-        ) from e
-
-    execution_end = time.time()
-    execution_time_ms = (execution_end - execution_start) * 1000
-
-    timestamp = time.time()
-    canonical_payload = _canonicalize_json({"payload": payload, "timestamp": timestamp})
-    event_cid = hashlib.sha256(canonical_payload).hexdigest()
-
-    receipt_action_space_id = real_urn.replace(":", "_")
-
-    OracleExecutionReceipt(
-        executed_urn=real_urn,
-        action_space_id=receipt_action_space_id,
-        event_cid=event_cid,
-        timestamp=timestamp,
-        prior_event_hash=None,
-    )
-
-    emit_span_event(
-        name="mcp_tool_execution",
-        attributes={
-            "executed_urn": real_urn,
-            "action_space_id": receipt_action_space_id,
-            "execution_time_ms": execution_time_ms,
-        },
-    )
-
-    return [types.TextContent(type="text", text=str(result_data))]
 
 
 async def deploy_cognitive_swarm(arguments: dict[str, Any]) -> str:
@@ -318,3 +217,65 @@ async def inject_chaos_fault(arguments: dict[str, Any]) -> str:
     manifest = ChaosExperimentTask.model_validate(arguments)
     await pulumi_actuator.inject_chaos_fault(manifest)  # type: ignore[attr-defined]
     return "Intent proxied to fleet: inject_chaos_fault"
+
+
+async def federated_discovery(arguments: dict[str, Any]) -> str:
+    """Resolve P2P capabilities using domain filters and generate Epistemic Seals.
+
+    Resolves matching capabilities from the decentralized registry and signs
+    Zero-Trust P2P tokens bounding the network connection.
+
+    Args:
+        arguments: FederatedDiscoveryIntent validated inputs.
+
+    Returns:
+        JSON serialized string containing the list of physical boundaries
+        and their cryptographically signed tokens.
+    """
+    manifest = FederatedDiscoveryIntent.model_validate(arguments)
+    clearance = current_clearance.get()
+
+    discovered = await registry.discover_active_substrates(agent_clearance=clearance)
+
+    # We apply epistemic filter constraints just like the old loop
+    discovered = epistemic_transmuter.project_capabilities(
+        available_urns=discovered,
+    )
+
+    allowed_domains = set(manifest.domain_filter)
+
+    results = []
+    secret = os.environ.get("MESH_SECRET", "coreason_mesh_secret").encode("utf-8")
+
+    status_ranks = {"DRAFT": 0, "SRB_APPROVED": 1, "CLIENT_APPROVED": 2, "PUBLISHED": 3}
+    min_rank = status_ranks.get(manifest.minimum_epistemic_status, 0)
+
+    for urn, endpoint in discovered.items():
+        epistemic_status = await registry.get_epistemic_status(urn)
+        current_rank = status_ranks.get(epistemic_status, 0)
+
+        if current_rank < min_rank:
+            continue
+
+        parts = urn.split(":")
+        domain = parts[-1] if len(parts) > 0 else ""
+
+        if allowed_domains and domain not in allowed_domains:
+            continue
+
+        payload = f"{urn}:{endpoint}:{clearance}:{int(time.time())}"
+        signature = hmac.new(
+            secret, payload.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+        seal = f"{payload}:{signature}"
+
+        results.append(
+            {
+                "urn": urn,
+                "endpoint": endpoint,
+                "token": seal,
+                "epistemic_status": epistemic_status,
+            }
+        )
+
+    return json.dumps({"capabilities": results})

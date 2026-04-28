@@ -117,7 +117,9 @@ async def test_thundering_herd_lock(driver_caching: PulumiActuator) -> None:
     """Edge Case: Concurrent reconcile calls serialize around the asyncio lock."""
     call_count = 0
 
-    async def mock_to_thread(func: Any, *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+    async def mock_to_thread(
+        func: Any, *args: Any, **kwargs: Any
+    ) -> list[dict[str, Any]]:
         nonlocal call_count
         call_count += 1
         await asyncio.sleep(0.01)
