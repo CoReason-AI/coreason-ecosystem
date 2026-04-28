@@ -16,24 +16,24 @@
 
 capabilities:
   # ── Sovereign Storage Substrates ─────────────────────────────────────
-  - urn: "urn:coreason:oracle:medical_kg"
+  - urn: "urn:coreason:actionspace:oracle:medical_kg"
     endpoint: "http://neo4j:7474"
     clearance: "PUBLIC"
     epistemic_status: "PUBLISHED"
 
-  - urn: "urn:coreason:oracle:clinical_vector"
+  - urn: "urn:coreason:actionspace:oracle:clinical_vector"
     endpoint: "http://milvus:19530"
     clearance: "CONFIDENTIAL"
     epistemic_status: "PUBLISHED"
 
   # ── Sovereign Treasury ───────────────────────────────────────────────
-  - urn: "urn:coreason:state:treasury"
+  - urn: "urn:coreason:actionspace:substrate:treasury"
     endpoint: "http://coreason-master-gateway:8000"
     clearance: "RESTRICTED"
     epistemic_status: "CLIENT_APPROVED"
 
   # ── Combinatorial Oracle (Lean4 Prover) ──────────────────────────────
-  - urn: "urn:coreason:oracle:combinatorial_prover"
+  - urn: "urn:coreason:actionspace:oracle:combinatorial_prover"
     endpoint: "http://lean4-prover:8000"
     clearance: "RESTRICTED"
     epistemic_status: "SRB_APPROVED"

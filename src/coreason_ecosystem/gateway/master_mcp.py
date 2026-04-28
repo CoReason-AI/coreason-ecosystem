@@ -238,7 +238,7 @@ async def federated_discovery(arguments: dict[str, Any]) -> str:
     discovered = await registry.discover_active_substrates(agent_clearance=clearance)
 
     # We apply epistemic filter constraints just like the old loop
-    discovered = epistemic_transmuter.project_capabilities(
+    discovered = await epistemic_transmuter.project_capabilities(
         available_urns=discovered,
     )
 

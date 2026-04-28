@@ -80,7 +80,7 @@ class EpistemicTransmuter:
                 f"RFC 8785 canonical hash mismatch. Expected {canonical_hash}, got {reported_hash}."
             )
 
-    def project_capabilities(
+    async def project_capabilities(
         self,
         available_urns: dict[str, str],
         minimum_epistemic_status: str = "DRAFT",
@@ -126,15 +126,16 @@ class EpistemicTransmuter:
             sla_max_level = _classification_levels.get(sla_cls_value, 0)
 
         filtered: dict[str, str] = {}
+        state = await self._registry._get_state()
         for urn, endpoint in available_urns.items():
-            urn_status = self._registry.get_epistemic_status(urn)
+            urn_status = state.get(urn, {}).get("epistemic_status", "DRAFT")
             urn_level = EPISTEMIC_LIFECYCLE_ORDER.get(urn_status, 0)
 
             if urn_level >= min_level:
                 # SLA classification quarantine: map LBAC clearance to classification.
                 if sla_max_level is not None:
                     assert federation_sla is not None  # narrowing for mypy
-                    urn_clearance = self._registry._cache.get(urn, {}).get(
+                    urn_clearance = state.get(urn, {}).get(
                         "clearance", "RESTRICTED"
                     )
                     urn_cls_level = _classification_levels.get(urn_clearance.lower(), 3)

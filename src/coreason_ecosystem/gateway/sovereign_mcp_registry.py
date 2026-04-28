@@ -40,7 +40,7 @@ from loguru import logger
 from temporalio import workflow
 from temporalio.client import Client
 from temporalio.common import WorkflowIDReusePolicy
-from temporalio.exceptions import WorkflowExecutionAlreadyStartedError
+from temporalio.exceptions import WorkflowAlreadyStartedError
 from temporalio.worker import Worker
 
 _LEGACY_URN_PREFIXES = ("urn:coreason:oracle:", "urn:coreason:state:")
@@ -129,7 +129,7 @@ class SovereignMCPRegistry:
                 task_queue="registry-task-queue",
                 id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
             )
-        except WorkflowExecutionAlreadyStartedError:
+        except WorkflowAlreadyStartedError:
             pass
 
     async def _update_urn(
@@ -141,10 +141,7 @@ class SovereignMCPRegistry:
         handle = self._client.get_workflow_handle(self._workflow_id)
         await handle.signal(
             RegistryStateWorkflow.update_urn,
-            urn,
-            endpoint,
-            clearance,
-            epistemic_status,
+            args=[urn, endpoint, clearance, epistemic_status],
         )
 
     async def _get_state(self) -> dict[str, dict[str, str]]:
@@ -309,21 +306,41 @@ class SovereignMCPRegistry:
     def validate_archetype_urn(urn: str) -> None:
         """Zero-trust URN prefix validation for newly forged action spaces.
 
-        Rejects any URN that does not begin with one of the canonical
-        Four Archetype prefixes.
+        Validates the modern actionspace taxonomy (urn:coreason:actionspace:{category}:{name})
+        while retaining legacy archetype/oracle/state prefixes under a deprecation warning
+        to prevent immediate topology severance of older containers.
         """
         match urn.split(":"):
+            case ["urn", "coreason", "actionspace", category, *_] if category in {
+                "oracle",
+                "solver",
+                "effector",
+                "substrate",
+                "sensory",
+                "node",
+            }:
+                pass
             case [
                 "urn",
                 "coreason",
-                "archetype_a" | "archetype_b" | "archetype_c" | "archetype_d",
+                "archetype_a"
+                | "archetype_b"
+                | "archetype_c"
+                | "archetype_d"
+                | "oracle"
+                | "state",
                 *_,
             ]:
-                pass
+                warnings.warn(
+                    f"Legacy URN prefix detected: '{urn}'. "
+                    "This format is deprecated. Use 'urn:coreason:actionspace:{category}:{name}'.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
             case _:
                 raise ValueError(
-                    f"URN Topology Breach: '{urn}' does not bear a "
-                    f"canonical Archetype prefix. "
+                    f"URN Topology Breach: '{urn}' does not conform to the "
+                    f"modern actionspace taxonomy or legacy bounds. "
                     "Rejecting hallucinated capability."
                 )
 
