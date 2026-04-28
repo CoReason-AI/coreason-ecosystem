@@ -27,6 +27,7 @@ from coreason_ecosystem.fleet.pulumi_actuator import PulumiActuator
 from coreason_ecosystem.fleet.telemetry_topology import (
     TelemetryTopologyMonitor,
     coreason_active_agents_total,
+    coreason_aggregate_vram_demand_gb,
 )
 from coreason_manifest.spec.ontology import (
     SpatialHardwareProfile as HardwareProfile,
@@ -69,20 +70,26 @@ class AutonomicFleetManager:
 
         while self._running:
             try:
-                # Poll the topological state
+                """Poll the topological state"""
                 await self.monitor._poll_workflows()
 
-                # β₀ (connected components) is stored in coreason_active_agents_total
+                """β₀ (connected components) is stored in coreason_active_agents_total"""
                 betti_0 = coreason_active_agents_total._value.get()
 
                 logger.debug(f"Topological state: β₀={betti_0}")
 
-                effective_demand = betti_0 - self.pending_provisions
+                required_vram = coreason_aggregate_vram_demand_gb._value.get()
+                active_stacks = await self.driver.reconcile_state()
+                provisioned_vram = sum(
+                    s.get("vram_capacity", 0.0) for s in active_stacks
+                )
 
-                if effective_demand > 0:
-                    # Active workflow components — provision compute.
+                delta = required_vram - provisioned_vram
+
+                if delta > 0:
+                    """Active workflow components — provision compute."""
                     profile = HardwareProfile(
-                        min_vram_gb=1.0, provider_whitelist=["aws", "vast"]
+                        min_vram_gb=delta, provider_whitelist=["aws", "vast"]
                     )
                     security_profile = SecurityProfile(network_isolation=True)
 
@@ -129,8 +136,7 @@ class AutonomicFleetManager:
                             "No viable bids found under budget for current requirements."
                         )
                 elif betti_0 == 0 and self.pending_provisions == 0:
-                    # Scale Down Logic
-                    active_stacks = await self.driver.reconcile_state()
+                    """Scale Down Logic"""
                     if active_stacks:
                         target = active_stacks[0]
                         stack_to_destroy = target["stack_name"]

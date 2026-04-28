@@ -112,9 +112,8 @@ async def von_neumann_expansion_daemon(
             provisioned_vram = sum(
                 stack.get("vram_capacity", 0) for stack in active_stacks
             )
-            delta_vram = max(
-                required_vram - provisioned_vram, 1.0
-            )  # enforce minimum boundary
+            """enforce minimum boundary"""
+            delta_vram = max(required_vram - provisioned_vram, 1.0)
 
             assessment = await assess_thermodynamic_expenditure(
                 hardware_profile=HardwareProfile(
