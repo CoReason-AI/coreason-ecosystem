@@ -164,9 +164,14 @@ async def execute_build(target_path: str) -> None:
             files_to_build.extend(target.rglob("*.go"))
     else:
         files_to_build = [target]
-    # Filter out generated files from Rust build caches or Python virtual environments
+    # Filter out generated files, virtual environments, tests, and ecosystem internals
     files_to_build = [
-        f for f in files_to_build if "target" not in f.parts and ".venv" not in f.parts
+        f for f in files_to_build 
+        if "target" not in f.parts 
+        and ".venv" not in f.parts
+        and "tests" not in f.parts
+        and "infrastructure" not in f.parts
+        and "coreason_ecosystem" not in f.parts
     ]
 
     if not files_to_build:
