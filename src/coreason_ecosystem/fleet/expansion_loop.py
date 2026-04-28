@@ -78,7 +78,7 @@ async def von_neumann_expansion_daemon(
         polling_interval_sec: Seconds between polling iterations.
     """
     try:
-        treasury_endpoint = registry.resolve_urn(TREASURY_URN)
+        treasury_endpoint = await registry.resolve_urn(TREASURY_URN)
     except KeyError:
         logger.error(
             f"[ExpansionLoop] Treasury URN '{TREASURY_URN}' not registered in "

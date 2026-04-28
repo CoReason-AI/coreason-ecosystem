@@ -203,6 +203,12 @@ class SovereignMCPRegistry:
     async def hydrate_from_compiled_matrix(self, json_path: Path) -> None:
         """Hydrate the URN routing table from a compiled JSON matrix.
 
+        Implements Dynamic Endpoint Interpolation: The AST ledger does not
+        include physical endpoints. This method parses the URN geometry to
+        synthesize the `target_endpoint_uri` dynamically, converting
+        underscores to hyphens for valid DNS mapping prior to strict
+        Pydantic instance validation.
+
         Args:
             json_path: Path to the JSON matrix file.
         """
@@ -215,8 +221,17 @@ class SovereignMCPRegistry:
         raw = json.loads(json_path.read_text(encoding="utf-8"))
         count = 0
         for urn, metadata in raw.items():
+            if "target_endpoint_uri" not in metadata:
+                urn_parts = urn.split(":")
+                if len(urn_parts) >= 2:
+                    bundle_name = urn_parts[-2]
+                    dns_name = bundle_name.replace("_", "-")
+                    metadata["target_endpoint_uri"] = f"http://{dns_name}:8000"
+
             # Coerce clearance string to Enum for Pydantic V2 strict instance checks
-            if "required_clearance" in metadata and isinstance(metadata["required_clearance"], str):
+            if "required_clearance" in metadata and isinstance(
+                metadata["required_clearance"], str
+            ):
                 try:
                     metadata["required_clearance"] = SemanticClassificationProfile(
                         metadata["required_clearance"].lower()

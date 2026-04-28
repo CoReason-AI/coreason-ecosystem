@@ -1,9 +1,7 @@
-import unittest.mock
 import typing
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from mcp.types import Tool, TextContent
 from fastapi.testclient import TestClient
 
 from coreason_ecosystem.gateway.master_mcp import (
@@ -14,12 +12,11 @@ from coreason_ecosystem.gateway.master_mcp import (
     registry,
     compute_schema_seal,
 )
-from mcp.shared.exceptions import McpError
 
 
 def _seed_registry() -> None:
     """Seed the registry with test capabilities for the test suite."""
-    registry._mock_state = {
+    registry._mock_state = {  # type: ignore[attr-defined]
         "urn:coreason:oracle:clinical_extractor": {
             "endpoint": "http://svc-pubmed-mcp.internal:8000",
             "clearance": "PUBLIC",
@@ -44,7 +41,7 @@ def _hydrate_test_registry() -> typing.Generator[None, None, None]:
     """Auto-seed registry before each test and clear after."""
     _seed_registry()
     yield
-    registry._mock_state = {}
+    registry._mock_state = {}  # type: ignore[attr-defined]
 
 
 @pytest.fixture
@@ -126,7 +123,6 @@ async def test_messages_endpoint_direct() -> None:
     ) as mock_handle:
         await handle_messages(request)
         mock_handle.assert_called_once()
-
 
 
 @pytest.mark.asyncio

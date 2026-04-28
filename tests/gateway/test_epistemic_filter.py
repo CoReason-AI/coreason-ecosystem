@@ -1,9 +1,33 @@
+# Copyright (c) 2026 CoReason, Inc.
+#
+# This software is proprietary and dual-licensed
+# Licensed under the Prosperity Public License 3.0 (the "License")
+# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
+# For details, see the LICENSE file
+# Commercial use beyond a 30-day trial requires a separate license
+#
+# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
+
+"""Tests for the Epistemic Filter — SRB Governance Lifecycle Guillotine."""
 
 import pytest
+
+
+from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
+from coreason_ecosystem.gateway.epistemic_filter import (
+    EPISTEMIC_LIFECYCLE_ORDER,
+    EpistemicTransmuter,
+)
+from coreason_manifest.spec.ontology import (
+    FederatedBilateralSLA,
+    SemanticClassificationProfile,
+)
+
 
 @pytest.fixture(autouse=True)
 def mock_registry_temporal(monkeypatch):
     from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
+
     async def mock_update_urn(self, urn, endpoint, clearance, epistemic_status):
         if not hasattr(self, "_mock_state"):
             self._mock_state = {}
@@ -20,36 +44,14 @@ def mock_registry_temporal(monkeypatch):
 
     monkeypatch.setattr(SovereignMCPRegistry, "_update_urn", mock_update_urn)
     monkeypatch.setattr(SovereignMCPRegistry, "_get_state", mock_get_state)
-    
+
     original_init = SovereignMCPRegistry.__init__
+
     def new_init(self, *args, **kwargs):
         original_init(self, *args, **kwargs)
         self._mock_state = {}
+
     monkeypatch.setattr(SovereignMCPRegistry, "__init__", new_init)
-
-# Copyright (c) 2026 CoReason, Inc.
-#
-# This software is proprietary and dual-licensed
-# Licensed under the Prosperity Public License 3.0 (the "License")
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
-# For details, see the LICENSE file
-# Commercial use beyond a 30-day trial requires a separate license
-#
-# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
-
-"""Tests for the Epistemic Filter — SRB Governance Lifecycle Guillotine."""
-
-import pytest
-
-from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
-from coreason_ecosystem.gateway.epistemic_filter import (
-    EPISTEMIC_LIFECYCLE_ORDER,
-    EpistemicTransmuter,
-)
-from coreason_manifest.spec.ontology import (
-    FederatedBilateralSLA,
-    SemanticClassificationProfile,
-)
 
 
 @pytest.fixture
@@ -143,7 +145,9 @@ class TestEpistemicTransmuterClientApproved:
         populated_registry: SovereignMCPRegistry,
     ) -> None:
         available = _all_urns(populated_registry)
-        result = await epistemic_filter.project_capabilities(available, "CLIENT_APPROVED")
+        result = await epistemic_filter.project_capabilities(
+            available, "CLIENT_APPROVED"
+        )
         assert "urn:coreason:oracle:staging_tool" not in result
         assert "urn:coreason:oracle:experimental_prover" not in result
         assert "urn:coreason:oracle:medical_kg" in result
@@ -201,7 +205,9 @@ class TestSovereignMCPRegistryEpistemicStatus:
     @pytest.mark.asyncio
     async def test_known_urn(self, populated_registry: SovereignMCPRegistry) -> None:
         assert (
-            await populated_registry.get_epistemic_status("urn:coreason:oracle:medical_kg")
+            await populated_registry.get_epistemic_status(
+                "urn:coreason:oracle:medical_kg"
+            )
             == "PUBLISHED"
         )
 
@@ -210,7 +216,9 @@ class TestSovereignMCPRegistryEpistemicStatus:
         self, populated_registry: SovereignMCPRegistry
     ) -> None:
         assert (
-            await populated_registry.get_epistemic_status("urn:coreason:oracle:nonexistent")
+            await populated_registry.get_epistemic_status(
+                "urn:coreason:oracle:nonexistent"
+            )
             == "DRAFT"
         )
 

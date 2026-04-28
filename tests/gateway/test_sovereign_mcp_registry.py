@@ -18,6 +18,7 @@ import yaml
 
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 
+
 @pytest.fixture(autouse=True)
 def mock_registry_temporal(monkeypatch):
     async def mock_update_urn(self, urn, endpoint, clearance, epistemic_status):
@@ -36,15 +37,15 @@ def mock_registry_temporal(monkeypatch):
 
     monkeypatch.setattr(SovereignMCPRegistry, "_update_urn", mock_update_urn)
     monkeypatch.setattr(SovereignMCPRegistry, "_get_state", mock_get_state)
-    
+
     # Initialize _mock_state for tests that instantiate directly
     original_init = SovereignMCPRegistry.__init__
+
     def new_init(self, *args, **kwargs):
         original_init(self, *args, **kwargs)
         self._mock_state = {}
+
     monkeypatch.setattr(SovereignMCPRegistry, "__init__", new_init)
-
-
 
 
 class TestValidateActionspaceURN:
@@ -199,7 +200,9 @@ class TestLegacyURNDeprecationWarnings:
     """Legacy URN prefixes emit DeprecationWarning."""
 
     @pytest.mark.asyncio
-    async def test_hydrate_from_matrix_warns_on_legacy_oracle(self, tmp_path: Path) -> None:
+    async def test_hydrate_from_matrix_warns_on_legacy_oracle(
+        self, tmp_path: Path
+    ) -> None:
         matrix_file = tmp_path / "capabilities.matrix.yaml"
         matrix_data = {
             "capabilities": [
@@ -223,7 +226,9 @@ class TestLegacyURNDeprecationWarnings:
             assert "Legacy URN prefix detected" in str(deprecation_warnings[0].message)
 
     @pytest.mark.asyncio
-    async def test_hydrate_from_matrix_warns_on_legacy_state(self, tmp_path: Path) -> None:
+    async def test_hydrate_from_matrix_warns_on_legacy_state(
+        self, tmp_path: Path
+    ) -> None:
         matrix_file = tmp_path / "capabilities.matrix.yaml"
         matrix_data = {
             "capabilities": [

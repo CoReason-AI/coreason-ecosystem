@@ -139,7 +139,7 @@ class AutonomicFleetManager:
                         logger.info(
                             f"Scale to zero triggered. Destroying {stack_to_destroy} on {provider}..."
                         )
-                        await self.driver.destroy_node(stack_to_destroy, provider)  # type: ignore
+                        await self.driver.destroy_node(stack_to_destroy, provider)
                     else:
                         logger.debug(
                             "Queue empty, but no active compute nodes to destroy."

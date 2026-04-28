@@ -22,14 +22,19 @@ from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegist
 
 def _seeded_registry() -> SovereignMCPRegistry:
     """Create a registry with the Sovereign Treasury MCP registered."""
+    from unittest.mock import AsyncMock
+
     registry = SovereignMCPRegistry()
-    registry._cache = {
-        TREASURY_URN: {
-            "endpoint": "http://treasury-mcp:8000",
-            "clearance": "RESTRICTED",
-            "epistemic_status": "PUBLISHED",
-        },
-    }
+    registry._get_state = AsyncMock(  # type: ignore[method-assign]
+        
+        return_value={
+            TREASURY_URN: {
+                "endpoint": "http://treasury-mcp:8000",
+                "clearance": "RESTRICTED",
+                "epistemic_status": "PUBLISHED",
+            },
+        }
+    )
     return registry
 
 
