@@ -1,18 +1,9 @@
-# Copyright (c) 2026 CoReason, Inc
-#
-# This software is proprietary and dual-licensed
-# Licensed under the Prosperity Public License 3.0 (the "License")
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
-# For details, see the LICENSE file
-# Commercial use beyond a 30-day trial requires a separate license
-#
-# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
-
 import asyncio
+import os
 import time
 import uuid
 from pathlib import Path
-from typing import Literal, TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:
     from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
@@ -23,13 +14,31 @@ from pulumi import automation as auto
 
 from coreason_ecosystem.fleet.mesh_injector import MeshInjector
 from coreason_manifest.spec.ontology import (
-    SpatialHardwareProfile as HardwareProfile,
     EpistemicSecurityProfile as SecurityProfile,
+)
+from coreason_manifest.spec.ontology import (
     EscrowPolicy,
+)
+from coreason_manifest.spec.ontology import (
+    SpatialHardwareProfile as HardwareProfile,
 )
 
 
 class ComputeNodeTarget(BaseModel):
+    """Encapsulates spatial hardware configuration objectives targeting defined spatial clouds.
+
+    Attributes:
+        provider: Differentiates orchestration bounds ('aws' or 'vast').
+        instance_id: Hard target bounds for deployment profiles.
+        hourly_cost: Estimated projection scalar in decimal dollars.
+        vram_gb: Allocated visual random access unit count constraints.
+        hardware_profile: The epistemic hardware ontology projection bounds.
+        security_profile: The mesh security requirements context constraint.
+        mesh_auth_key: A topological node bridging structural integrity vector.
+        temporal_mesh_ip: Target edge projection endpoint routing destination.
+        escrow_policy: The locked economic transaction guarantee enforcing thermodynamic boundaries.
+    """
+
     provider: Literal["aws", "vast"]
     instance_id: str
     hourly_cost: float
@@ -41,15 +50,24 @@ class ComputeNodeTarget(BaseModel):
     escrow_policy: EscrowPolicy | None = None
 
 
-# Atomic magnitude unit: 1 atomic unit = 0.0001 dollars (0.01 cents).
-# This prevents IEEE 754 float truncation when comparing cloud provider
-# hourly_cost (float) against EscrowPolicy.escrow_locked_magnitude (int).
 ATOMIC_MAGNITUDE_MULTIPLIER = 10000
 
 
 class PulumiActuator:
+    """Implement the Governance Plane Actuator with strict thermodynamic routing bounds.
+
+    Structural Rationale:
+    This class adheres to the Hollow Plane Mandate by eliminating direct logical
+    calculations and strictly projecting infrastructure mappings using the Pulumi
+    Automation API. To achieve an event-driven performance envelope the actuator maintains
+    a local cache (`_cached_stacks`) tracking orchestration instances synchronized against
+    a TTL constraint track (`_last_sync_time`). The underlying mechanism requires threading
+    controls bounded strictly by an initialized `_lock` preventing concurrent CLI process spawns.
+    Cache resets exclusively occur during mutating orchestration calls enforcing downstream constraints.
+    """
+
     def __init__(self, templates_dir: Path) -> None:
-        """Instantiate the Governance Plane Actuator with strict thermodynamic routing bounds.
+        """Instantiate the Actuator matrix cache bounds constraint configurations.
 
         Args:
             templates_dir (Path): The Epistemic Substrate bounds directory housing Pulumi stacks.
@@ -58,25 +76,30 @@ class PulumiActuator:
         self.injector = MeshInjector()
         self._cached_stacks: list[dict[str, Any]] | None = None
         self._last_sync_time = 0.0
-        self._lock: asyncio.Lock | None = None
-
-    @property
-    def lock(self) -> asyncio.Lock:
-        if self._lock is None:
-            self._lock = asyncio.Lock()
-        return self._lock
+        self._lock = asyncio.Lock()
 
     async def provision_node(self, target: ComputeNodeTarget) -> dict[str, str]:
-        # ── Hardware Guillotine ──────────────────────────────────────
-        # The runtime must transmit a ComputeProvisioningIntent with a
-        # valid EscrowPolicy proving it has the token budget.
+        """Execute physical instantiation bounds evaluating thermodynamic guillotine bounds.
+
+        Args:
+            target (ComputeNodeTarget): Desired thermodynamic payload instantiation details.
+
+        Returns:
+            dict[str, str]: Structural outputs mapping the node deployment keys.
+
+        Hardware Guillotine Protocol:
+        The routine transmits an intent checking the bounds of an `escrow_policy`. Cost scaling is
+        evaluated via an atomic multiplier unit (10000x scalar) preventing floating point IEEE 754
+        errors during comparison against strict token bounds natively attached to the policy constraints.
+        Upon valid completion of the Pulumi `stack.up()` instantiation, the local thermodynamic
+        cache state flag (`_last_sync_time`) is forcefully invalidated bounding downstream refreshes.
+        """
         if target.escrow_policy is None:
             raise ValueError(
                 "Hardware Guillotine: Provisioning rejected — no EscrowPolicy attached. "
                 "The runtime must transmit a ComputeProvisioningIntent with a valid escrow."
             )
 
-        # Compare using atomic magnitude units to avoid float truncation.
         cost_atomic = int(target.hourly_cost * ATOMIC_MAGNITUDE_MULTIPLIER)
         if cost_atomic > target.escrow_policy.escrow_locked_magnitude:
             raise ValueError(
@@ -114,8 +137,6 @@ class PulumiActuator:
             )
             stack.set_config("boot_payload_b64", auto.ConfigValue(value=payload_b64))
 
-        import os
-
         if target.provider == "aws":
             stack.set_config("instance_type", auto.ConfigValue(target.instance_id))
             stack.set_config(
@@ -149,7 +170,6 @@ class PulumiActuator:
 
         logger.info(f"Node provisioned on stack {stack_name} successfully.")
 
-        """Invalidate the local thermodynamic cache ensuring eventual consistency and forcing hard structural updates downstream."""
         self._last_sync_time = 0.0
 
         return {
@@ -160,6 +180,17 @@ class PulumiActuator:
     async def destroy_node(
         self, stack_name: str, provider: Literal["aws", "vast"]
     ) -> None:
+        """Physically sever localized infrastructure target configurations via provider API maps.
+
+        Args:
+            stack_name (str): Identifier bounded exclusively for this runtime environment.
+            provider (Literal['aws', 'vast']): Evaluated target orchestrator destination bounds.
+
+        Structural Rationale:
+        Eliminates topological state mapped to the physical stack. Strictly triggers local
+        thermodynamic cache invalidation mapping zero threshold downstream requiring logical
+        CLI synchronization on proceeding reconcile iterations.
+        """
         provider_dir = self.templates_dir / (
             "aws_spot" if provider == "aws" else "vast_ai"
         )
@@ -176,27 +207,32 @@ class PulumiActuator:
         stack.workspace.remove_stack(stack_name)
         logger.info(f"Stack {stack_name} destroyed and removed.")
 
-        """Invalidate the local thermodynamic cache mapping strictly ensuring accurate reconciliation."""
         self._last_sync_time = 0.0
 
     async def reconcile_state(self) -> list[dict[str, Any]]:
-        """Determine structural matrix allocations bridging local cache mapping directly ensuring non-blocking operations.
+        """Determine structural matrix allocations bridging local cache mapping non-blocking operations.
 
-        Implements throttled hybrid polling strictly evaluating TTL constraints against 600.0 second boundaries preventing concurrent thread thundering execution profiles.
+        Structural Rationale:
+        Implements throttled hybrid polling evaluating TTL constraints against 600.0 second
+        boundaries utilizing local synchronization tracking `_last_sync_time`. Prevents concurrent
+        thread thundering execution execution using the local module constraint `_lock`. Explicitly
+        maps active allocations natively into dictionary projection structures without caching the CLI.
+        Provider mapping evaluation natively extracts provider bounds parsing localized node names.
+
+        Returns:
+            list[dict[str, Any]]: The array projection bounds outlining temporal cluster instances.
         """
-        async with self.lock:
+        async with self._lock:
             if (
                 self._cached_stacks is not None
                 and (time.time() - self._last_sync_time) < 600.0
             ):
-                assert self._cached_stacks is not None
                 return self._cached_stacks
 
             def _reconcile() -> list[dict[str, Any]]:
                 active_stacks: list[dict[str, Any]] = []
                 for provider_dir in self.templates_dir.iterdir():
                     if provider_dir.is_dir():
-                        # Infer the provider from the directory name
                         provider = "aws" if "aws" in provider_dir.name else "vast"
                         try:
                             workspace = auto.LocalWorkspace(work_dir=str(provider_dir))
@@ -223,12 +259,16 @@ class PulumiActuator:
     async def execute_thermodynamic_guillotine(
         self, assessment: "ThermodynamicAssessment"
     ) -> None:
-        """Physically sever all kinetic nodes if VFE limits are breached.
+        """Physically sever all kinetic nodes checking global VFE threshold divergence bounds.
 
-        The termination sequence aggregates all active instances into an
-        asynchronous gathering pipeline with a strict temporal limit (600 seconds)
-        and exception tolerance to prevent localized faults from disrupting global
-        economic deceleration closures.
+        Structural Rationale:
+        The termination sequence aggregates all localized runtime instances utilizing an
+        asynchronous synchronization envelope bound temporally at 600 seconds. Fault tolerance
+        flags eliminate single instance failures cascading onto the wider bounds ensuring pure
+        global economic termination deceleration checks.
+
+        Args:
+            assessment (ThermodynamicAssessment): The physical bounds struct resolving constraints.
         """
         if not assessment.threshold_breached:
             return
@@ -240,7 +280,6 @@ class PulumiActuator:
         )
 
         active_stacks = await self.reconcile_state()
-        from typing import cast
 
         coroutines = [
             self.destroy_node(
