@@ -72,6 +72,7 @@ async def test_daemon_no_viable_bid() -> None:
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
 
     import typing
+
     async def stop_loop(*args: typing.Any, **kwargs: typing.Any) -> None:
         manager._running = False
 

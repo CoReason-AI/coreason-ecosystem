@@ -169,13 +169,14 @@ async def test_daemon_start_no_bid_found(manager: AutonomicFleetManager) -> None
 
     getattr(manager.driver, "provision_node").assert_not_called()
 
+
 @pytest.mark.asyncio
 async def test_daemon_provision_exception(manager: AutonomicFleetManager) -> None:
     """When provisioning fails, pending_provisions is decremented immediately."""
     coreason_active_agents_total.set(1)
 
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
-    
+
     bid = ComputeNodeTarget(
         provider="aws",
         instance_id="p3.2xlarge",
@@ -189,12 +190,16 @@ async def test_daemon_provision_exception(manager: AutonomicFleetManager) -> Non
             escrow_locked_magnitude=50000,
             release_condition_metric="test",
             refund_target_node_cid="did:coreason:fleet:aws",
-        )
+        ),
     )
     setattr(manager.oracle, "calculate_optimal_bid", AsyncMock(return_value=bid))
 
     # Mock provision_node to raise an Exception
-    setattr(manager.driver, "provision_node", AsyncMock(side_effect=RuntimeError("Cloud API error")))
+    setattr(
+        manager.driver,
+        "provision_node",
+        AsyncMock(side_effect=RuntimeError("Cloud API error")),
+    )
 
     # manager.start() catches all exceptions in its main loop
     with patch("asyncio.sleep", side_effect=asyncio.CancelledError):

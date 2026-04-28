@@ -36,6 +36,7 @@ from coreason_ecosystem.fleet.pricing_oracle import (
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.fleet.pulumi_actuator import PulumiActuator
 from pathlib import Path
+import asyncio
 
 # Hardware threshold (approx 10,000,000,000 Gwei / ~10 ETH at historical rates)
 HARDWARE_NODE_COST_GWEI = 10_000_000_000
@@ -61,6 +62,11 @@ async def von_neumann_expansion_daemon(
     Governance Plane never holds Web3 state — it routes the query
     blindly through the URN.
 
+    The kinetic payload is wrapped in a dedicated exception handler to trap runtime
+    faults without terminating the background process. Cooperative yielding is enforced
+    mathematically at the lower loop boundary using `asyncio.sleep`, guarded by a `CancelledError`
+    throttle that sets the `_running` state to `False` for deterministic teardown.
+
     The loop runs a VFE divergence check each iteration.  If the threshold
     is breached, a ``TopologicalHaltIntent`` is logged and the loop exits
     to allow the fleet daemon to sever kinetic execution.
@@ -71,7 +77,6 @@ async def von_neumann_expansion_daemon(
         max_budget_hr: Maximum hourly budget for compute provisioning.
         polling_interval_sec: Seconds between polling iterations.
     """
-    # Resolve the treasury endpoint from the Sovereign MCP matrix.
     try:
         treasury_endpoint = registry.resolve_urn(TREASURY_URN)
     except KeyError:
@@ -87,33 +92,42 @@ async def von_neumann_expansion_daemon(
     )
 
     target_cost = HARDWARE_NODE_COST_GWEI + SAFETY_MARGIN_GWEI
+    _running = True
 
-    while True:
-        # VFE divergence check — the Economic Guillotine gate.
-        from coreason_manifest.spec.ontology import (
-            SpatialHardwareProfile as HardwareProfile,
-        )
-
-        assessment = await assess_thermodynamic_expenditure(
-            hardware_profile=HardwareProfile(
-                min_vram_gb=1.0, provider_whitelist=["aws", "vast"]
-            ),
-            max_budget_hr=max_budget_hr,
-        )
-        if assessment.threshold_breached:
-            logger.critical(
-                "[ExpansionLoop] Economic Guillotine triggered. "
-                "Halting expansion loop to prevent thermodynamic exhaustion."
+    while _running:
+        try:
+            from coreason_manifest.spec.ontology import (
+                SpatialHardwareProfile as HardwareProfile,
             )
-            actuator = PulumiActuator(Path.cwd() / "infrastructure")
-            await actuator.execute_thermodynamic_guillotine(assessment)
-            return
 
-        # Query the Sovereign Treasury MCP for on-chain balance.
-        # The Governance Plane opens an HTTP/SSE connection to the external
-        # container — it does NOT import web3 or hold private keys.
-        raise NotImplementedError(
-            "Von Neumann Expansion Loop requires the Sovereign Treasury MCP "
-            f"at {treasury_endpoint} to be deployed and serving JSON-RPC. "
-            f"Target cost threshold: {target_cost} Gwei."
-        )
+            assessment = await assess_thermodynamic_expenditure(
+                hardware_profile=HardwareProfile(
+                    min_vram_gb=1.0, provider_whitelist=["aws", "vast"]
+                ),
+                max_budget_hr=max_budget_hr,
+            )
+            if assessment.threshold_breached:
+                logger.critical(
+                    "[ExpansionLoop] Economic Guillotine triggered. "
+                    "Halting expansion loop to prevent thermodynamic exhaustion."
+                )
+                actuator = PulumiActuator(Path.cwd() / "infrastructure")
+                await actuator.execute_thermodynamic_guillotine(assessment)
+                _running = False
+                continue
+
+            raise NotImplementedError(
+                "Von Neumann Expansion Loop requires the Sovereign Treasury MCP "
+                f"at {treasury_endpoint} to be deployed and serving JSON-RPC. "
+                f"Target cost threshold: {target_cost} Gwei."
+            )
+        except Exception as e:
+            if isinstance(e, NotImplementedError):
+                raise
+            logger.error(f"[ExpansionLoop] Runtime execution anomaly: {e}")
+
+        try:
+            await asyncio.sleep(polling_interval_sec)
+        except asyncio.CancelledError:
+            logger.info("[ExpansionLoop] Graceful shutdown requested via Cancellation.")
+            _running = False
