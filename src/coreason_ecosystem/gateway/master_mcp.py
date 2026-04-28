@@ -10,7 +10,6 @@ from typing import Any
 
 import mcp.server
 import mcp.types as types
-from coreason_ecosystem.fleet import pulumi_actuator
 from coreason_ecosystem.gateway.epistemic_filter import EpistemicTransmuter
 from coreason_ecosystem.gateway.ontological_identity_router import (
     OntologicalIdentityRouter,
@@ -19,13 +18,15 @@ from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegist
 from coreason_ecosystem.gateway.state_manifests import (
     FederatedDiscoveryIntent,
 )
-from coreason_ecosystem.orchestration import sync, up
 from coreason_manifest.spec.ontology import (
     ChaosExperimentTask,
     CognitiveSwarmDeploymentManifest,
     FederatedSecurityMacroManifest,
 )
 from fastapi import Depends, FastAPI, HTTPException
+from mcp.client.session import ClientSession
+from mcp.client.sse import sse_client
+from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.server.sse import SseServerTransport
 from starlette.requests import Request
 
@@ -202,51 +203,40 @@ async def list_actuators() -> list[types.Tool]:
 async def invoke_actuator(
     name: str, arguments: dict[str, Any]
 ) -> list[types.TextContent]:
-    """Execute proxy intent securely spanning Zero-Trust boundaries or resolve P2P topologies.
-
-    Execution strictly enforces logical isolation boundaries. For federated discovery, returns
-    physical network bounds and Epistemic Seals for direct P2P connections.
-    """
-    if name == "deploy_cognitive_swarm":
-        res = await deploy_cognitive_swarm(arguments)
-        return [types.TextContent(type="text", text=res)]
-    if name == "establish_federated_link":
-        res = await establish_federated_link(arguments)
-        return [types.TextContent(type="text", text=res)]
-    if name == "inject_chaos_fault":
-        res = await inject_chaos_fault(arguments)
-        return [types.TextContent(type="text", text=res)]
+    """Execute proxy intent securely spanning Zero-Trust boundaries via MCP JSON-RPC."""
     if name == "federated_discovery":
         res_text = await federated_discovery(arguments)
         return [types.TextContent(type="text", text=res_text)]
 
-    raise ValueError(
-        f"Geometrical topology fault: unregistered tool {name} or direct proxy strictly forbidden under Hollow Plane architecture."
-    )
+    try:
+        physical_endpoint = await registry.resolve_urn(name)
+    except KeyError:
+        raise ValueError(f"Topology fault: Tool {name} not found in active registry.")
 
-
-async def deploy_cognitive_swarm(arguments: dict[str, Any]) -> str:
-    """Macro-Manifest Deployment: Deploy a cognitive swarm. Hollow Plane proxy endpoint."""
-    logger.info("Proxying deploy_cognitive_swarm intent to fleet module.")
-    manifest = CognitiveSwarmDeploymentManifest.model_validate(arguments)
-    await up.provision_swarm_topology(manifest)  # type: ignore[attr-defined]
-    return "Intent proxied to fleet: deploy_cognitive_swarm"
-
-
-async def establish_federated_link(arguments: dict[str, Any]) -> str:
-    """Macro-Manifest Deployment: Establish federated link. Hollow Plane proxy endpoint."""
-    logger.info("Proxying establish_federated_link intent to orchestration module.")
-    manifest = FederatedSecurityMacroManifest.model_validate(arguments)
-    await sync.establish_federated_link(manifest)  # type: ignore[attr-defined]
-    return "Intent proxied to orchestration: establish_federated_link"
-
-
-async def inject_chaos_fault(arguments: dict[str, Any]) -> str:
-    """Macro-Manifest Deployment: Inject chaos fault. Hollow Plane proxy endpoint."""
-    logger.info("Proxying inject_chaos_fault intent to fleet module.")
-    manifest = ChaosExperimentTask.model_validate(arguments)
-    await pulumi_actuator.inject_chaos_fault(manifest)  # type: ignore[attr-defined]
-    return "Intent proxied to fleet: inject_chaos_fault"
+    try:
+        if physical_endpoint.startswith("http://") or physical_endpoint.startswith(
+            "https://"
+        ):
+            async with sse_client(f"{physical_endpoint}/sse") as (
+                read_stream,
+                write_stream,
+            ):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    result = await session.call_tool(name, arguments=arguments)
+                    return [types.TextContent(type="text", text=str(result.content))]
+        else:
+            server_params = StdioServerParameters(
+                command="wasmtime", args=["run", physical_endpoint]
+            )
+            async with stdio_client(server_params) as (read_stream, write_stream):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    result = await session.call_tool(name, arguments=arguments)
+                    return [types.TextContent(type="text", text=str(result.content))]
+    except Exception as e:
+        logger.error(f"Failed to proxy MCP request to {physical_endpoint}: {e}")
+        raise RuntimeError(f"Cross-plane capability execution failed: {e}")
 
 
 async def federated_discovery(arguments: dict[str, Any]) -> str:

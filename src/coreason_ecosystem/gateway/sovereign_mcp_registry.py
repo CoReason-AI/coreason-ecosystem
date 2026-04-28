@@ -130,7 +130,7 @@ class SovereignMCPRegistry:
                 id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
             )
         except WorkflowAlreadyStartedError:
-            pass
+            logger.info(f"Registry workflow {self._workflow_id} already running.")
 
     async def _update_urn(
         self, urn: str, endpoint: str, clearance: str, epistemic_status: str
@@ -236,8 +236,8 @@ class SovereignMCPRegistry:
                     metadata["required_clearance"] = SemanticClassificationProfile(
                         metadata["required_clearance"].lower()
                     )
-                except ValueError:
-                    pass  # Let Pydantic validation catch it
+                except ValueError as e:
+                    logger.warning(f"Clearance validation failure for {urn}: {e}")
 
             # Epistemic status might not be in the strict macro manifest, extract it first
             epistemic_status = metadata.pop("epistemic_status", "DRAFT")

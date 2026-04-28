@@ -35,6 +35,9 @@ from coreason_ecosystem.fleet.pricing_oracle import (
 )
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.fleet.pulumi_actuator import PulumiActuator
+from coreason_ecosystem.fleet.telemetry_topology import (
+    coreason_aggregate_vram_demand_gb,
+)
 from pathlib import Path
 import asyncio
 from typing import Literal
@@ -54,6 +57,8 @@ TREASURY_URN = "urn:coreason:state:treasury"
 async def von_neumann_expansion_daemon(
     registry: SovereignMCPRegistry,
     oracle: PricingOracle,
+    mesh_auth_key: str,
+    temporal_mesh_ip: str,
     max_budget_hr: float = 10.0,
     polling_interval_sec: float = DEFAULT_POLLING_INTERVAL_SEC,
 ) -> None:
@@ -101,9 +106,19 @@ async def von_neumann_expansion_daemon(
                 SpatialHardwareProfile as HardwareProfile,
             )
 
+            required_vram = coreason_aggregate_vram_demand_gb._value.get()
+            actuator = PulumiActuator(Path.cwd() / "infrastructure")
+            active_stacks = await actuator.reconcile_state()
+            provisioned_vram = sum(
+                stack.get("vram_capacity", 0) for stack in active_stacks
+            )
+            delta_vram = max(
+                required_vram - provisioned_vram, 1.0
+            )  # enforce minimum boundary
+
             assessment = await assess_thermodynamic_expenditure(
                 hardware_profile=HardwareProfile(
-                    min_vram_gb=1.0, provider_whitelist=["aws", "vast"]
+                    min_vram_gb=delta_vram, provider_whitelist=["aws", "vast"]
                 ),
                 max_budget_hr=max_budget_hr,
             )
@@ -116,9 +131,6 @@ async def von_neumann_expansion_daemon(
                 await actuator.execute_thermodynamic_guillotine(assessment)
                 _running = False
                 continue
-
-            actuator = PulumiActuator(Path.cwd() / "infrastructure")
-            active_stacks = await actuator.reconcile_state()
 
             total_active = len(active_stacks)
             on_demand_count = sum(
@@ -133,7 +145,7 @@ async def von_neumann_expansion_daemon(
 
             bid = await oracle.calculate_optimal_bid(
                 hardware_profile=HardwareProfile(
-                    min_vram_gb=1.0, provider_whitelist=["aws", "vast"]
+                    min_vram_gb=delta_vram, provider_whitelist=["aws", "vast"]
                 ),
                 max_budget_hr=max_budget_hr,
             )
@@ -146,11 +158,11 @@ async def von_neumann_expansion_daemon(
 
                 bid.market_type = target_market_type
                 bid.hardware_profile = HardwareProfile(
-                    min_vram_gb=1.0, provider_whitelist=["aws", "vast"]
+                    min_vram_gb=delta_vram, provider_whitelist=["aws", "vast"]
                 )
                 bid.security_profile = EpistemicSecurityProfile(network_isolation=True)
-                bid.mesh_auth_key = "auto-provisioned-daemon-key"
-                bid.temporal_mesh_ip = "10.0.0.5"
+                bid.mesh_auth_key = mesh_auth_key
+                bid.temporal_mesh_ip = temporal_mesh_ip
                 bid.escrow_policy = EscrowPolicy(
                     escrow_locked_magnitude=max(int(max_budget_hr), 1),
                     release_condition_metric="fleet_expansion_hourly_budget",
@@ -164,8 +176,6 @@ async def von_neumann_expansion_daemon(
             else:
                 logger.warning("[ExpansionLoop] No viable bids found.")
         except Exception as e:
-            if isinstance(e, NotImplementedError):
-                raise
             logger.error(f"[ExpansionLoop] Runtime execution anomaly: {e}")
 
         try:
