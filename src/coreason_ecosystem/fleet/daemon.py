@@ -18,6 +18,7 @@ from topological invariants — no scalar metrics are consumed.
 
 import asyncio
 from pathlib import Path
+from typing import Any
 
 from loguru import logger
 
@@ -59,6 +60,8 @@ class AutonomicFleetManager:
         self.oracle = PricingOracle()
         self.monitor = TelemetryTopologyMonitor()
         self._running = False
+        self.pending_provisions = 0
+        self._background_tasks: set[asyncio.Task[Any]] = set()
 
     async def start(self) -> None:
         self._running = True
@@ -74,7 +77,9 @@ class AutonomicFleetManager:
 
                 logger.debug(f"Topological state: β₀={betti_0}")
 
-                if betti_0 > 0:
+                effective_demand = betti_0 - self.pending_provisions
+
+                if effective_demand > 0:
                     # Active workflow components — provision compute.
                     profile = HardwareProfile(
                         min_vram_gb=1.0, provider_whitelist=["aws", "vast"]
@@ -97,13 +102,33 @@ class AutonomicFleetManager:
                             refund_target_node_cid=f"did:coreason:fleet:{bid.provider}",
                         )
 
-                        result = await self.driver.provision_node(bid)
-                        logger.info(f"Provisioning Complete: {result['stack_name']}")
+                        self.pending_provisions += 1
+                        try:
+                            result = await self.driver.provision_node(bid)
+                            logger.info(
+                                f"Provisioning Complete: {result['stack_name']}"
+                            )
+
+                            async def _cooldown_and_decrement() -> None:
+                                await asyncio.sleep(300)
+                                self.pending_provisions = max(
+                                    0, self.pending_provisions - 1
+                                )
+
+                            task = asyncio.create_task(_cooldown_and_decrement())
+                            self._background_tasks.add(task)
+                            task.add_done_callback(self._background_tasks.discard)
+                        except Exception as e:
+                            self.pending_provisions = max(
+                                0, self.pending_provisions - 1
+                            )
+                            logger.error(f"Provisioning failed: {e}")
+                            raise
                     else:
                         logger.warning(
                             "No viable bids found under budget for current requirements."
                         )
-                elif betti_0 == 0:
+                elif betti_0 == 0 and self.pending_provisions == 0:
                     # Scale Down Logic
                     active_stacks = await self.driver.reconcile_state()
                     if active_stacks:
