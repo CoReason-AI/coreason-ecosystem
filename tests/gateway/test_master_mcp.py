@@ -342,19 +342,14 @@ async def test_invoke_actuator_deploy_cognitive_swarm() -> None:
         "swarm_name": "test_swarm",
         "agent_urn": "urn:coreason:archetype:ai",
     }
-    with (
-        patch(
-            "coreason_ecosystem.gateway.master_mcp.CognitiveSwarmDeploymentManifest.model_validate"
-        ),
-        patch(
-            "coreason_ecosystem.gateway.master_mcp.up.provision_swarm_topology",
-            new_callable=AsyncMock,
-            create=True,
-        ) as mock_up,
-    ):
-        result = await invoke_actuator(
-            name="deploy_cognitive_swarm", arguments=arguments
-        )
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.CognitiveSwarmDeploymentManifest.model_validate"
+    ) as mock_val, patch(
+        "coreason_ecosystem.gateway.master_mcp.up.provision_swarm_topology",
+        new_callable=AsyncMock,
+        create=True,
+    ) as mock_up:
+        result = await invoke_actuator(name="deploy_cognitive_swarm", arguments=arguments)
         assert len(result) == 1
         assert "deploy_cognitive_swarm" in result[0].text
         mock_up.assert_called_once()
@@ -364,21 +359,16 @@ async def test_invoke_actuator_deploy_cognitive_swarm() -> None:
 async def test_invoke_actuator_establish_federated_link() -> None:
     arguments = {
         "target_mesh_id": "mesh_123",
-        "auth_token": "token",  # nosec B105
+        "auth_token": "token",
     }
-    with (
-        patch(
-            "coreason_ecosystem.gateway.master_mcp.FederatedSecurityMacroManifest.model_validate"
-        ),
-        patch(
-            "coreason_ecosystem.gateway.master_mcp.sync.establish_federated_link",
-            new_callable=AsyncMock,
-            create=True,
-        ) as mock_sync,
-    ):
-        result = await invoke_actuator(
-            name="establish_federated_link", arguments=arguments
-        )
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.FederatedSecurityMacroManifest.model_validate"
+    ) as mock_val, patch(
+        "coreason_ecosystem.gateway.master_mcp.sync.establish_federated_link",
+        new_callable=AsyncMock,
+        create=True,
+    ) as mock_sync:
+        result = await invoke_actuator(name="establish_federated_link", arguments=arguments)
         assert len(result) == 1
         assert "establish_federated_link" in result[0].text
         mock_sync.assert_called_once()
@@ -390,16 +380,13 @@ async def test_invoke_actuator_inject_chaos_fault() -> None:
         "fault_type": "network_partition",
         "duration_seconds": 60,
     }
-    with (
-        patch(
-            "coreason_ecosystem.gateway.master_mcp.ChaosExperimentTask.model_validate"
-        ),
-        patch(
-            "coreason_ecosystem.gateway.master_mcp.pulumi_actuator.inject_chaos_fault",
-            new_callable=AsyncMock,
-            create=True,
-        ) as mock_chaos,
-    ):
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.ChaosExperimentTask.model_validate"
+    ) as mock_val, patch(
+        "coreason_ecosystem.gateway.master_mcp.pulumi_actuator.inject_chaos_fault",
+        new_callable=AsyncMock,
+        create=True,
+    ) as mock_chaos:
         result = await invoke_actuator(name="inject_chaos_fault", arguments=arguments)
         assert len(result) == 1
         assert "inject_chaos_fault" in result[0].text
