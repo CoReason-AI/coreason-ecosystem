@@ -71,19 +71,41 @@ def compute_schema_seal(schema: dict[str, Any]) -> str:
 
 @app.on_event("startup")
 async def _hydrate_registry() -> None:
-    """Hydrate the capability registry from the matrix file and passive discovery on startup."""
+    """Hydrate the capability registry utilizing Hierarchical Path Resolution.
+
+    Primary Resolution: Constructs a Path object using the COREASON_REGISTRY_PATH
+    environment variable, defaulting to the physical production mount at
+    /mnt/coreason-state/registry/compiled_matrix.json. If the file exists, it
+    invokes the strict JSON hydration protocol.
+
+    Fallback Resolution: If the primary mount is absent, gracefully falls back
+    to the local developer path at infrastructure/local/capabilities.matrix.yaml
+    and invokes the legacy YAML hydration protocol.
+
+    Strict Fail-Fast Degradation: If neither the primary JSON path nor the
+    fallback YAML path resolves, a fatal RuntimeError("Epistemic routing table missing.")
+    is raised to instantly crash the boot sequence, strictly preventing the
+    swarm from booting blind.
+    """
+    import os
     from pathlib import Path
 
     await registry.initialize()
 
-    json_path = Path.cwd() / "compiled_matrix.json"
-    yaml_path = Path.cwd() / "capabilities.matrix.yaml"
+    primary_path = Path(
+        os.environ.get(
+            "COREASON_REGISTRY_PATH",
+            "/mnt/coreason-state/registry/compiled_matrix.json",
+        )
+    )
+    fallback_path = Path("infrastructure/local/capabilities.matrix.yaml")
 
-    if json_path.exists():
-        # Will inherently hard-crash on JSONDecodeError or ValidationError
-        await registry.hydrate_from_compiled_matrix(json_path)
+    if primary_path.exists():
+        await registry.hydrate_from_compiled_matrix(primary_path)
+    elif fallback_path.exists():
+        await registry.hydrate_from_matrix(fallback_path)
     else:
-        await registry.hydrate_from_matrix(yaml_path)
+        raise RuntimeError("Epistemic routing table missing.")
 
     await registry.scan_action_space_modules()
 

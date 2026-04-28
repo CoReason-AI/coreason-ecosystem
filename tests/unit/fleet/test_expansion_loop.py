@@ -26,7 +26,6 @@ def _seeded_registry() -> SovereignMCPRegistry:
 
     registry = SovereignMCPRegistry()
     registry._get_state = AsyncMock(  # type: ignore[method-assign]
-        
         return_value={
             TREASURY_URN: {
                 "endpoint": "http://treasury-mcp:8000",
