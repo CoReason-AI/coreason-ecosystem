@@ -186,7 +186,13 @@ class PulumiActuator:
     async def execute_thermodynamic_guillotine(
         self, assessment: "ThermodynamicAssessment"
     ) -> None:
-        """Physically sever all kinetic nodes if VFE limits are breached."""
+        """Physically sever all kinetic nodes if VFE limits are breached.
+
+        The termination sequence aggregates all active instances into an
+        asynchronous gathering pipeline with a strict temporal limit (600 seconds)
+        and exception tolerance to prevent localized faults from disrupting global
+        economic deceleration closures.
+        """
         if not assessment.threshold_breached:
             return
 
@@ -199,9 +205,26 @@ class PulumiActuator:
         active_stacks = await self.reconcile_state()
         from typing import cast
 
-        for stack in active_stacks:
-            try:
-                provider_val = cast(Literal["aws", "vast"], stack["provider"])
-                await self.destroy_node(stack["stack_name"], provider_val)
-            except Exception as e:
-                logger.error(f"Failed to sever node {stack['stack_name']}: {e}")
+        coroutines = [
+            self.destroy_node(
+                stack["stack_name"], cast(Literal["aws", "vast"], stack["provider"])
+            )
+            for stack in active_stacks
+        ]
+
+        if not coroutines:
+            return
+
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*coroutines, return_exceptions=True), timeout=600.0
+            )
+            for stack, result in zip(active_stacks, results):
+                if isinstance(result, Exception):
+                    logger.error(
+                        f"Failed to sever node {stack['stack_name']}: {result}"
+                    )
+        except asyncio.TimeoutError:
+            logger.error(
+                "Thermodynamic guillotine bounds breached. Actuation timed out after 600.0s."
+            )
