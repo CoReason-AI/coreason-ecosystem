@@ -3,6 +3,17 @@ version: '3.9'
 services:
   postgres:
     image: postgres:15
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: '1G'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - pg_data:/var/lib/postgresql/data
     networks:
@@ -10,18 +21,36 @@ services:
 
   temporal:
     image: temporalio/auto-setup
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: '2G'
+    healthcheck:
+      test: ["CMD-SHELL", "temporal operator cluster health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - swarm-mesh
 
   coreason-runtime:
     image: ghcr.io/coreason/coreason-runtime:latest
+    restart: on-failure
     deploy:
       resources:
         limits:
           cpus: '${RUNTIME_CPUS:-2.0}'
           memory: '${RUNTIME_MEMORY:-4G}'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     environment:
       - EPISTEMIC_MERKLE_ROOT=${EPISTEMIC_MERKLE_ROOT}
     ports:
@@ -32,11 +61,33 @@ services:
 
   prometheus:
     image: prom/prometheus
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '1G'
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - swarm-mesh
 
   grafana:
     image: grafana/grafana
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '1G'
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "3000:3000"
     networks:
@@ -44,6 +95,17 @@ services:
 
   envoy:
     image: envoyproxy/envoy:v1.30-latest
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: '1G'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9901/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
     ports:
@@ -52,15 +114,22 @@ services:
       - swarm-mesh
       - sensory-gateway
     depends_on:
-      - coreason-master-gateway
+      coreason-master-gateway:
+        condition: service_healthy
 
   coreason-master-gateway:
     image: ghcr.io/coreason/coreason-master-gateway:latest
+    restart: on-failure
     deploy:
       resources:
         limits:
           cpus: '${GATEWAY_CPUS:-1.0}'
           memory: '${GATEWAY_MEMORY:-2G}'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     environment:
       - COREASON_NEO4J_URI=${COREASON_NEO4J_URI:-bolt://neo4j:7687}
       - COREASON_MILVUS_URI=${COREASON_MILVUS_URI:-http://milvus:19530}
@@ -71,12 +140,26 @@ services:
       - swarm-mesh
       - sensory-gateway
     depends_on:
-      - coreason-runtime
-      - neo4j
-      - milvus
+      coreason-runtime:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
 
   milvus:
     image: milvusdb/milvus:v2.3.0
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '4G'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9091/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["milvus", "run", "standalone"]
     environment:
       ETCD_USE_EMBED: "true"
@@ -90,6 +173,17 @@ services:
 
   neo4j:
     image: neo4j:5.12
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: '2G'
+    healthcheck:
+      test: ["CMD-SHELL", "wget http://localhost:7474/ -O - > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     environment:
       NEO4J_AUTH: ${NEO4J_AUTH:-none}
     volumes:

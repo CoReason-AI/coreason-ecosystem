@@ -27,10 +27,11 @@ def driver_caching(tmp_templates_dir_caching: Path) -> PulumiActuator:
 async def test_reconcile_state_caching_hit(driver_caching: PulumiActuator) -> None:
     """Positive test: Second call should return cached result without hitting Pulumi."""
     # First call - cache miss
-    with patch(
-        "coreason_ecosystem.fleet.pulumi_actuator.auto.LocalWorkspace"
-    ) as mock_workspace, patch(
-        "coreason_ecosystem.fleet.pulumi_actuator.auto.select_stack"
+    with (
+        patch(
+            "coreason_ecosystem.fleet.pulumi_actuator.auto.LocalWorkspace"
+        ) as mock_workspace,
+        patch("coreason_ecosystem.fleet.pulumi_actuator.auto.select_stack"),
     ):
         mock_ws_instance = MagicMock()
         mock_stack1 = MagicMock()
@@ -59,10 +60,11 @@ async def test_reconcile_state_caching_hit(driver_caching: PulumiActuator) -> No
 @pytest.mark.asyncio
 async def test_reconcile_state_ttl_expiration(driver_caching: PulumiActuator) -> None:
     """Boundary test: 600.0s TTL expires, forcing a hard refresh."""
-    with patch(
-        "coreason_ecosystem.fleet.pulumi_actuator.auto.LocalWorkspace"
-    ) as mock_workspace, patch(
-        "coreason_ecosystem.fleet.pulumi_actuator.auto.select_stack"
+    with (
+        patch(
+            "coreason_ecosystem.fleet.pulumi_actuator.auto.LocalWorkspace"
+        ) as mock_workspace,
+        patch("coreason_ecosystem.fleet.pulumi_actuator.auto.select_stack"),
     ):
         mock_ws = MagicMock()
         mock_workspace.return_value = mock_ws

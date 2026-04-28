@@ -130,6 +130,32 @@ async def execute_up() -> None:
         console=console,
         transient=False,
     ) as progress:
+        task_teardown = progress.add_task(
+            "[cyan]Executing Targeted Host Cleanup...[/cyan]", total=None
+        )
+        proc = await asyncio.create_subprocess_exec(
+            "docker",
+            "compose",
+            "-f",
+            compose_path_str,
+            "down",
+            "-v",
+            "--remove-orphans",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            console.print(
+                f"[red]Error during host cleanup:[/red]\n{stderr.decode('utf-8')}"
+            )
+            raise typer.Exit(1)
+        progress.update(
+            task_teardown,
+            description="[green]✓ Cleaned dangling volumes and networks[/green]",
+            completed=True,
+        )
+
         task_postgres = progress.add_task(
             "[cyan]Binding Epistemic Ledger...[/cyan]", total=None
         )

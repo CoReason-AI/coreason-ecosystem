@@ -18,7 +18,10 @@ from coreason_ecosystem.cli import app
 runner = CliRunner()
 
 
-@patch("coreason_ecosystem.orchestration.sync.detect_and_heal_drift", new_callable=AsyncMock)
+@patch(
+    "coreason_ecosystem.orchestration.sync.detect_and_heal_drift",
+    new_callable=AsyncMock,
+)
 @patch("coreason_ecosystem.orchestration.sync.execute_build", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.sync.Path.exists")
 @patch(
@@ -65,7 +68,10 @@ def test_sync_command(
     assert mock_sub_exec.call_count >= 1
 
 
-@patch("coreason_ecosystem.orchestration.sync.detect_and_heal_drift", new_callable=AsyncMock)
+@patch(
+    "coreason_ecosystem.orchestration.sync.detect_and_heal_drift",
+    new_callable=AsyncMock,
+)
 @patch("coreason_ecosystem.orchestration.sync.execute_build", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.sync.Path.exists")
 @patch(

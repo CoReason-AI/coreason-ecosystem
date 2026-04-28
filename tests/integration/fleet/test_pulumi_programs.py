@@ -37,11 +37,9 @@ def test_aws_spot_deployment_logic() -> None:
     )
 
     # Test the deployment logic by importing the module
-    import infrastructure.ephemeral.aws_spot.__main__ as aws_spot_module
+    import infrastructure.ephemeral.aws_spot.__main__ as aws_spot_module  # type: ignore
 
     def check_instance_type(args: list[str]) -> None:
         assert args[0] == "t3.micro"
 
-    pulumi.Output.all(aws_spot_module.instance.instance_type).apply(
-        check_instance_type
-    )
+    pulumi.Output.all(aws_spot_module.instance.instance_type).apply(check_instance_type)

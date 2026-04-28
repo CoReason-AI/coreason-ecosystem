@@ -244,11 +244,22 @@ class PulumiActuator:
                             stacks = workspace.list_stacks()
                             for stack in stacks:
                                 if stack.name.startswith("fleet-worker-"):
-                                    s = auto.select_stack(stack_name=stack.name, work_dir=str(provider_dir))
+                                    s = auto.select_stack(
+                                        stack_name=stack.name,
+                                        work_dir=str(provider_dir),
+                                    )
                                     outs = s.outputs()
-                                    m_type = outs["market_type"].value if "market_type" in outs else "spot"
+                                    m_type = (
+                                        outs["market_type"].value
+                                        if "market_type" in outs
+                                        else "spot"
+                                    )
                                     active_stacks.append(
-                                        {"stack_name": stack.name, "provider": provider, "market_type": m_type}
+                                        {
+                                            "stack_name": stack.name,
+                                            "provider": provider,
+                                            "market_type": m_type,
+                                        }
                                     )
                                     logger.warning(
                                         f"Orphaned stack found: {stack.name} in {provider} ({m_type})"
