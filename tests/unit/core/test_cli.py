@@ -19,26 +19,26 @@ from coreason_ecosystem.cli import app
 
 
 class CoroutineMock:
-    def __init__(self, return_value=None):
+    def __init__(self, return_value: Any = None) -> None:
         self.return_value = return_value
         self.call_count = 0
-        self.calls = []
+        self.calls: list[tuple[Any, dict[str, Any]]] = []
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         self.call_count += 1
         self.calls.append((args, kwargs))
 
-        async def _coro():
+        async def _coro() -> Any:
             if isinstance(self.return_value, Exception):
                 raise self.return_value
             return self.return_value
 
         return _coro()
 
-    def assert_called_once(self):
+    def assert_called_once(self) -> None:
         assert self.call_count == 1
 
-    def assert_called_once_with(self, *args, **kwargs):
+    def assert_called_once_with(self, *args: Any, **kwargs: Any) -> None:
         assert self.call_count == 1
         assert self.calls[0] == (args, kwargs)
 
@@ -247,7 +247,7 @@ def test_up_command(
             self.returncode = returncode
             self._communicate_ret = communicate_ret
 
-        async def communicate(self):
+        async def communicate(self) -> tuple[bytes, bytes]:
             return self._communicate_ret
 
     mock_exists.return_value = False
@@ -257,8 +257,8 @@ def test_up_command(
     result = runner.invoke(app, ["up"])
     assert result.exit_code == 0
     assert (
-        mock_exec.call_count == 4
-    )  # postgres, temporal, coreason-runtime, observability
+        mock_exec.call_count == 5
+    )  # teardown, postgres, temporal, coreason-runtime, observability
     mock_wait_postgres.assert_called_once()
     mock_wait_temporal.assert_called_once()
     mock_wait_port.assert_called_once_with(8000)
@@ -296,7 +296,7 @@ def test_up_command_failure(
             self.returncode = returncode
             self._communicate_ret = communicate_ret
 
-        async def communicate(self):
+        async def communicate(self) -> tuple[bytes, bytes]:
             return self._communicate_ret
 
     mock_exists.return_value = False
@@ -306,6 +306,33 @@ def test_up_command_failure(
     result = runner.invoke(app, ["up"])
     assert result.exit_code == 1
     assert "mocked docker failure" in result.stdout
+
+
+@patch("coreason_ecosystem.orchestration.up.Path.exists")
+@patch("coreason_ecosystem.orchestration.up.shutil.copy2")
+@patch("coreason_ecosystem.orchestration.up.asyncio.create_subprocess_exec")
+def test_up_command_teardown_failure(
+    mock_exec: Any,
+    mock_copy2: Any,
+    mock_exists: Any,
+) -> None:
+    """Test the up command fails gracefully when teardown errors out."""
+
+    class MockProc:
+        def __init__(self, returncode: int, communicate_ret: tuple[bytes, bytes]):
+            self.returncode = returncode
+            self._communicate_ret = communicate_ret
+
+        async def communicate(self) -> tuple[bytes, bytes]:
+            return self._communicate_ret
+
+    mock_exists.return_value = False
+    mock_proc = MockProc(1, (b"", b"teardown docker failure"))
+    mock_exec.return_value = mock_proc
+
+    result = runner.invoke(app, ["up"])
+    assert result.exit_code == 1
+    assert "teardown docker failure" in result.stdout
 
 
 class MockResponse:

@@ -76,7 +76,7 @@ async def wait_for_temporal(timeout: float = 60.0) -> None:
             client = await asyncio.wait_for(
                 Client.connect("localhost:7233"), timeout=2.0
             )
-            await asyncio.wait_for(client.get_cluster_info(), timeout=2.0)
+            await asyncio.wait_for(client.get_cluster_info(), timeout=2.0)  # type: ignore[attr-defined]
             return
         except Exception:
             pass
@@ -109,10 +109,10 @@ async def wait_for_port(port: int, timeout: float = 30.0) -> None:
 async def execute_up() -> None:
     """Implement Idempotent DAG Resolution for the Swarm infrastructure."""
 
-    # Resolve the compose file path dynamically
     compose_path = Path.cwd() / "infrastructure" / "local" / "compose.yaml"
+    """Resolve the compose file path dynamically."""
     if not compose_path.exists():
-        # Read the internal compose file, create dirs, and copy it
+        """Read the internal compose file, create dirs, and copy it."""
         internal_compose_path = (
             Path(__file__).parent.parent.parent.parent
             / "infrastructure"
@@ -222,8 +222,8 @@ async def execute_up() -> None:
             "[cyan]Igniting Thermodynamic Mesh...[/cyan]", total=None
         )
 
-        # The Cryptographic Handshake
         project_path = Path.cwd()
+        """The Cryptographic Handshake"""
         root_hash = await calculate_epistemic_root(project_path)
         write_registry_lock(project_path, root_hash)
 

@@ -11,6 +11,7 @@
 """Tests for the Epistemic Filter — SRB Governance Lifecycle Guillotine."""
 
 import pytest
+from typing import Any
 
 
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
@@ -25,10 +26,12 @@ from coreason_manifest.spec.ontology import (
 
 
 @pytest.fixture(autouse=True)
-def mock_registry_temporal(monkeypatch):
+def mock_registry_temporal(monkeypatch: pytest.MonkeyPatch) -> None:
     from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 
-    async def mock_update_urn(self, urn, endpoint, clearance, epistemic_status):
+    async def mock_update_urn(
+        self: Any, urn: str, endpoint: str, clearance: str, epistemic_status: str
+    ) -> None:
         if not hasattr(self, "_mock_state"):
             self._mock_state = {}
         self._mock_state[urn] = {
@@ -37,17 +40,17 @@ def mock_registry_temporal(monkeypatch):
             "epistemic_status": epistemic_status,
         }
 
-    async def mock_get_state(self):
+    async def mock_get_state(self: Any) -> dict[str, dict[str, str]]:
         if not hasattr(self, "_mock_state"):
             self._mock_state = {}
-        return self._mock_state
+        return self._mock_state  # type: ignore[no-any-return]
 
     monkeypatch.setattr(SovereignMCPRegistry, "_update_urn", mock_update_urn)
     monkeypatch.setattr(SovereignMCPRegistry, "_get_state", mock_get_state)
 
     original_init = SovereignMCPRegistry.__init__
 
-    def new_init(self, *args, **kwargs):
+    def new_init(self: Any, *args: Any, **kwargs: Any) -> None:
         original_init(self, *args, **kwargs)
         self._mock_state = {}
 
@@ -60,7 +63,7 @@ def populated_registry() -> SovereignMCPRegistry:
     registry = SovereignMCPRegistry()
 
     # Directly inject cache entries to avoid needing a YAML file.
-    registry._mock_state = {
+    registry._mock_state = {  # type: ignore[attr-defined]
         "urn:coreason:oracle:medical_kg": {
             "endpoint": "http://neo4j-mcp:8000",
             "clearance": "PUBLIC",
@@ -93,7 +96,7 @@ def epistemic_filter(populated_registry: SovereignMCPRegistry) -> EpistemicTrans
 
 def _all_urns(registry: SovereignMCPRegistry) -> dict[str, str]:
     """Shortcut to resolve all URNs → endpoints."""
-    return {urn: data["endpoint"] for urn, data in registry._mock_state.items()}
+    return {urn: data["endpoint"] for urn, data in registry._mock_state.items()}  # type: ignore[attr-defined]
 
 
 class TestEpistemicTransmuterDRAFT:

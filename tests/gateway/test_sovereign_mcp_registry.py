@@ -12,6 +12,7 @@
 
 import warnings
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -20,8 +21,10 @@ from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegist
 
 
 @pytest.fixture(autouse=True)
-def mock_registry_temporal(monkeypatch):
-    async def mock_update_urn(self, urn, endpoint, clearance, epistemic_status):
+def mock_registry_temporal(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def mock_update_urn(
+        self: Any, urn: str, endpoint: str, clearance: str, epistemic_status: str
+    ) -> None:
         if not hasattr(self, "_mock_state"):
             self._mock_state = {}
         self._mock_state[urn] = {
@@ -30,10 +33,10 @@ def mock_registry_temporal(monkeypatch):
             "epistemic_status": epistemic_status,
         }
 
-    async def mock_get_state(self):
+    async def mock_get_state(self: Any) -> dict[str, dict[str, str]]:
         if not hasattr(self, "_mock_state"):
             self._mock_state = {}
-        return self._mock_state
+        return self._mock_state  # type: ignore[no-any-return]
 
     monkeypatch.setattr(SovereignMCPRegistry, "_update_urn", mock_update_urn)
     monkeypatch.setattr(SovereignMCPRegistry, "_get_state", mock_get_state)
@@ -41,7 +44,7 @@ def mock_registry_temporal(monkeypatch):
     # Initialize _mock_state for tests that instantiate directly
     original_init = SovereignMCPRegistry.__init__
 
-    def new_init(self, *args, **kwargs):
+    def new_init(self: Any, *args: Any, **kwargs: Any) -> None:
         original_init(self, *args, **kwargs)
         self._mock_state = {}
 
@@ -88,7 +91,7 @@ class TestScanActionSpaceModules:
         registry = SovereignMCPRegistry()
         count = await registry.scan_action_space_modules([scan_dir])
         assert count == 0
-        assert len(registry._mock_state) == 0
+        assert len(registry._mock_state) == 0  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
     async def test_nonexistent_directory(self, tmp_path: Path) -> None:
@@ -111,7 +114,7 @@ class TestScanActionSpaceModules:
         registry = SovereignMCPRegistry()
         count = await registry.scan_action_space_modules([scan_dir])
         assert count == 1
-        assert "urn:coreason:archetype_b:tools:probe" in registry._mock_state
+        assert "urn:coreason:archetype_b:tools:probe" in registry._mock_state  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
     async def test_rejects_invalid_prefix(self, tmp_path: Path) -> None:
@@ -127,7 +130,7 @@ class TestScanActionSpaceModules:
         registry = SovereignMCPRegistry()
         count = await registry.scan_action_space_modules([scan_dir])
         assert count == 0
-        assert len(registry._mock_state) == 0
+        assert len(registry._mock_state) == 0  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
     async def test_skips_syntax_error_files(self, tmp_path: Path) -> None:
@@ -153,7 +156,7 @@ class TestScanActionSpaceModules:
         )
 
         registry = SovereignMCPRegistry()
-        registry._mock_state["urn:coreason:archetype_b:tools:duplicate"] = {
+        registry._mock_state["urn:coreason:archetype_b:tools:duplicate"] = {  # type: ignore[attr-defined]
             "endpoint": "http://existing:8000",
             "clearance": "PUBLIC",
             "epistemic_status": "PUBLISHED",
@@ -162,7 +165,7 @@ class TestScanActionSpaceModules:
         assert count == 0
         # Original cache entry preserved
         assert (
-            registry._mock_state["urn:coreason:archetype_b:tools:duplicate"]["endpoint"]
+            registry._mock_state["urn:coreason:archetype_b:tools:duplicate"]["endpoint"]  # type: ignore[attr-defined]
             == "http://existing:8000"
         )
 
@@ -193,7 +196,7 @@ class TestScanActionSpaceModules:
         registry = SovereignMCPRegistry()
         count = await registry.scan_action_space_modules([scan_dir])
         assert count == 1
-        assert "urn:coreason:archetype_b:tools:test" in registry._mock_state
+        assert "urn:coreason:archetype_b:tools:test" in registry._mock_state  # type: ignore[attr-defined]
 
 
 class TestLegacyURNDeprecationWarnings:

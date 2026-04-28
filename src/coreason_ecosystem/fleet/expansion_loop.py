@@ -39,15 +39,16 @@ from pathlib import Path
 import asyncio
 from typing import Literal
 
-# Hardware threshold (approx 10,000,000,000 Gwei / ~10 ETH at historical rates)
 HARDWARE_NODE_COST_GWEI = 10_000_000_000
+"""Hardware threshold (approx 10,000,000,000 Gwei / ~10 ETH at historical rates)."""
+
 SAFETY_MARGIN_GWEI = 2_000_000_000
 
-# Polling cadence for the expansion daemon.
 DEFAULT_POLLING_INTERVAL_SEC = 30.0
+"""Polling cadence for the expansion daemon."""
 
-# URN for the Sovereign Treasury MCP.
 TREASURY_URN = "urn:coreason:state:treasury"
+"""URN for the Sovereign Treasury MCP."""
 
 
 async def von_neumann_expansion_daemon(

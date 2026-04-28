@@ -181,8 +181,7 @@ async def test_up_wait_for_port() -> None:
     ):
         mock_writer = AsyncMock()
         wait_for_mock.return_value = (AsyncMock(), mock_writer)
-        res = await wait_for_port(8000, timeout=1.0)
-        assert res is None
+        await wait_for_port(8000, timeout=1.0)
         mock_writer.close.assert_called_once()
 
 
