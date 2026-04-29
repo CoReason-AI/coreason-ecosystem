@@ -34,8 +34,7 @@ async def wait_for_postgres(compose_path_str: str, timeout: float = 60.0) -> Non
     delay = 1.0
     while elapsed < timeout:
         proc = await asyncio.create_subprocess_exec(
-            "docker",
-            "compose",
+            "docker-compose",
             "-f",
             compose_path_str,
             "exec",
@@ -76,7 +75,6 @@ async def wait_for_temporal(timeout: float = 60.0) -> None:
             client = await asyncio.wait_for(
                 Client.connect("localhost:7233"), timeout=2.0
             )
-            await asyncio.wait_for(client.get_cluster_info(), timeout=2.0)  # type: ignore[attr-defined]
             return
         except Exception:
             pass
@@ -137,8 +135,7 @@ async def execute_up() -> None:
             "[cyan]Executing Targeted Host Cleanup...[/cyan]", total=None
         )
         proc = await asyncio.create_subprocess_exec(
-            "docker",
-            "compose",
+            "docker-compose",
             "-f",
             compose_path_str,
             "down",
@@ -163,8 +160,7 @@ async def execute_up() -> None:
             "[cyan]Binding Epistemic Ledger...[/cyan]", total=None
         )
         proc = await asyncio.create_subprocess_exec(
-            "docker",
-            "compose",
+            "docker-compose",
             "-f",
             compose_path_str,
             "up",
@@ -194,8 +190,7 @@ async def execute_up() -> None:
             "[cyan]Igniting Orchestrator Fabric...[/cyan]", total=None
         )
         proc = await asyncio.create_subprocess_exec(
-            "docker",
-            "compose",
+            "docker-compose",
             "-f",
             compose_path_str,
             "up",
@@ -233,8 +228,7 @@ async def execute_up() -> None:
         env["EPISTEMIC_MERKLE_ROOT"] = root_hash
 
         proc = await asyncio.create_subprocess_exec(
-            "docker",
-            "compose",
+            "docker-compose",
             "-f",
             compose_path_str,
             "up",
@@ -268,8 +262,7 @@ async def execute_up() -> None:
             total=None,
         )
         proc = await asyncio.create_subprocess_exec(
-            "docker",
-            "compose",
+            "docker-compose",
             "-f",
             compose_path_str,
             "up",
