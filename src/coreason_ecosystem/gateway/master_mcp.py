@@ -251,13 +251,15 @@ async def federated_discovery(arguments: dict[str, Any]) -> str:
     Returns:
         JSON serialized string containing the list of physical boundaries
         and their cryptographically signed tokens.
+
+    Note:
+        We apply epistemic filter constraints just like the old loop.
     """
     manifest = FederatedDiscoveryIntent.model_validate(arguments)
     clearance = current_clearance.get()
 
     discovered = await registry.discover_active_substrates(agent_clearance=clearance)
 
-    """We apply epistemic filter constraints just like the old loop"""
     discovered = await epistemic_transmuter.project_capabilities(
         available_urns=discovered,
     )

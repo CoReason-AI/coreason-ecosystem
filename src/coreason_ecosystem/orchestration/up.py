@@ -107,12 +107,15 @@ async def wait_for_port(port: int, timeout: float = 30.0) -> None:
 
 
 async def execute_up() -> None:
-    """Implement Idempotent DAG Resolution for the Swarm infrastructure."""
+    """Implement Idempotent DAG Resolution for the Swarm infrastructure.
+
+    This routine dynamically resolves the compose file path, synthesizes
+    internal directory structures, and executes the Epistemic Cryptographic
+    Handshake to bind the Merkle Root to the Temporal orchestrator.
+    """
 
     compose_path = Path.cwd() / "infrastructure" / "local" / "compose.yaml"
-    """Resolve the compose file path dynamically."""
     if not compose_path.exists():
-        """Read the internal compose file, create dirs, and copy it."""
         internal_compose_path = (
             Path(__file__).parent.parent.parent.parent
             / "infrastructure"
@@ -223,7 +226,6 @@ async def execute_up() -> None:
         )
 
         project_path = Path.cwd()
-        """The Cryptographic Handshake"""
         root_hash = await calculate_epistemic_root(project_path)
         write_registry_lock(project_path, root_hash)
 

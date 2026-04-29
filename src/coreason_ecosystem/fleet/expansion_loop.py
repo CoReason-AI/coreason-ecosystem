@@ -83,6 +83,10 @@ async def von_neumann_expansion_daemon(
         oracle: The PricingOracle for dynamic hardware profile resolution.
         max_budget_hr: Maximum hourly budget for compute provisioning.
         polling_interval_sec: Seconds between polling iterations.
+
+    Note:
+        The variance delta calculation enforces a minimum boundary
+        to ensure valid physical bounds.
     """
     try:
         treasury_endpoint = await registry.resolve_urn(TREASURY_URN)
@@ -112,7 +116,6 @@ async def von_neumann_expansion_daemon(
             provisioned_vram = sum(
                 stack.get("vram_capacity", 0) for stack in active_stacks
             )
-            """enforce minimum boundary"""
             delta_vram = max(required_vram - provisioned_vram, 1.0)
 
             assessment = await assess_thermodynamic_expenditure(

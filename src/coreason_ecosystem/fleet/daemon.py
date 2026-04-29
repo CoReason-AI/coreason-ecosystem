@@ -65,15 +65,20 @@ class AutonomicFleetManager:
         self._background_tasks: set[asyncio.Task[Any]] = set()
 
     async def start(self) -> None:
+        """Initiate the autonomic execution loop.
+
+        Continuously polls the topological state. If β₀ (connected components
+        stored in coreason_active_agents_total) > 0, the daemon executes
+        scale-up logic by mapping Delta VRAM to the SpatialHardwareProfile.
+        If β₀ == 0, it executes scale-to-zero teardown logic.
+        """
         self._running = True
         logger.info("Starting Autonomic Fleet Manager...")
 
         while self._running:
             try:
-                """Poll the topological state"""
                 await self.monitor._poll_workflows()
 
-                """β₀ (connected components) is stored in coreason_active_agents_total"""
                 betti_0 = coreason_active_agents_total._value.get()
 
                 logger.debug(f"Topological state: β₀={betti_0}")
@@ -87,7 +92,6 @@ class AutonomicFleetManager:
                 delta = required_vram - provisioned_vram
 
                 if delta > 0:
-                    """Active workflow components — provision compute."""
                     profile = HardwareProfile(
                         min_vram_gb=delta, provider_whitelist=["aws", "vast"]
                     )
@@ -136,7 +140,6 @@ class AutonomicFleetManager:
                             "No viable bids found under budget for current requirements."
                         )
                 elif betti_0 == 0 and self.pending_provisions == 0:
-                    """Scale Down Logic"""
                     if active_stacks:
                         target = active_stacks[0]
                         stack_to_destroy = target["stack_name"]
