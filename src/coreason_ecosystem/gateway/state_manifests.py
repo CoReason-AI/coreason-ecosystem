@@ -69,3 +69,34 @@ class OntologicalNormalizationIntent(BaseModel):
         str,
         StringConstraints(max_length=2000, pattern=r"^urn:coreason:ontology:.*$"),
     ]
+
+
+class CapabilityEntry(BaseModel):
+    """
+    State Space Formalization: Strict capability graph mapping.
+    """
+
+    urn: Annotated[
+        str,
+        StringConstraints(
+            max_length=2000,
+            pattern=r"^urn:coreason:(actionspace|archetype_[a-d]|oracle|state):.*$",
+        ),
+    ] = Field(description="The unique semantic identifier for the node.")
+    endpoint: str = Field(description="The physical routing URI endpoint.")
+    clearance: Literal["PUBLIC", "CONFIDENTIAL", "RESTRICTED"] = Field(
+        default="RESTRICTED", description="The required security clearance."
+    )
+    epistemic_status: Literal[
+        "DRAFT", "SRB_APPROVED", "CLIENT_APPROVED", "PUBLISHED"
+    ] = Field(default="DRAFT", description="The node's SRB governance lifecycle phase.")
+
+
+class CapabilityMatrix(BaseModel):
+    """
+    Memory Substrate Instantiation mapping for the Registry.
+    """
+
+    capabilities: list[CapabilityEntry] = Field(
+        default_factory=list, description="List of initialized capability bounds."
+    )

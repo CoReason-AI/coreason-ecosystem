@@ -72,9 +72,7 @@ async def wait_for_temporal(timeout: float = 60.0) -> None:
     delay = 1.0
     while elapsed < timeout:
         try:
-            client = await asyncio.wait_for(
-                Client.connect("localhost:7233"), timeout=2.0
-            )
+            await asyncio.wait_for(Client.connect("localhost:7233"), timeout=2.0)
             return
         except Exception:
             pass
@@ -233,6 +231,9 @@ async def execute_up() -> None:
             compose_path_str,
             "up",
             "-d",
+            "--build",
+            "-V",
+            "--force-recreate",
             "coreason-runtime",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

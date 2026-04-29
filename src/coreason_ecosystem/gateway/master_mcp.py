@@ -99,7 +99,7 @@ async def _hydrate_registry() -> None:
             "/mnt/coreason-state/registry/compiled_matrix.json",
         )
     )
-    fallback_path = Path("infrastructure/local/capabilities.matrix.yaml")
+    fallback_path = Path("config/capabilities.matrix.yaml")
 
     if primary_path.exists():
         await registry.hydrate_from_compiled_matrix(primary_path)

@@ -118,12 +118,14 @@ async def execute_sync() -> None:
         env["EPISTEMIC_MERKLE_ROOT"] = root_hash
 
         process = await asyncio.create_subprocess_exec(
-            docker_bin,
-            "compose",
+            "docker-compose",
             "-f",
             str(compose_path.resolve()),
             "up",
             "-d",
+            "--build",
+            "-V",
+            "--force-recreate",
             "coreason-runtime",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

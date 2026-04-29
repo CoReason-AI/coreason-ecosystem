@@ -163,9 +163,10 @@ class SovereignMCPRegistry:
             FileNotFoundError: If the matrix file does not exist.
         """
         import yaml
+        from coreason_ecosystem.gateway.state_manifests import CapabilityMatrix
 
         if matrix_path is None:
-            matrix_path = Path.cwd() / "capabilities.matrix.yaml"
+            matrix_path = Path.cwd() / "config" / "capabilities.matrix.yaml"
 
         if not matrix_path.exists():
             logger.warning(
@@ -175,28 +176,28 @@ class SovereignMCPRegistry:
             return
 
         raw = yaml.safe_load(matrix_path.read_text(encoding="utf-8"))
-        capabilities: list[dict[str, Any]] = raw.get("capabilities", [])
+        matrix = CapabilityMatrix.model_validate(raw)
 
         count = 0
-        for entry in capabilities:
-            urn = entry.get("urn", "")
-            endpoint = entry.get("endpoint", "")
-            clearance = entry.get("clearance", "RESTRICTED")
-            epistemic_status = entry.get("epistemic_status", "DRAFT")
-            if urn and endpoint:
-                match urn.split(":"):
-                    case ["urn", "coreason", "oracle" | "state", *_]:
-                        warnings.warn(
-                            f"Legacy URN prefix detected: '{urn}'. "
-                            "'oracle:' and 'state:' are deprecated in favor of 'archetype_*'.",
-                            DeprecationWarning,
-                            stacklevel=2,
-                        )
-                    case _:
-                        pass
+        for entry in matrix.capabilities:
+            urn = entry.urn
+            endpoint = entry.endpoint
+            clearance = entry.clearance
+            epistemic_status = entry.epistemic_status
 
-                await self._update_urn(urn, endpoint, clearance, epistemic_status)
-                count += 1
+            match urn.split(":"):
+                case ["urn", "coreason", "oracle" | "state", *_]:
+                    warnings.warn(
+                        f"Legacy URN prefix detected: '{urn}'. "
+                        "'oracle:' and 'state:' are deprecated in favor of 'archetype_*'.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                case _:
+                    pass
+
+            await self._update_urn(urn, endpoint, clearance, epistemic_status)
+            count += 1
 
         logger.info(f"Hydrated {count} capabilities from {matrix_path.name}")
 
