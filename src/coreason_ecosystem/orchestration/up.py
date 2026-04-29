@@ -22,6 +22,8 @@ from coreason_ecosystem.orchestration.registry import (
     calculate_epistemic_root,
     write_registry_lock,
 )
+from coreason_manifest.spec.ontology import CognitiveSwarmDeploymentManifest
+from loguru import logger
 
 
 async def wait_for_postgres(compose_path_str: str, timeout: float = 60.0) -> None:
@@ -284,3 +286,14 @@ async def execute_up() -> None:
             description="[green]✓ Observability ACTIVE (Grafana: 3000)[/green]",
             completed=True,
         )
+
+
+async def provision_swarm_topology(manifest: CognitiveSwarmDeploymentManifest) -> None:
+    """Provision a cognitive swarm topology based on the deployment manifest.
+
+    Executes the thermodynamic provisioning (local swarm via execute_up).
+    """
+    logger.info(
+        f"[Thermodynamic Actuator] Provisioning swarm: {manifest.swarm_objective_prompt} with {manifest.agent_node_count} agents."
+    )
+    await execute_up()
