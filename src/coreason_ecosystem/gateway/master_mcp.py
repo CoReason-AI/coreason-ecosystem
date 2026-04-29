@@ -18,6 +18,8 @@ from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegist
 from coreason_ecosystem.gateway.state_manifests import (
     FederatedDiscoveryIntent,
 )
+from coreason_ecosystem.orchestration import up, sync
+from coreason_ecosystem.fleet import pulumi_actuator
 from coreason_manifest.spec.ontology import (
     ChaosExperimentTask,
     CognitiveSwarmDeploymentManifest,
@@ -208,10 +210,25 @@ async def invoke_actuator(
         res_text = await federated_discovery(arguments)
         return [types.TextContent(type="text", text=res_text)]
 
+    if name == "deploy_cognitive_swarm":
+        manifest_swarm = CognitiveSwarmDeploymentManifest.model_validate(arguments)
+        await up.provision_swarm_topology(manifest_swarm)
+        return [types.TextContent(type="text", text="deploy_cognitive_swarm executed successfully")]
+
+    if name == "establish_federated_link":
+        manifest_link = FederatedSecurityMacroManifest.model_validate(arguments)
+        await sync.establish_federated_link(manifest_link)
+        return [types.TextContent(type="text", text="establish_federated_link executed successfully")]
+
+    if name == "inject_chaos_fault":
+        manifest_chaos = ChaosExperimentTask.model_validate(arguments)
+        await pulumi_actuator.inject_chaos_fault(manifest_chaos)
+        return [types.TextContent(type="text", text="inject_chaos_fault executed successfully")]
+
     try:
         physical_endpoint = await registry.resolve_urn(name)
     except KeyError:
-        raise ValueError(f"Topology fault: Tool {name} not found in active registry.")
+        raise ValueError(f"Geometrical topology fault: Tool {name} not found in active registry.")
 
     try:
         if physical_endpoint.startswith("http://") or physical_endpoint.startswith(

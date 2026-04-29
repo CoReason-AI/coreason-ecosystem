@@ -42,4 +42,4 @@ def test_aws_spot_deployment_logic() -> None:
     def check_instance_type(args: list[str]) -> None:
         assert args[0] == "t3.micro"
 
-    pulumi.Output.all(aws_spot_module.instance.instance_type).apply(check_instance_type)  # type: ignore[attr-defined]
+    pulumi.Output.all(aws_spot_module.spot_instance_request.instance_type).apply(check_instance_type)  # type: ignore[attr-defined]
