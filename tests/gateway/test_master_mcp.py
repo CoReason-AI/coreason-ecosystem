@@ -232,7 +232,7 @@ async def test_invoke_actuator_deploy_cognitive_swarm() -> None:
 async def test_invoke_actuator_establish_federated_link() -> None:
     arguments = {
         "target_mesh_id": "mesh_123",
-        "auth_token": "token",
+        "auth_token": "token",  # nosec B105
     }
     with (
         patch(
