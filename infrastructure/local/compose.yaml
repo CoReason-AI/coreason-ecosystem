@@ -10,7 +10,7 @@ services:
           cpus: '1.0'
           memory: '1G'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,21 +30,20 @@ services:
           cpus: '1.0'
           memory: '2G'
     healthcheck:
-      test: ["CMD-SHELL", "temporal operator cluster health || exit 1"]
+      test: [ "CMD-SHELL", "temporal operator cluster health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
     depends_on:
       postgres:
         condition: service_healthy
-    # --- EPISTEMIC BINDING VECTORS INJECTED HERE ---
     environment:
       - DB=postgres12
       - DB_PORT=5432
       - POSTGRES_USER=postgres
       - POSTGRES_PWD=
       - POSTGRES_SEEDS=postgres
-    # -----------------------------------------------
+      - TEMPORAL_ADDRESS=0.0.0.0:7233
     ports:
       - "7233:7233"
     networks:
@@ -60,7 +59,7 @@ services:
           cpus: '${RUNTIME_CPUS:-2.0}'
           memory: '${RUNTIME_MEMORY:-4G}'
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -81,7 +80,7 @@ services:
           cpus: '0.5'
           memory: '1G'
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider http://localhost:9090/-/healthy || exit 1"]
+      test: [ "CMD-SHELL", "wget --spider http://localhost:9090/-/healthy || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -97,7 +96,7 @@ services:
           cpus: '0.5'
           memory: '1G'
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider http://localhost:3000/api/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --spider http://localhost:3000/api/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -115,7 +114,7 @@ services:
           cpus: '1.0'
           memory: '1G'
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9901/ready || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:9901/ready || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -139,7 +138,7 @@ services:
           cpus: '${GATEWAY_CPUS:-1.0}'
           memory: '${GATEWAY_MEMORY:-2G}'
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -169,11 +168,11 @@ services:
           cpus: '2.0'
           memory: '4G'
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9091/healthz || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:9091/healthz || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    command: ["milvus", "run", "standalone"]
+    command: [ "milvus", "run", "standalone" ]
     environment:
       ETCD_USE_EMBED: "true"
       COMMON_STORAGETYPE: local
@@ -193,7 +192,7 @@ services:
           cpus: '1.0'
           memory: '2G'
     healthcheck:
-      test: ["CMD-SHELL", "wget http://localhost:7474/ -O - > /dev/null 2>&1 || exit 1"]
+      test: [ "CMD-SHELL", "wget http://localhost:7474/ -O - > /dev/null 2>&1 || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
