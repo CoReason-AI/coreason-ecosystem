@@ -43,7 +43,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PWD=
       - POSTGRES_SEEDS=postgres
-      - TEMPORAL_ADDRESS=0.0.0.0:7233
+      - BIND_ON_IP=0.0.0.0
     ports:
       - "7233:7233"
     networks:
