@@ -123,7 +123,7 @@ jobs:
         shell: bash
       - name: Dynamic Ecosystem Sync (free-threaded, skip lancedb)
         if: matrix.python-version == '3.14t-dev'
-        run: if [ -f "pyproject.toml" ]; then uv sync --dev; fi
+        run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14t --dev; fi
         shell: bash
       - name: Provision Ephemeral Orchestration Isolation
         run: temporal operator namespace create $TEMPORAL_CI_NAMESPACE
@@ -182,7 +182,7 @@ jobs:
         shell: bash
       - name: Dynamic Ecosystem Sync (free-threaded, skip lancedb)
         if: matrix.python-version == '3.14t-dev'
-        run: if [ -f "pyproject.toml" ]; then uv sync --dev; fi
+        run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14t --dev; fi
         shell: bash
       - name: Provision Ephemeral Orchestration Isolation
         run: temporal operator namespace create $TEMPORAL_CI_NAMESPACE
