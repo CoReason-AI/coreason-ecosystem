@@ -242,6 +242,26 @@ class SovereignMCPRegistry:
             # Epistemic status might not be in the strict macro manifest, extract it first
             epistemic_status = metadata.pop("epistemic_status", "DRAFT")
 
+            # Extract capability metadata fields that are not part of FederatedSecurityMacroManifest.
+            # These fields are injected by the coreason-urn-authority compile_registry.py
+            # and must be stripped before strict Pydantic validation (CoreasonBaseState extra='forbid').
+            capability_metadata: dict[str, Any] = {
+                "path": metadata.pop("path", ""),
+                "default_clearance_tiers": metadata.pop(
+                    "default_clearance_tiers", [255]
+                ),
+                "default_minimum_rigidity_tier": metadata.pop(
+                    "default_minimum_rigidity_tier", 255
+                ),
+                "provided_epistemic_security": metadata.pop(
+                    "provided_epistemic_security", "PUBLIC"
+                ),
+                "provided_vram_gb": metadata.pop("provided_vram_gb", 0),
+                "supported_remote_decoding_protocols": metadata.pop(
+                    "supported_remote_decoding_protocols", ["NONE"]
+                ),
+            }
+
             # Pass raw metadata through Pydantic schema for strict type-safety
             manifest = FederatedSecurityMacroManifest.model_validate(metadata)
 
@@ -283,6 +303,12 @@ class SovereignMCPRegistry:
                     pass
 
             await self._update_urn(urn, endpoint, clearance, epistemic_status)
+            logger.debug(
+                f"Registered capability metadata for {urn}: "
+                f"rigidity={capability_metadata['default_minimum_rigidity_tier']}, "
+                f"security={capability_metadata['provided_epistemic_security']}, "
+                f"protocols={capability_metadata['supported_remote_decoding_protocols']}"
+            )
             count += 1
 
         logger.info(f"Hydrated {count} capabilities from {json_path.name}")
