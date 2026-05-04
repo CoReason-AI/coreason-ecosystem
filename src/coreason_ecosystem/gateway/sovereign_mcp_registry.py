@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import ast
 import asyncio
+import re
 import warnings
 from pathlib import Path
 from typing import Any
@@ -49,6 +50,16 @@ _ARCHETYPE_PREFIXES = (
     "urn:coreason:archetype_b:tools:",
     "urn:coreason:archetype_c:sensory:",
     "urn:coreason:archetype_d:state:",
+)
+
+# Canonical URN regex — synchronized with ActionSpaceURNState in
+# coreason_manifest.spec.ontology.  Supports federated namespace
+# authorities (e.g. coreason, nlm, ohdsi).
+_ACTIONSPACE_URN_PATTERN = re.compile(
+    r"^urn:[a-z0-9_]+:actionspace:(oracle|solver|effector|substrate|sensory|node):[a-z0-9_]+:v[0-9]+$"
+)
+_VALID_CATEGORIES = frozenset(
+    {"oracle", "solver", "effector", "substrate", "sensory", "node"}
 )
 
 
@@ -72,13 +83,19 @@ class RegistryStateWorkflow:
 
     @workflow.signal
     def update_urn(
-        self, urn: str, endpoint: str, clearance: str, epistemic_status: str
+        self,
+        urn: str,
+        endpoint: str,
+        clearance: str,
+        epistemic_status: str,
+        content_hash: str = "",
     ) -> None:
         """Update a specific URN mapping in the state cache."""
         self._cache[urn] = {
             "endpoint": endpoint,
             "clearance": clearance,
             "epistemic_status": epistemic_status,
+            "content_hash": content_hash,
         }
 
     @workflow.query
@@ -133,7 +150,12 @@ class SovereignMCPRegistry:
             logger.info(f"Registry workflow {self._workflow_id} already running.")
 
     async def _update_urn(
-        self, urn: str, endpoint: str, clearance: str, epistemic_status: str
+        self,
+        urn: str,
+        endpoint: str,
+        clearance: str,
+        epistemic_status: str,
+        content_hash: str = "",
     ) -> None:
         """Send a signal to update the state in the Temporal workflow."""
         if not self._client:
@@ -141,7 +163,7 @@ class SovereignMCPRegistry:
         handle = self._client.get_workflow_handle(self._workflow_id)
         await handle.signal(
             RegistryStateWorkflow.update_urn,
-            args=[urn, endpoint, clearance, epistemic_status],
+            args=[urn, endpoint, clearance, epistemic_status, content_hash],
         )
 
     async def _get_state(self) -> dict[str, dict[str, str]]:
@@ -242,6 +264,29 @@ class SovereignMCPRegistry:
             # Epistemic status might not be in the strict macro manifest, extract it first
             epistemic_status = metadata.pop("epistemic_status", "DRAFT")
 
+            # Extract the content-addressed hash for zero-trust verification
+            content_hash = metadata.pop("content_hash", "")
+
+            # Extract capability metadata fields that are not part of FederatedSecurityMacroManifest.
+            # These fields are injected by the coreason-urn-authority compile_registry.py
+            # and must be stripped before strict Pydantic validation (CoreasonBaseState extra='forbid').
+            capability_metadata: dict[str, Any] = {
+                "path": metadata.pop("path", ""),
+                "default_clearance_tiers": metadata.pop(
+                    "default_clearance_tiers", [255]
+                ),
+                "default_minimum_rigidity_tier": metadata.pop(
+                    "default_minimum_rigidity_tier", 255
+                ),
+                "provided_epistemic_security": metadata.pop(
+                    "provided_epistemic_security", "PUBLIC"
+                ),
+                "provided_vram_gb": metadata.pop("provided_vram_gb", 0),
+                "supported_remote_decoding_protocols": metadata.pop(
+                    "supported_remote_decoding_protocols", ["NONE"]
+                ),
+            }
+
             # Pass raw metadata through Pydantic schema for strict type-safety
             manifest = FederatedSecurityMacroManifest.model_validate(metadata)
 
@@ -252,37 +297,38 @@ class SovereignMCPRegistry:
                 else manifest.required_clearance
             )
 
-            match urn.split(":"):
-                case ["urn", "coreason", "actionspace", category, *_] if category in {
-                    "oracle",
-                    "solver",
-                    "effector",
-                    "substrate",
-                    "sensory",
-                    "node",
-                }:
-                    pass
-                case [
-                    "urn",
-                    "coreason",
-                    "archetype_a"
-                    | "archetype_b"
-                    | "archetype_c"
-                    | "archetype_d"
-                    | "oracle"
-                    | "state",
-                    *_,
-                ]:
-                    warnings.warn(
-                        f"Legacy URN prefix detected: '{urn}'. "
-                        "This format is deprecated. Use 'urn:coreason:actionspace:{category}:{name}'.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                case _:
-                    pass
+            if _ACTIONSPACE_URN_PATTERN.match(urn):
+                pass  # Modern multi-authority actionspace URN
+            else:
+                match urn.split(":"):
+                    case [
+                        "urn",
+                        "coreason",
+                        "archetype_a"
+                        | "archetype_b"
+                        | "archetype_c"
+                        | "archetype_d"
+                        | "oracle"
+                        | "state",
+                        *_,
+                    ]:
+                        warnings.warn(
+                            f"Legacy URN prefix detected: '{urn}'. "
+                            "This format is deprecated. Use "
+                            "'urn:{{authority}}:actionspace:{{category}}:{{name}}:v{{version}}'.",
+                            DeprecationWarning,
+                            stacklevel=2,
+                        )
+                    case _:
+                        pass
 
-            await self._update_urn(urn, endpoint, clearance, epistemic_status)
+            await self._update_urn(urn, endpoint, clearance, epistemic_status, content_hash)
+            logger.debug(
+                f"Registered capability metadata for {urn}: "
+                f"rigidity={capability_metadata['default_minimum_rigidity_tier']}, "
+                f"security={capability_metadata['provided_epistemic_security']}, "
+                f"protocols={capability_metadata['supported_remote_decoding_protocols']}, "
+                f"content_hash={content_hash or 'none'}")
             count += 1
 
         logger.info(f"Hydrated {count} capabilities from {json_path.name}")
@@ -391,22 +437,21 @@ class SovereignMCPRegistry:
 
     @staticmethod
     def validate_archetype_urn(urn: str) -> None:
-        """Zero-trust URN prefix validation for newly forged action spaces.
+        """Zero-trust URN validation for newly forged action spaces.
 
-        Validates the modern actionspace taxonomy (urn:coreason:actionspace:{category}:{name})
-        while retaining legacy archetype/oracle/state prefixes under a deprecation warning
-        to prevent immediate topology severance of older containers.
+        Validates the modern multi-authority actionspace taxonomy via the
+        canonical regex pattern synchronized with ``ActionSpaceURNState``
+        in ``coreason-manifest``.  Supports federated namespace authorities
+        (e.g. ``coreason``, ``nlm``, ``ohdsi``).
+
+        Retains legacy archetype/oracle/state prefixes under a deprecation
+        warning to prevent immediate topology severance of older containers.
         """
+        if _ACTIONSPACE_URN_PATTERN.match(urn):
+            return  # Modern multi-authority actionspace URN — valid
+
+        # Legacy prefix check for backward compatibility
         match urn.split(":"):
-            case ["urn", "coreason", "actionspace", category, *_] if category in {
-                "oracle",
-                "solver",
-                "effector",
-                "substrate",
-                "sensory",
-                "node",
-            }:
-                pass
             case [
                 "urn",
                 "coreason",
@@ -420,7 +465,8 @@ class SovereignMCPRegistry:
             ]:
                 warnings.warn(
                     f"Legacy URN prefix detected: '{urn}'. "
-                    "This format is deprecated. Use 'urn:coreason:actionspace:{category}:{name}'.",
+                    "This format is deprecated. Use "
+                    "'urn:{{authority}}:actionspace:{{category}}:{{name}}:v{{version}}'.",
                     DeprecationWarning,
                     stacklevel=2,
                 )
@@ -439,7 +485,7 @@ class SovereignMCPRegistry:
         Uses Python's ``ast`` module to parse source files into Abstract Syntax
         Trees — NO module-level code is ever executed (Zero-Trust Passive
         Projection).  Extracts ``__action_space_urn__`` string assignments and
-        validates them against the ``urn:coreason:actionspace:`` prefix.
+        validates them against the canonical actionspace URN regex.
 
         Args:
             scan_dirs: Directories to scan for ``.py`` files.  Defaults to
