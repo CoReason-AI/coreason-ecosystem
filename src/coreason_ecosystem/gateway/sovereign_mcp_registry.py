@@ -29,14 +29,19 @@ immune to domain-level semantic drift.
 
 from __future__ import annotations
 
+import ast
+import asyncio
+import warnings
 from pathlib import Path
 from typing import Any
 
-import ast
-import warnings
-
 import httpx
 from loguru import logger
+from temporalio import workflow
+from temporalio.client import Client
+from temporalio.common import WorkflowIDReusePolicy
+from temporalio.exceptions import WorkflowAlreadyStartedError
+from temporalio.worker import Worker
 
 _LEGACY_URN_PREFIXES = ("urn:coreason:oracle:", "urn:coreason:state:")
 _ARCHETYPE_PREFIXES = (
@@ -45,6 +50,41 @@ _ARCHETYPE_PREFIXES = (
     "urn:coreason:archetype_c:sensory:",
     "urn:coreason:archetype_d:state:",
 )
+
+
+@workflow.defn
+class RegistryStateWorkflow:
+    """Temporal workflow to hold the routing table state.
+
+    This fulfills the decentralized registry pattern avoiding Redis/etcd dependencies
+    and utilizing Temporal's native state execution fabric.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the empty routing cache."""
+        self._cache: dict[str, dict[str, str]] = {}
+
+    @workflow.run
+    async def run(self) -> None:
+        """Keep the workflow active indefinitely to serve queries and signals."""
+        while True:
+            await workflow.wait_condition(lambda: False)
+
+    @workflow.signal
+    def update_urn(
+        self, urn: str, endpoint: str, clearance: str, epistemic_status: str
+    ) -> None:
+        """Update a specific URN mapping in the state cache."""
+        self._cache[urn] = {
+            "endpoint": endpoint,
+            "clearance": clearance,
+            "epistemic_status": epistemic_status,
+        }
+
+    @workflow.query
+    def get_state(self) -> dict[str, dict[str, str]]:
+        """Retrieve the entire registry state cache."""
+        return self._cache
 
 
 class SovereignMCPRegistry:
@@ -62,10 +102,56 @@ class SovereignMCPRegistry:
     }
 
     def __init__(self) -> None:
-        """Initialize the capability registry with an empty routing table."""
-        self._cache: dict[str, dict[str, str]] = {}
+        """Initialize the capability registry client wrapper."""
+        self._client: Client | None = None
+        self._worker: Worker | None = None
+        self._workflow_id = "sovereign-registry-workflow"
 
-    def hydrate_from_matrix(self, matrix_path: Path | None = None) -> None:
+    async def initialize(self, temporal_url: str = "localhost:7233") -> None:
+        """Connect to Temporal and spin up the routing workflow and worker."""
+        if self._client:
+            return
+
+        self._client = await Client.connect(temporal_url)
+        self._worker = Worker(
+            self._client,
+            task_queue="registry-task-queue",
+            workflows=[RegistryStateWorkflow],
+        )
+
+        # Start the worker in the background
+        asyncio.create_task(self._worker.run())
+
+        try:
+            await self._client.start_workflow(
+                RegistryStateWorkflow.run,
+                id=self._workflow_id,
+                task_queue="registry-task-queue",
+                id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
+            )
+        except WorkflowAlreadyStartedError:
+            logger.info(f"Registry workflow {self._workflow_id} already running.")
+
+    async def _update_urn(
+        self, urn: str, endpoint: str, clearance: str, epistemic_status: str
+    ) -> None:
+        """Send a signal to update the state in the Temporal workflow."""
+        if not self._client:
+            raise RuntimeError("Registry not initialized. Call initialize() first.")
+        handle = self._client.get_workflow_handle(self._workflow_id)
+        await handle.signal(
+            RegistryStateWorkflow.update_urn,
+            args=[urn, endpoint, clearance, epistemic_status],
+        )
+
+    async def _get_state(self) -> dict[str, dict[str, str]]:
+        """Query the current state from the Temporal workflow."""
+        if not self._client:
+            return {}
+        handle = self._client.get_workflow_handle(self._workflow_id)
+        return await handle.query(RegistryStateWorkflow.get_state)
+
+    async def hydrate_from_matrix(self, matrix_path: Path | None = None) -> None:
         """Hydrate the URN routing table from a ``capabilities.matrix.yaml`` file.
 
         Args:
@@ -91,6 +177,7 @@ class SovereignMCPRegistry:
         raw = yaml.safe_load(matrix_path.read_text(encoding="utf-8"))
         capabilities: list[dict[str, Any]] = raw.get("capabilities", [])
 
+        count = 0
         for entry in capabilities:
             urn = entry.get("urn", "")
             endpoint = entry.get("endpoint", "")
@@ -108,13 +195,97 @@ class SovereignMCPRegistry:
                     case _:
                         pass
 
-                self._cache[urn] = {
-                    "endpoint": endpoint,
-                    "clearance": clearance,
-                    "epistemic_status": epistemic_status,
-                }
+                await self._update_urn(urn, endpoint, clearance, epistemic_status)
+                count += 1
 
-        logger.info(f"Hydrated {len(self._cache)} capabilities from {matrix_path.name}")
+        logger.info(f"Hydrated {count} capabilities from {matrix_path.name}")
+
+    async def hydrate_from_compiled_matrix(self, json_path: Path) -> None:
+        """Hydrate the URN routing table from a compiled JSON matrix.
+
+        Implements Dynamic Endpoint Interpolation: The AST ledger does not
+        include physical endpoints. This method parses the URN geometry to
+        synthesize the `target_endpoint_uri` dynamically, converting
+        underscores to hyphens for valid DNS mapping prior to strict
+        Pydantic instance validation.
+
+        Args:
+            json_path: Path to the JSON matrix file.
+        """
+        import json
+        from coreason_manifest.spec.ontology import (
+            FederatedSecurityMacroManifest,
+            SemanticClassificationProfile,
+        )
+
+        raw = json.loads(json_path.read_text(encoding="utf-8"))
+        count = 0
+        for urn, metadata in raw.items():
+            if "target_endpoint_uri" not in metadata:
+                urn_parts = urn.split(":")
+                if len(urn_parts) >= 2:
+                    bundle_name = urn_parts[-2]
+                    dns_name = bundle_name.replace("_", "-")
+                    metadata["target_endpoint_uri"] = f"http://{dns_name}:8000"
+
+            # Coerce clearance string to Enum for Pydantic V2 strict instance checks
+            if "required_clearance" in metadata and isinstance(
+                metadata["required_clearance"], str
+            ):
+                try:
+                    metadata["required_clearance"] = SemanticClassificationProfile(
+                        metadata["required_clearance"].lower()
+                    )
+                except ValueError as e:
+                    logger.warning(f"Clearance validation failure for {urn}: {e}")
+
+            # Epistemic status might not be in the strict macro manifest, extract it first
+            epistemic_status = metadata.pop("epistemic_status", "DRAFT")
+
+            # Pass raw metadata through Pydantic schema for strict type-safety
+            manifest = FederatedSecurityMacroManifest.model_validate(metadata)
+
+            endpoint = manifest.target_endpoint_uri
+            clearance = str(
+                manifest.required_clearance.value
+                if hasattr(manifest.required_clearance, "value")
+                else manifest.required_clearance
+            )
+
+            match urn.split(":"):
+                case ["urn", "coreason", "actionspace", category, *_] if category in {
+                    "oracle",
+                    "solver",
+                    "effector",
+                    "substrate",
+                    "sensory",
+                    "node",
+                }:
+                    pass
+                case [
+                    "urn",
+                    "coreason",
+                    "archetype_a"
+                    | "archetype_b"
+                    | "archetype_c"
+                    | "archetype_d"
+                    | "oracle"
+                    | "state",
+                    *_,
+                ]:
+                    warnings.warn(
+                        f"Legacy URN prefix detected: '{urn}'. "
+                        "This format is deprecated. Use 'urn:coreason:actionspace:{category}:{name}'.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                case _:
+                    pass
+
+            await self._update_urn(urn, endpoint, clearance, epistemic_status)
+            count += 1
+
+        logger.info(f"Hydrated {count} capabilities from {json_path.name}")
 
     async def hydrate_from_discovery_port(self, discovery_url: str) -> None:
         """Hydrate the URN routing table from an upstream discovery endpoint.
@@ -149,11 +320,7 @@ class SovereignMCPRegistry:
                             )
                         case _:
                             pass
-                    self._cache[urn] = {
-                        "endpoint": endpoint,
-                        "clearance": clearance,
-                        "epistemic_status": epistemic_status,
-                    }
+                    await self._update_urn(urn, endpoint, clearance, epistemic_status)
 
             logger.info(
                 f"Hydrated {len(capabilities)} capabilities from {discovery_url}"
@@ -175,9 +342,10 @@ class SovereignMCPRegistry:
             A mapping of URN strings to physical network actionSpaceId URIs.
         """
         agent_level = self.CLEARANCE_LEVELS.get(agent_clearance, 0)
+        state = await self._get_state()
 
         masked_substrates: dict[str, str] = {}
-        for urn, data in self._cache.items():
+        for urn, data in state.items():
             required_clearance = data.get("clearance", "RESTRICTED")
             required_level = self.CLEARANCE_LEVELS.get(required_clearance, 3)
 
@@ -186,7 +354,7 @@ class SovereignMCPRegistry:
 
         return masked_substrates
 
-    def resolve_urn(self, target_urn: str) -> str:
+    async def resolve_urn(self, target_urn: str) -> str:
         """Strict physical lookup over the active substrates.
 
         Args:
@@ -198,12 +366,13 @@ class SovereignMCPRegistry:
         Raises:
             KeyError: if the target_urn is not in the registry.
         """
-        if target_urn not in self._cache:
+        state = await self._get_state()
+        if target_urn not in state:
             raise KeyError(f"Geometrical topology fault: unregistered URN {target_urn}")
 
-        return self._cache[target_urn]["endpoint"]
+        return state[target_urn]["endpoint"]
 
-    def get_epistemic_status(self, target_urn: str) -> str:
+    async def get_epistemic_status(self, target_urn: str) -> str:
         """Retrieve the SRB governance lifecycle status for a registered URN.
 
         Args:
@@ -214,7 +383,8 @@ class SovereignMCPRegistry:
             CLIENT_APPROVED, or PUBLISHED).  Defaults to ``"DRAFT"``
             if the URN is not registered.
         """
-        entry = self._cache.get(target_urn)
+        state = await self._get_state()
+        entry = state.get(target_urn)
         if entry is None:
             return "DRAFT"
         return entry.get("epistemic_status", "DRAFT")
@@ -223,25 +393,47 @@ class SovereignMCPRegistry:
     def validate_archetype_urn(urn: str) -> None:
         """Zero-trust URN prefix validation for newly forged action spaces.
 
-        Rejects any URN that does not begin with one of the canonical
-        Four Archetype prefixes.
+        Validates the modern actionspace taxonomy (urn:coreason:actionspace:{category}:{name})
+        while retaining legacy archetype/oracle/state prefixes under a deprecation warning
+        to prevent immediate topology severance of older containers.
         """
         match urn.split(":"):
+            case ["urn", "coreason", "actionspace", category, *_] if category in {
+                "oracle",
+                "solver",
+                "effector",
+                "substrate",
+                "sensory",
+                "node",
+            }:
+                pass
             case [
                 "urn",
                 "coreason",
-                "archetype_a" | "archetype_b" | "archetype_c" | "archetype_d",
+                "archetype_a"
+                | "archetype_b"
+                | "archetype_c"
+                | "archetype_d"
+                | "oracle"
+                | "state",
                 *_,
             ]:
-                pass
+                warnings.warn(
+                    f"Legacy URN prefix detected: '{urn}'. "
+                    "This format is deprecated. Use 'urn:coreason:actionspace:{category}:{name}'.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
             case _:
                 raise ValueError(
-                    f"URN Topology Breach: '{urn}' does not bear a "
-                    f"canonical Archetype prefix. "
+                    f"URN Topology Breach: '{urn}' does not conform to the "
+                    f"modern actionspace taxonomy or legacy bounds. "
                     "Rejecting hallucinated capability."
                 )
 
-    def scan_action_space_modules(self, scan_dirs: list[Path] | None = None) -> int:
+    async def scan_action_space_modules(
+        self, scan_dirs: list[Path] | None = None
+    ) -> int:
         """Passively discover assets bearing ``__action_space_urn__`` via AST parsing.
 
         Uses Python's ``ast`` module to parse source files into Abstract Syntax
@@ -260,6 +452,7 @@ class SovereignMCPRegistry:
         if scan_dirs is None:
             scan_dirs = [Path.cwd() / "action_spaces"]
 
+        state = await self._get_state()
         discovered = 0
         for scan_dir in scan_dirs:
             if not scan_dir.is_dir():
@@ -305,12 +498,10 @@ class SovereignMCPRegistry:
                                 # Register the discovered action space.
                                 # Endpoint defaults to the URN itself until
                                 # a runtime deployment resolves the physical URI.
-                                if urn_value not in self._cache:
-                                    self._cache[urn_value] = {
-                                        "endpoint": urn_value,
-                                        "clearance": "RESTRICTED",
-                                        "epistemic_status": "DRAFT",
-                                    }
+                                if urn_value not in state:
+                                    await self._update_urn(
+                                        urn_value, urn_value, "RESTRICTED", "DRAFT"
+                                    )
                                     discovered += 1
                                     logger.info(
                                         f"Passive Ontological Projection: "

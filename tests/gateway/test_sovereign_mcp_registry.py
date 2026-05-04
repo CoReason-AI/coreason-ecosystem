@@ -12,6 +12,7 @@
 
 import warnings
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -19,25 +20,60 @@ import yaml
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 
 
+@pytest.fixture(autouse=True)
+def mock_registry_temporal(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def mock_update_urn(
+        self: Any, urn: str, endpoint: str, clearance: str, epistemic_status: str
+    ) -> None:
+        if not hasattr(self, "_mock_state"):
+            self._mock_state = {}
+        self._mock_state[urn] = {
+            "endpoint": endpoint,
+            "clearance": clearance,
+            "epistemic_status": epistemic_status,
+        }
+
+    async def mock_get_state(self: Any) -> dict[str, dict[str, str]]:
+        if not hasattr(self, "_mock_state"):
+            self._mock_state = {}
+        return self._mock_state  # type: ignore[no-any-return]
+
+    monkeypatch.setattr(SovereignMCPRegistry, "_update_urn", mock_update_urn)
+    monkeypatch.setattr(SovereignMCPRegistry, "_get_state", mock_get_state)
+
+    # Initialize _mock_state for tests that instantiate directly
+    original_init = SovereignMCPRegistry.__init__
+
+    def new_init(self: Any, *args: Any, **kwargs: Any) -> None:
+        original_init(self, *args, **kwargs)
+        self._mock_state = {}
+
+    monkeypatch.setattr(SovereignMCPRegistry, "__init__", new_init)
+
+
 class TestValidateActionspaceURN:
     """Zero-trust URN prefix validation guard."""
 
-    def test_valid_urn_passes(self) -> None:
+    @pytest.mark.asyncio
+    async def test_valid_urn_passes(self) -> None:
         SovereignMCPRegistry.validate_archetype_urn(
             "urn:coreason:archetype_b:tools:probe"
         )
 
-    def test_invalid_prefix_raises(self) -> None:
+    @pytest.mark.asyncio
+    async def test_invalid_prefix_raises(self) -> None:
         with pytest.raises(ValueError, match="URN Topology Breach"):
             SovereignMCPRegistry.validate_archetype_urn(
-                "urn:coreason:oracle:clinical_extractor"
+                "urn:coreason:invalid:clinical_extractor"
             )
 
-    def test_empty_urn_raises(self) -> None:
+    @pytest.mark.asyncio
+    async def test_empty_urn_raises(self) -> None:
         with pytest.raises(ValueError, match="URN Topology Breach"):
             SovereignMCPRegistry.validate_archetype_urn("")
 
-    def test_hallucinated_urn_raises(self) -> None:
+    @pytest.mark.asyncio
+    async def test_hallucinated_urn_raises(self) -> None:
         with pytest.raises(ValueError, match="URN Topology Breach"):
             SovereignMCPRegistry.validate_archetype_urn(
                 "urn:hallucinated:fake:capability"
@@ -47,22 +83,25 @@ class TestValidateActionspaceURN:
 class TestScanActionSpaceModules:
     """AST-based Passive Ontological Projection scanner."""
 
-    def test_empty_directory(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_empty_directory(self, tmp_path: Path) -> None:
         """Empty scan dir returns 0 discovered."""
         scan_dir = tmp_path / "action_spaces"
         scan_dir.mkdir()
         registry = SovereignMCPRegistry()
-        count = registry.scan_action_space_modules([scan_dir])
+        count = await registry.scan_action_space_modules([scan_dir])
         assert count == 0
-        assert len(registry._cache) == 0
+        assert len(registry._mock_state) == 0  # type: ignore[attr-defined]
 
-    def test_nonexistent_directory(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_nonexistent_directory(self, tmp_path: Path) -> None:
         """Non-existent scan dir is silently skipped."""
         registry = SovereignMCPRegistry()
-        count = registry.scan_action_space_modules([tmp_path / "does_not_exist"])
+        count = await registry.scan_action_space_modules([tmp_path / "does_not_exist"])
         assert count == 0
 
-    def test_discovers_valid_urn(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_discovers_valid_urn(self, tmp_path: Path) -> None:
         """Scanner discovers a .py file with valid __action_space_urn__."""
         scan_dir = tmp_path / "action_spaces"
         scan_dir.mkdir()
@@ -73,26 +112,28 @@ class TestScanActionSpaceModules:
         )
 
         registry = SovereignMCPRegistry()
-        count = registry.scan_action_space_modules([scan_dir])
+        count = await registry.scan_action_space_modules([scan_dir])
         assert count == 1
-        assert "urn:coreason:archetype_b:tools:probe" in registry._cache
+        assert "urn:coreason:archetype_b:tools:probe" in registry._mock_state  # type: ignore[attr-defined]
 
-    def test_rejects_invalid_prefix(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_rejects_invalid_prefix(self, tmp_path: Path) -> None:
         """Scanner rejects files with non-actionspace URN prefixes."""
         scan_dir = tmp_path / "action_spaces"
         scan_dir.mkdir()
         module_file = scan_dir / "bad_actuator.py"
         module_file.write_text(
-            '__action_space_urn__ = "urn:coreason:oracle:bad"\n',
+            '__action_space_urn__ = "urn:coreason:invalid:bad"\n',
             encoding="utf-8",
         )
 
         registry = SovereignMCPRegistry()
-        count = registry.scan_action_space_modules([scan_dir])
+        count = await registry.scan_action_space_modules([scan_dir])
         assert count == 0
-        assert len(registry._cache) == 0
+        assert len(registry._mock_state) == 0  # type: ignore[attr-defined]
 
-    def test_skips_syntax_error_files(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_skips_syntax_error_files(self, tmp_path: Path) -> None:
         """Scanner gracefully skips files with syntax errors."""
         scan_dir = tmp_path / "action_spaces"
         scan_dir.mkdir()
@@ -100,10 +141,11 @@ class TestScanActionSpaceModules:
         bad_file.write_text("def broken(\n", encoding="utf-8")
 
         registry = SovereignMCPRegistry()
-        count = registry.scan_action_space_modules([scan_dir])
+        count = await registry.scan_action_space_modules([scan_dir])
         assert count == 0
 
-    def test_no_duplicate_registration(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_no_duplicate_registration(self, tmp_path: Path) -> None:
         """Scanner does not re-register already cached URNs."""
         scan_dir = tmp_path / "action_spaces"
         scan_dir.mkdir()
@@ -114,20 +156,21 @@ class TestScanActionSpaceModules:
         )
 
         registry = SovereignMCPRegistry()
-        registry._cache["urn:coreason:archetype_b:tools:duplicate"] = {
+        registry._mock_state["urn:coreason:archetype_b:tools:duplicate"] = {  # type: ignore[attr-defined]
             "endpoint": "http://existing:8000",
             "clearance": "PUBLIC",
             "epistemic_status": "PUBLISHED",
         }
-        count = registry.scan_action_space_modules([scan_dir])
+        count = await registry.scan_action_space_modules([scan_dir])
         assert count == 0
         # Original cache entry preserved
         assert (
-            registry._cache["urn:coreason:archetype_b:tools:duplicate"]["endpoint"]
+            registry._mock_state["urn:coreason:archetype_b:tools:duplicate"]["endpoint"]  # type: ignore[attr-defined]
             == "http://existing:8000"
         )
 
-    def test_skips_non_string_assignments(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_skips_non_string_assignments(self, tmp_path: Path) -> None:
         """Scanner ignores __action_space_urn__ with non-string values."""
         scan_dir = tmp_path / "action_spaces"
         scan_dir.mkdir()
@@ -135,10 +178,11 @@ class TestScanActionSpaceModules:
         module_file.write_text("__action_space_urn__ = 12345\n", encoding="utf-8")
 
         registry = SovereignMCPRegistry()
-        count = registry.scan_action_space_modules([scan_dir])
+        count = await registry.scan_action_space_modules([scan_dir])
         assert count == 0
 
-    def test_recursive_scan(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_recursive_scan(self, tmp_path: Path) -> None:
         """Scanner discovers URNs in nested subdirectories."""
         scan_dir = tmp_path / "action_spaces"
         nested = scan_dir / "subdir" / "deep"
@@ -150,15 +194,18 @@ class TestScanActionSpaceModules:
         )
 
         registry = SovereignMCPRegistry()
-        count = registry.scan_action_space_modules([scan_dir])
+        count = await registry.scan_action_space_modules([scan_dir])
         assert count == 1
-        assert "urn:coreason:archetype_b:tools:test" in registry._cache
+        assert "urn:coreason:archetype_b:tools:test" in registry._mock_state  # type: ignore[attr-defined]
 
 
 class TestLegacyURNDeprecationWarnings:
     """Legacy URN prefixes emit DeprecationWarning."""
 
-    def test_hydrate_from_matrix_warns_on_legacy_oracle(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_hydrate_from_matrix_warns_on_legacy_oracle(
+        self, tmp_path: Path
+    ) -> None:
         matrix_file = tmp_path / "capabilities.matrix.yaml"
         matrix_data = {
             "capabilities": [
@@ -174,14 +221,17 @@ class TestLegacyURNDeprecationWarnings:
         registry = SovereignMCPRegistry()
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            registry.hydrate_from_matrix(matrix_file)
+            await registry.hydrate_from_matrix(matrix_file)
             deprecation_warnings = [
                 x for x in w if issubclass(x.category, DeprecationWarning)
             ]
             assert len(deprecation_warnings) == 1
             assert "Legacy URN prefix detected" in str(deprecation_warnings[0].message)
 
-    def test_hydrate_from_matrix_warns_on_legacy_state(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_hydrate_from_matrix_warns_on_legacy_state(
+        self, tmp_path: Path
+    ) -> None:
         matrix_file = tmp_path / "capabilities.matrix.yaml"
         matrix_data = {
             "capabilities": [
@@ -197,13 +247,14 @@ class TestLegacyURNDeprecationWarnings:
         registry = SovereignMCPRegistry()
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            registry.hydrate_from_matrix(matrix_file)
+            await registry.hydrate_from_matrix(matrix_file)
             deprecation_warnings = [
                 x for x in w if issubclass(x.category, DeprecationWarning)
             ]
             assert len(deprecation_warnings) == 1
 
-    def test_no_warning_for_actionspace_urn(self, tmp_path: Path) -> None:
+    @pytest.mark.asyncio
+    async def test_no_warning_for_actionspace_urn(self, tmp_path: Path) -> None:
         matrix_file = tmp_path / "capabilities.matrix.yaml"
         matrix_data = {
             "capabilities": [
@@ -219,7 +270,7 @@ class TestLegacyURNDeprecationWarnings:
         registry = SovereignMCPRegistry()
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            registry.hydrate_from_matrix(matrix_file)
+            await registry.hydrate_from_matrix(matrix_file)
             deprecation_warnings = [
                 x for x in w if issubclass(x.category, DeprecationWarning)
             ]

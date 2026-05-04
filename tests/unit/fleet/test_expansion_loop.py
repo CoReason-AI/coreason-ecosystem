@@ -22,14 +22,18 @@ from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegist
 
 def _seeded_registry() -> SovereignMCPRegistry:
     """Create a registry with the Sovereign Treasury MCP registered."""
+    from unittest.mock import AsyncMock
+
     registry = SovereignMCPRegistry()
-    registry._cache = {
-        TREASURY_URN: {
-            "endpoint": "http://treasury-mcp:8000",
-            "clearance": "RESTRICTED",
-            "epistemic_status": "PUBLISHED",
-        },
-    }
+    registry._get_state = AsyncMock(  # type: ignore[method-assign]
+        return_value={
+            TREASURY_URN: {
+                "endpoint": "http://treasury-mcp:8000",
+                "clearance": "RESTRICTED",
+                "epistemic_status": "PUBLISHED",
+            },
+        }
+    )
     return registry
 
 
@@ -40,7 +44,9 @@ async def test_expansion_loop_raises_not_implemented() -> None:
     oracle = PricingOracle()
 
     with pytest.raises(NotImplementedError, match="Sovereign Treasury MCP"):
-        await von_neumann_expansion_daemon(registry, oracle)
+        await von_neumann_expansion_daemon(
+            registry, oracle, mesh_auth_key="test-key", temporal_mesh_ip="127.0.0.1"
+        )
 
 
 @pytest.mark.asyncio
@@ -67,7 +73,9 @@ async def test_expansion_loop_economic_guillotine() -> None:
         return_value=mock_assessment,
     ):
         # Should NOT raise — the guillotine triggers a clean return.
-        await von_neumann_expansion_daemon(registry, oracle)
+        await von_neumann_expansion_daemon(
+            registry, oracle, mesh_auth_key="test-key", temporal_mesh_ip="127.0.0.1"
+        )
 
 
 @pytest.mark.asyncio
@@ -77,7 +85,9 @@ async def test_expansion_loop_missing_treasury_urn() -> None:
     oracle = PricingOracle()
 
     # Should NOT raise — logs error and returns.
-    await von_neumann_expansion_daemon(empty_registry, oracle)
+    await von_neumann_expansion_daemon(
+        empty_registry, oracle, mesh_auth_key="test-key", temporal_mesh_ip="127.0.0.1"
+    )
 
 
 def test_constants() -> None:

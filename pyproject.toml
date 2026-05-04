@@ -193,3 +193,7 @@ source = "vcs"
 
 [tool.codespell]
 ignore-words-list = "wit,WIT"
+
+[tool.pyright]
+include = ["src", "tests", "infrastructure"]
+extraPaths = ["."]
