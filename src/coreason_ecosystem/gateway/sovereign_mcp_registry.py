@@ -385,7 +385,7 @@ class SovereignMCPRegistry:
             agent_clearance: The semantic clearance of the requesting agent.
 
         Returns:
-            A mapping of URN strings to physical network actionSpaceId URIs.
+            A mapping of URN strings to physical network actionSpaceCId URIs.
         """
         agent_level = self.CLEARANCE_LEVELS.get(agent_clearance, 0)
         state = await self._get_state()
