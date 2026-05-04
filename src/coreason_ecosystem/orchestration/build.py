@@ -160,7 +160,7 @@ def is_mcp_tool(file_path: Path) -> bool:
                 ):
                     return True
     except Exception:
-        pass
+        pass  # nosec B110
     return False
 
 

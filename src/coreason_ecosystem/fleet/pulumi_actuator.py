@@ -334,11 +334,12 @@ async def inject_chaos_fault(manifest: ChaosExperimentTask) -> None:
     logger.info(
         f"[Thermodynamic Actuator] Injecting chaos fault: {manifest.experiment_cid}"
     )
-    
+
     from pathlib import Path
+
     # The default location for the ephemeral infrastructure templates
     actuator = PulumiActuator(templates_dir=Path("infrastructure/ephemeral"))
-    
+
     for fault in manifest.faults:
         if fault.target_node_cid:
             logger.warning(f"Severing specific target node: {fault.target_node_cid}")
@@ -346,10 +347,17 @@ async def inject_chaos_fault(manifest: ChaosExperimentTask) -> None:
             for stack in active_stacks:
                 if stack["stack_name"] == fault.target_node_cid:
                     from typing import cast, Literal
-                    await actuator.destroy_node(stack["stack_name"], cast(Literal["aws", "vast"], stack["provider"]))
+
+                    await actuator.destroy_node(
+                        stack["stack_name"],
+                        cast(Literal["aws", "vast"], stack["provider"]),
+                    )
         else:
-            logger.warning("Swarm-wide chaos fault requested, escalating to thermodynamic guillotine.")
+            logger.warning(
+                "Swarm-wide chaos fault requested, escalating to thermodynamic guillotine."
+            )
             from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
+
             assessment = ThermodynamicAssessment(
                 threshold_breached=True,
                 vfe_divergence=fault.intensity * 100.0,
@@ -357,6 +365,6 @@ async def inject_chaos_fault(manifest: ChaosExperimentTask) -> None:
                 current_thermodynamic_cost=1000.0,
                 gpu_utilization=100.0,
                 token_velocity=0.0,
-                api_cost_hourly=10.0
+                api_cost_hourly=10.0,
             )
             await actuator.execute_thermodynamic_guillotine(assessment)

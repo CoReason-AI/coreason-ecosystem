@@ -78,7 +78,7 @@ async def wait_for_temporal(timeout: float = 60.0) -> None:
             await asyncio.wait_for(Client.connect("localhost:7233"), timeout=2.0)
             return
         except Exception:
-            pass
+            pass  # nosec B110
         await asyncio.sleep(delay)
         elapsed += delay
         delay = min(delay * 1.5, 5.0)
@@ -98,7 +98,7 @@ async def wait_for_port(port: int, timeout: float = 30.0) -> None:
             await writer.wait_closed()
             return
         except Exception:
-            pass
+            pass  # nosec B110
         await asyncio.sleep(delay)
         elapsed += delay
         delay = min(delay * 1.5, 3.0)
