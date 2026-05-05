@@ -23,13 +23,18 @@ def test_mesh_injector_aws_isolated() -> None:
     hw = HardwareProfile(min_vram_gb=16.0, provider_whitelist=["aws"])
     sec = SecurityProfile(network_isolation=True)
     payload_b64 = injector.compile_payload(
-        "aws", hw.model_dump(), sec.model_dump(), "test_auth_key", "10.0.0.5"
+        "test-node-123",
+        "aws",
+        hw.model_dump(),
+        sec.model_dump(),
+        "test_auth_key",
+        "10.0.0.5",
     )
     payload = base64.b64decode(payload_b64).decode("utf-8")
     assert "#cloud-config" in payload
     assert "tailscale.com" in payload
     assert "test_auth_key" in payload
-    assert "iptables -A INPUT -i eth0 -j DROP" in payload
+    assert "cilium endpoint config coreason.node.cid=test-node-123" in payload
     assert "10.0.0.5" in payload
     assert "WASM_MAX_PAGES" in payload
 
@@ -40,9 +45,14 @@ def test_mesh_injector_vast_not_isolated() -> None:
     hw = HardwareProfile(min_vram_gb=16.0, provider_whitelist=["vast"])
     sec = SecurityProfile(network_isolation=False)
     payload_b64 = injector.compile_payload(
-        "vast", hw.model_dump(), sec.model_dump(), "test_auth_key", "10.0.0.5"
+        "test-node-123",
+        "vast",
+        hw.model_dump(),
+        sec.model_dump(),
+        "test_auth_key",
+        "10.0.0.5",
     )
     payload = base64.b64decode(payload_b64).decode("utf-8")
     assert "#cloud-config" in payload
     assert "test_auth_key" in payload
-    assert "iptables -A INPUT -i eth0 -j DROP" not in payload
+    assert "cilium endpoint config" not in payload

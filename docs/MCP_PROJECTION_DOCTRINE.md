@@ -22,8 +22,8 @@ You are mathematically forbidden from hardcoding domain schemas, connection stri
 `coreason-ecosystem` hosts the **Master MCP**. It does not hold domain logic; it acts as a multiplexing JSON-RPC router (Federated Aggregator).
 
 When `coreason-runtime` connects, the Master MCP projects a unified "Epistemic Discovery Surface" that aggregates all underlying sub-MCPs. It maps mathematical URNs to physical execution IDs within the sovereign VPC:
-* `urn:coreason:dialect:lean4` âž” `actionSpaceId: local_docker_lean_v4`
-* `urn:coreason:oracle:pharma_db` âž” `actionSpaceId: aws_vpc_postgres_01`
+* `urn:coreason:dialect:lean4` ➔ `actionSpaceCId: local_docker_lean_v4`
+* `urn:coreason:oracle:pharma_db` ➔ `actionSpaceCId: aws_vpc_postgres_01`
 
 ## 2. MCP Translation Archetypes (How to Build)
 When engineering a new capability for the Swarm, you must classify your subsystem into one of the following Archetypes:
@@ -34,7 +34,7 @@ When engineering a new capability for the Swarm, you must classify your subsyste
 
 ### Archetype B: Domain Rules & Tools
 * **The Architecture:** Deductive engines (Lean 4, MedSpaCy) or rule sets (OMOP CDM) deployed as containerized sub-MCPs.
-* **The Contract:** The runtime uses the URN routing matrix to find the specific `actionSpaceId` containing the domain rules it needs, executing them blindly.
+* **The Contract:** The runtime uses the URN routing matrix to find the specific `actionSpaceCId` containing the domain rules it needs, executing them blindly.
 
 ### Archetype C: Sensory & UI Projections
 * **The Architecture:** UI constraints are defined as Pydantic models in the manifest and exposed via an MCP.
@@ -71,7 +71,7 @@ class FederatedDiscoveryIntent(CoreasonBaseState):
 class OracleExecutionReceipt(CoreasonBaseState):
     """Records the historical fact that an oracle was executed."""
     executed_urn: str
-    action_space_id: Annotated[str, StringConstraints(pattern="^[a-zA-Z0-9_-]+$")]
+    action_space_cid: Annotated[str, StringConstraints(pattern="^[a-zA-Z0-9_-]+$")]
     event_cid: Annotated[str, StringConstraints(pattern="^[a-f0-9]{64}$")]
 ```
 

@@ -30,18 +30,16 @@ from coreason_manifest.spec.ontology import (
     SemanticClassificationProfile,
 )
 
-# Create the validator once at module level — enforces the manifest's exact
-# DID regex (^did:[a-z0-9]+:[a-zA-Z0-9.\-_:]+$) and min_length=7 without
-# duplicating the pattern.
 _node_cid_validator: TypeAdapter[str] = TypeAdapter(NodeCIDState)
+"""Create the validator once at module level — enforces the manifest's exact DID regex (^did:[a-z0-9]+:[a-zA-Z0-9.\\-_:]+$) and min_length=7 without duplicating the pattern."""
 
-# Semantic classification ordering for LBAC dominance checks.
 _CLASSIFICATION_LEVELS: dict[str, int] = {
     "public": 0,
     "internal": 1,
     "confidential": 2,
     "restricted": 3,
 }
+"""Semantic classification ordering for LBAC dominance checks."""
 
 
 class OntologicalIdentityRouter:
@@ -79,7 +77,7 @@ class OntologicalIdentityRouter:
 
         principal_did = receipt.get("principal_did", receipt.get("issuer_did", ""))
 
-        # Rigid W3C DID validation via the manifest's NodeCIDState TypeAdapter.
+        """Rigid W3C DID validation via the manifest's NodeCIDState TypeAdapter."""
         try:
             _node_cid_validator.validate_python(principal_did)
         except ValidationError:
@@ -99,18 +97,18 @@ class OntologicalIdentityRouter:
                 detail="Connection Severance Event: Missing semantic clearance.",
             )
 
-        # Return validated agent profile
+        """Return validated agent profile."""
         return {
             "principal_did": principal_did,
             "clearance": clearance,
         }
 
-    # LBAC lattice ordering — strictly ascending clearance.
     CLEARANCE_LATTICE: dict[str, int] = {
         "PUBLIC": 1,
         "CONFIDENTIAL": 2,
         "RESTRICTED": 3,
     }
+    """LBAC lattice ordering — strictly ascending clearance."""
 
     def validate_clearance_lattice(
         self,
@@ -161,11 +159,11 @@ class OntologicalIdentityRouter:
         Raises:
             ValueError: If any SLA constraint is violated.
         """
-        # 1. Validate receiving_tenant_cid is non-empty.
+        """1. Validate receiving_tenant_cid is non-empty."""
         if not sla.receiving_tenant_cid:
             raise ValueError("Federation Severance: receiving_tenant_cid is empty.")
 
-        # 2. Classification dominance check
+        """2. Classification dominance check."""
         agent_level = _CLASSIFICATION_LEVELS.get(agent_classification, 0)
         max_level = _CLASSIFICATION_LEVELS.get(
             sla.max_permitted_classification.value
@@ -182,8 +180,7 @@ class OntologicalIdentityRouter:
                 f"'{sla.max_permitted_classification}'."
             )
 
-        # 3. Liability magnitude bounds are enforced by Pydantic (0 <= x <= 1B),
-        # but we verify the field is present and non-negative defensively.
+        """3. Liability magnitude bounds are enforced by Pydantic (0 <= x <= 1B), but we verify the field is present and non-negative defensively."""
         if sla.liability_limit_magnitude < 0:
             raise ValueError(  # pragma: no cover
                 "Federation Severance: liability_limit_magnitude is negative."

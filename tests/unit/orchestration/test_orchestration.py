@@ -7,7 +7,7 @@ import typer
 from coreason_ecosystem.orchestration.build import compile_and_hash
 from coreason_ecosystem.orchestration.init import execute_init
 from coreason_ecosystem.orchestration.sync import execute_sync
-from coreason_ecosystem.orchestration.up import execute_up, is_port_bound
+from coreason_ecosystem.orchestration.up import execute_up, wait_for_port
 
 
 @pytest.mark.asyncio
@@ -167,19 +167,21 @@ async def test_sync_compose_fallback(
 
 
 @pytest.mark.asyncio
-async def test_up_is_port_bound() -> None:
-    # up.py Lines 28-36
+async def test_up_wait_for_port() -> None:
+    # up.py test wait_for_port execution exceptions
     with patch("asyncio.open_connection", side_effect=Exception("network down")):
-        res = await is_port_bound(8000)
-        assert res is False
+        with pytest.raises(TimeoutError):
+            await wait_for_port(8000, timeout=1.0)
     with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError):
-        res = await is_port_bound(8000)
-        assert res is False
-    with patch("asyncio.wait_for") as wait_for_mock:
+        with pytest.raises(TimeoutError):
+            await wait_for_port(8000, timeout=1.0)
+    with (
+        patch("asyncio.wait_for") as wait_for_mock,
+        patch("asyncio.sleep", new_callable=AsyncMock),
+    ):
         mock_writer = AsyncMock()
         wait_for_mock.return_value = (AsyncMock(), mock_writer)
-        res = await is_port_bound(8000)
-        assert res is True
+        await wait_for_port(8000, timeout=1.0)
         mock_writer.close.assert_called_once()
 
 
@@ -203,19 +205,20 @@ async def test_up_timeout_fallbacks(
         with patch("asyncio.sleep", AsyncMock()):
             # Test Postgres timeout
             with patch(
-                "coreason_ecosystem.orchestration.up.is_port_bound", return_value=False
+                "coreason_ecosystem.orchestration.up.wait_for_postgres",
+                side_effect=TimeoutError("PG fails"),
             ):
                 with pytest.raises(typer.Exit):
                     await execute_up()
 
         with patch("asyncio.sleep", AsyncMock()):
             # Test Temporal timeout by letting Postgres pass once
-            def port_check(port: int) -> bool:
-                return port == 5432
-
-            with patch(
-                "coreason_ecosystem.orchestration.up.is_port_bound",
-                side_effect=port_check,
+            with (
+                patch("coreason_ecosystem.orchestration.up.wait_for_postgres"),
+                patch(
+                    "coreason_ecosystem.orchestration.up.wait_for_temporal",
+                    side_effect=TimeoutError("Temporal fails"),
+                ),
             ):
                 with pytest.raises(typer.Exit):
                     with patch("coreason_ecosystem.orchestration.up.Progress"):
@@ -223,12 +226,13 @@ async def test_up_timeout_fallbacks(
 
         with patch("asyncio.sleep", AsyncMock()):
             # Test Daemon timeout by letting Postgres and Temporal pass but Daemon 8000 fail
-            def port_check_daemon(port: int) -> bool:
-                return port in (5432, 7233)
-
-            with patch(
-                "coreason_ecosystem.orchestration.up.is_port_bound",
-                side_effect=port_check_daemon,
+            with (
+                patch("coreason_ecosystem.orchestration.up.wait_for_postgres"),
+                patch("coreason_ecosystem.orchestration.up.wait_for_temporal"),
+                patch(
+                    "coreason_ecosystem.orchestration.up.wait_for_port",
+                    side_effect=TimeoutError("Daemon fails"),
+                ),
             ):
                 with pytest.raises(typer.Exit):
                     with patch("coreason_ecosystem.orchestration.up.Progress"):
