@@ -34,7 +34,7 @@ import asyncio
 import re
 import warnings
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
 from loguru import logger
@@ -432,7 +432,7 @@ class SovereignMCPRegistry:
         if target_urn not in state:
             raise KeyError(f"Geometrical topology fault: unregistered URN {target_urn}")
 
-        return state[target_urn]["endpoint"]
+        return cast(str, state[target_urn]["endpoint"])
 
     async def get_epistemic_status(self, target_urn: str) -> str:
         """Retrieve the SRB governance lifecycle status for a registered URN.
@@ -449,7 +449,7 @@ class SovereignMCPRegistry:
         entry = state.get(target_urn)
         if entry is None:
             return "DRAFT"
-        return entry.get("epistemic_status", "DRAFT")
+        return cast(str, entry.get("epistemic_status", "DRAFT"))
 
     async def get_capability_metadata(self, target_urn: str) -> dict[str, Any]:
         """Retrieve Substrate capability metadata for a registered URN.
@@ -466,7 +466,7 @@ class SovereignMCPRegistry:
         entry = state.get(target_urn)
         if entry is None:
             return {}
-        return entry.get("capability_metadata", {})
+        return cast(dict[str, Any], entry.get("capability_metadata", {}))
 
     async def resolve_optimal_substrate(
         self,
