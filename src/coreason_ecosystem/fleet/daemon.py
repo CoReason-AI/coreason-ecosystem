@@ -18,6 +18,7 @@ from topological invariants — no scalar metrics are consumed.
 
 import asyncio
 from pathlib import Path
+from typing import Any
 
 from loguru import logger
 
@@ -26,6 +27,7 @@ from coreason_ecosystem.fleet.pulumi_actuator import PulumiActuator
 from coreason_ecosystem.fleet.telemetry_topology import (
     TelemetryTopologyMonitor,
     coreason_active_agents_total,
+    coreason_aggregate_vram_demand_gb,
 )
 from coreason_manifest.spec.ontology import (
     SpatialHardwareProfile as HardwareProfile,
@@ -59,25 +61,39 @@ class AutonomicFleetManager:
         self.oracle = PricingOracle()
         self.monitor = TelemetryTopologyMonitor()
         self._running = False
+        self.pending_provisions = 0
+        self._background_tasks: set[asyncio.Task[Any]] = set()
 
     async def start(self) -> None:
+        """Initiate the autonomic execution loop.
+
+        Continuously polls the topological state. If β₀ (connected components
+        stored in coreason_active_agents_total) > 0, the daemon executes
+        scale-up logic by mapping Delta VRAM to the SpatialHardwareProfile.
+        If β₀ == 0, it executes scale-to-zero teardown logic.
+        """
         self._running = True
         logger.info("Starting Autonomic Fleet Manager...")
 
         while self._running:
             try:
-                # Poll the topological state
                 await self.monitor._poll_workflows()
 
-                # β₀ (connected components) is stored in coreason_active_agents_total
                 betti_0 = coreason_active_agents_total._value.get()
 
                 logger.debug(f"Topological state: β₀={betti_0}")
 
-                if betti_0 > 0:
-                    # Active workflow components — provision compute.
+                required_vram = coreason_aggregate_vram_demand_gb._value.get()
+                active_stacks = await self.driver.reconcile_state()
+                provisioned_vram = sum(
+                    s.get("vram_capacity", 0.0) for s in active_stacks
+                )
+
+                delta = required_vram - provisioned_vram
+
+                if delta > 0:
                     profile = HardwareProfile(
-                        min_vram_gb=1.0, provider_whitelist=["aws", "vast"]
+                        min_vram_gb=delta, provider_whitelist=["aws", "vast"]
                     )
                     security_profile = SecurityProfile(network_isolation=True)
 
@@ -97,15 +113,33 @@ class AutonomicFleetManager:
                             refund_target_node_cid=f"did:coreason:fleet:{bid.provider}",
                         )
 
-                        result = await self.driver.provision_node(bid)
-                        logger.info(f"Provisioning Complete: {result['stack_name']}")
+                        self.pending_provisions += 1
+                        try:
+                            result = await self.driver.provision_node(bid)
+                            logger.info(
+                                f"Provisioning Complete: {result['stack_name']}"
+                            )
+
+                            async def _cooldown_and_decrement() -> None:
+                                await asyncio.sleep(300)
+                                self.pending_provisions = max(
+                                    0, self.pending_provisions - 1
+                                )
+
+                            task = asyncio.create_task(_cooldown_and_decrement())
+                            self._background_tasks.add(task)
+                            task.add_done_callback(self._background_tasks.discard)
+                        except Exception as e:
+                            self.pending_provisions = max(
+                                0, self.pending_provisions - 1
+                            )
+                            logger.error(f"Provisioning failed: {e}")
+                            raise
                     else:
                         logger.warning(
                             "No viable bids found under budget for current requirements."
                         )
-                elif betti_0 == 0:
-                    # Scale Down Logic
-                    active_stacks = await self.driver.reconcile_state()
+                elif betti_0 == 0 and self.pending_provisions == 0:
                     if active_stacks:
                         target = active_stacks[0]
                         stack_to_destroy = target["stack_name"]
@@ -114,7 +148,7 @@ class AutonomicFleetManager:
                         logger.info(
                             f"Scale to zero triggered. Destroying {stack_to_destroy} on {provider}..."
                         )
-                        await self.driver.destroy_node(stack_to_destroy, provider)  # type: ignore
+                        await self.driver.destroy_node(stack_to_destroy, provider)
                     else:
                         logger.debug(
                             "Queue empty, but no active compute nodes to destroy."

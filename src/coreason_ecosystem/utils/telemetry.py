@@ -120,12 +120,12 @@ async def _otlp_worker(endpoint: str) -> None:
                 }
                 try:
                     await client.post(endpoint, json=payload, timeout=2.0)
-                except httpx.RequestError:  # pragma: no cover
-                    pass
+                except httpx.RequestError as e:  # pragma: no cover
+                    logger.warning(f"Telemetry emission failed (RequestError): {e}")
             except asyncio.CancelledError:
                 break
-            except Exception:  # nosec B110 - pragma: no cover
-                pass
+            except Exception as e:  # nosec B110 - pragma: no cover
+                logger.warning(f"Telemetry emission failed: {e}")
 
 
 def otlp_log_sink(message: "Message") -> None:
@@ -135,8 +135,8 @@ def otlp_log_sink(message: "Message") -> None:
     if _otlp_queue is not None:
         try:
             _otlp_queue.put_nowait(dict(message.record))
-        except Exception:  # nosec B110 - pragma: no cover
-            pass
+        except Exception as e:  # nosec B110 - pragma: no cover
+            logger.warning(f"Failed to queue log for OTLP: {e}")
 
 
 def start_otlp_background_worker() -> None:
@@ -170,14 +170,16 @@ async def stop_otlp_background_worker() -> None:
             await asyncio.wait_for(_wait_for_queue(), timeout=3.0)
         except asyncio.TimeoutError:
             # If the network is degraded, abandon the remaining logs rather than hanging the CLI
-            pass  # pragma: no cover
+            logger.warning(
+                "OTLP flush timed out. Abandoning remaining logs."
+            )  # pragma: no cover
 
     if _otlp_task is not None:
         _otlp_task.cancel()
         try:
             await _otlp_task
         except asyncio.CancelledError:
-            pass
+            logger.warning("OTLP worker task was cancelled during shutdown.")
 
 
 class TelemetryModel(BaseModel):
