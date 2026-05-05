@@ -46,6 +46,10 @@ coreason_causal_cycles_total = Gauge(
     "coreason_causal_cycles_total",
     "β₁ (1-cycles) in the workflow execution graph — causal paradox detector.",
 )
+coreason_aggregate_vram_demand_gb = Gauge(
+    "coreason_aggregate_vram_demand_gb",
+    "Total VRAM capacity demand derived from workflow search attributes.",
+)
 
 
 class TelemetryTopologyMonitor:
@@ -94,6 +98,8 @@ class TelemetryTopologyMonitor:
         execution_graph = nx.Graph()
 
         try:
+            total_vram_demand = 0.0
+
             async for workflow in self._client.list_workflows(
                 "ExecutionStatus = 'Running'"
             ):
@@ -108,8 +114,16 @@ class TelemetryTopologyMonitor:
 
                 # 3. Track thermodynamic exhaustion circuits
                 search_attrs = getattr(workflow, "search_attributes", {})
-                if search_attrs and search_attrs.get("circuit_breaker_tripped"):
-                    coreason_circuit_breakers_tripped.inc()
+                if search_attrs:
+                    if search_attrs.get("circuit_breaker_tripped"):
+                        coreason_circuit_breakers_tripped.inc()
+
+                    vram_val = search_attrs.get("vram_demand_gb")
+                    if vram_val:
+                        try:
+                            total_vram_demand += float(vram_val)
+                        except Exception:
+                            total_vram_demand += 1.0
 
             # 4. Calculate β₀ (Betti-0): Number of connected components
             # This mathematically proves if the Swarm is operating as a cohesive
@@ -123,6 +137,10 @@ class TelemetryTopologyMonitor:
             cycles = nx.cycle_basis(execution_graph)
             betti_1 = len(cycles)
             coreason_causal_cycles_total.set(betti_1)
+
+            coreason_aggregate_vram_demand_gb.set(
+                max(total_vram_demand, float(betti_0))
+            )
 
             if betti_1 > 0:
                 logger.critical(

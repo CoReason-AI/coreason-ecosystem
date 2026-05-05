@@ -35,22 +35,30 @@ from coreason_ecosystem.fleet.pricing_oracle import (
 )
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.fleet.pulumi_actuator import PulumiActuator
+from coreason_ecosystem.fleet.telemetry_topology import (
+    coreason_aggregate_vram_demand_gb,
+)
 from pathlib import Path
+import asyncio
+from typing import Literal
 
-# Hardware threshold (approx 10,000,000,000 Gwei / ~10 ETH at historical rates)
 HARDWARE_NODE_COST_GWEI = 10_000_000_000
+"""Hardware threshold (approx 10,000,000,000 Gwei / ~10 ETH at historical rates)."""
+
 SAFETY_MARGIN_GWEI = 2_000_000_000
 
-# Polling cadence for the expansion daemon.
 DEFAULT_POLLING_INTERVAL_SEC = 30.0
+"""Polling cadence for the expansion daemon."""
 
-# URN for the Sovereign Treasury MCP.
 TREASURY_URN = "urn:coreason:state:treasury"
+"""URN for the Sovereign Treasury MCP."""
 
 
 async def von_neumann_expansion_daemon(
     registry: SovereignMCPRegistry,
     oracle: PricingOracle,
+    mesh_auth_key: str,
+    temporal_mesh_ip: str,
     max_budget_hr: float = 10.0,
     polling_interval_sec: float = DEFAULT_POLLING_INTERVAL_SEC,
 ) -> None:
@@ -61,6 +69,11 @@ async def von_neumann_expansion_daemon(
     Governance Plane never holds Web3 state — it routes the query
     blindly through the URN.
 
+    The kinetic payload is wrapped in a dedicated exception handler to trap runtime
+    faults without terminating the background process. Cooperative yielding is enforced
+    mathematically at the lower loop boundary using `asyncio.sleep`, guarded by a `CancelledError`
+    throttle that sets the `_running` state to `False` for deterministic teardown.
+
     The loop runs a VFE divergence check each iteration.  If the threshold
     is breached, a ``TopologicalHaltIntent`` is logged and the loop exits
     to allow the fleet daemon to sever kinetic execution.
@@ -70,10 +83,13 @@ async def von_neumann_expansion_daemon(
         oracle: The PricingOracle for dynamic hardware profile resolution.
         max_budget_hr: Maximum hourly budget for compute provisioning.
         polling_interval_sec: Seconds between polling iterations.
+
+    Note:
+        The variance delta calculation enforces a minimum boundary
+        to ensure valid physical bounds.
     """
-    # Resolve the treasury endpoint from the Sovereign MCP matrix.
     try:
-        treasury_endpoint = registry.resolve_urn(TREASURY_URN)
+        treasury_endpoint = await registry.resolve_urn(TREASURY_URN)
     except KeyError:
         logger.error(
             f"[ExpansionLoop] Treasury URN '{TREASURY_URN}' not registered in "
@@ -86,34 +102,86 @@ async def von_neumann_expansion_daemon(
         f"Treasury projected via {treasury_endpoint}."
     )
 
-    target_cost = HARDWARE_NODE_COST_GWEI + SAFETY_MARGIN_GWEI
+    _running = True
 
-    while True:
-        # VFE divergence check — the Economic Guillotine gate.
-        from coreason_manifest.spec.ontology import (
-            SpatialHardwareProfile as HardwareProfile,
-        )
-
-        assessment = await assess_thermodynamic_expenditure(
-            hardware_profile=HardwareProfile(
-                min_vram_gb=1.0, provider_whitelist=["aws", "vast"]
-            ),
-            max_budget_hr=max_budget_hr,
-        )
-        if assessment.threshold_breached:
-            logger.critical(
-                "[ExpansionLoop] Economic Guillotine triggered. "
-                "Halting expansion loop to prevent thermodynamic exhaustion."
+    while _running:
+        try:
+            from coreason_manifest.spec.ontology import (
+                SpatialHardwareProfile as HardwareProfile,
             )
-            actuator = PulumiActuator(Path.cwd() / "infrastructure")
-            await actuator.execute_thermodynamic_guillotine(assessment)
-            return
 
-        # Query the Sovereign Treasury MCP for on-chain balance.
-        # The Governance Plane opens an HTTP/SSE connection to the external
-        # container — it does NOT import web3 or hold private keys.
-        raise NotImplementedError(
-            "Von Neumann Expansion Loop requires the Sovereign Treasury MCP "
-            f"at {treasury_endpoint} to be deployed and serving JSON-RPC. "
-            f"Target cost threshold: {target_cost} Gwei."
-        )
+            required_vram = coreason_aggregate_vram_demand_gb._value.get()
+            actuator = PulumiActuator(Path.cwd() / "infrastructure")
+            active_stacks = await actuator.reconcile_state()
+            provisioned_vram = sum(
+                stack.get("vram_capacity", 0) for stack in active_stacks
+            )
+            delta_vram = max(required_vram - provisioned_vram, 1.0)
+
+            assessment = await assess_thermodynamic_expenditure(
+                hardware_profile=HardwareProfile(
+                    min_vram_gb=delta_vram, provider_whitelist=["aws", "vast"]
+                ),
+                max_budget_hr=max_budget_hr,
+            )
+            if assessment.threshold_breached:
+                logger.critical(
+                    "[ExpansionLoop] Economic Guillotine triggered. "
+                    "Halting expansion loop to prevent thermodynamic exhaustion."
+                )
+                actuator = PulumiActuator(Path.cwd() / "infrastructure")
+                await actuator.execute_thermodynamic_guillotine(assessment)
+                _running = False
+                continue
+
+            total_active = len(active_stacks)
+            on_demand_count = sum(
+                1 for s in active_stacks if s.get("market_type") == "on-demand"
+            )
+
+            target_market_type: Literal["spot", "on-demand"] = "spot"
+            if total_active > 0 and (on_demand_count / total_active) < 0.3:
+                target_market_type = "on-demand"
+            elif total_active == 0:
+                target_market_type = "on-demand"
+
+            bid = await oracle.calculate_optimal_bid(
+                hardware_profile=HardwareProfile(
+                    min_vram_gb=delta_vram, provider_whitelist=["aws", "vast"]
+                ),
+                max_budget_hr=max_budget_hr,
+            )
+
+            if bid:
+                from coreason_manifest.spec.ontology import (
+                    EscrowPolicy,
+                    EpistemicSecurityProfile,
+                )
+
+                bid.market_type = target_market_type
+                bid.hardware_profile = HardwareProfile(
+                    min_vram_gb=delta_vram, provider_whitelist=["aws", "vast"]
+                )
+                bid.security_profile = EpistemicSecurityProfile(network_isolation=True)
+                bid.mesh_auth_key = mesh_auth_key
+                bid.temporal_mesh_ip = temporal_mesh_ip
+                bid.escrow_policy = EscrowPolicy(
+                    escrow_locked_magnitude=max(int(max_budget_hr), 1),
+                    release_condition_metric="fleet_expansion_hourly_budget",
+                    refund_target_node_cid=f"did:coreason:fleet:{bid.provider}",
+                )
+
+                logger.info(
+                    f"[ExpansionLoop] Active nodes: {total_active} (On-Demand: {on_demand_count}). Bidding {target_market_type} on {bid.provider}."
+                )
+                await actuator.provision_node(bid)
+            else:
+                logger.warning("[ExpansionLoop] No viable bids found.")
+        except Exception as e:
+            logger.error(f"[ExpansionLoop] Runtime execution anomaly: {e}")
+
+        try:
+            await asyncio.sleep(polling_interval_sec)
+        except asyncio.CancelledError:
+            logger.info("[ExpansionLoop] Graceful shutdown requested via Cancellation.")
+            _running = False

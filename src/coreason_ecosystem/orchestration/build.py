@@ -8,6 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
+import ast
 import asyncio
 import hashlib
 import json
@@ -138,6 +139,31 @@ async def compile_and_hash(file_path: Path, bin_dir: Path) -> tuple[str, str]:
     return (str(rel_path), file_hash)
 
 
+def is_mcp_tool(file_path: Path) -> bool:
+    """Zero-Trust Passive Projection (AST parsing) to detect MCP tools."""
+    if file_path.suffix != ".py":
+        return False
+    try:
+        tree = ast.parse(file_path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if getattr(target, "id", None) == "__action_space_urn__":
+                        return True
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name.startswith("mcp.") or alias.name == "mcp":
+                        return True
+            elif isinstance(node, ast.ImportFrom):
+                if node.module and (
+                    node.module.startswith("mcp.") or node.module == "mcp"
+                ):
+                    return True
+    except Exception:
+        pass  # nosec B110
+    return False
+
+
 async def execute_build(target_path: str) -> None:
     """
     Compile human-readable Python capabilities into WASM boundaries and calculate their Epistemic Seals.
@@ -164,9 +190,12 @@ async def execute_build(target_path: str) -> None:
             files_to_build.extend(target.rglob("*.go"))
     else:
         files_to_build = [target]
-    # Filter out generated files from Rust build caches or Python virtual environments
+    # Filter out generated files, virtual environments, tests, and ecosystem internals
+    EXCLUDE_DIRS = {"target", ".venv", "tests", "infrastructure", "coreason_ecosystem"}
     files_to_build = [
-        f for f in files_to_build if "target" not in f.parts and ".venv" not in f.parts
+        f
+        for f in files_to_build
+        if not set(f.parts).intersection(EXCLUDE_DIRS) and not is_mcp_tool(f)
     ]
 
     if not files_to_build:
