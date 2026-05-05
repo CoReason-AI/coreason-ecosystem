@@ -68,6 +68,11 @@ async def test_daemon_no_viable_bid() -> None:
 
     # Set β₀ > 0 so scale-up logic triggers
     coreason_active_agents_total.set(1)
+    from coreason_ecosystem.fleet.telemetry_topology import (
+        coreason_aggregate_vram_demand_gb,
+    )
+
+    coreason_aggregate_vram_demand_gb.set(100)
 
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
 
@@ -82,5 +87,8 @@ async def test_daemon_no_viable_bid() -> None:
         side_effect=stop_loop,
         return_value=None,
     ):
-        await manager.start()
-        # If it passes without exception, the no-bid branch was hit
+        try:
+            await manager.start()
+        finally:
+            coreason_aggregate_vram_demand_gb.set(0.0)
+            coreason_active_agents_total.set(0)

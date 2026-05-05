@@ -3,6 +3,51 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field, StringConstraints
 
 
+class SubstrateCapabilityProfile(BaseModel):
+    """Typed representation of Substrate physical capability metadata.
+
+    Captures the hardware and protocol properties that a registered
+    Substrate URN self-reports via its ``manifest.yaml``.  Used by the
+    ``SovereignMCPRegistry`` two-stage resolution pipeline to hard-filter
+    candidates against an ``EpistemicRigidityPolicy`` and Pareto-optimize
+    survivors via a ``RoutingFrontierPolicy``.
+    """
+
+    default_minimum_rigidity_tier: int = Field(
+        default=0,
+        ge=0,
+        le=255,
+        description=(
+            "The mathematical scalar representing the minimum hardware "
+            "execution rigor this Substrate provides (0=CPU, 255=Max GPU)."
+        ),
+    )
+    provided_epistemic_security: Literal["PUBLIC", "CONFIDENTIAL", "RESTRICTED"] = (
+        Field(
+            default="PUBLIC",
+            description=(
+                "The LBAC network perimeter that this Substrate physically "
+                "guarantees for tenant data isolation."
+            ),
+        )
+    )
+    provided_vram_gb: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "The available GPU VRAM (in gigabytes) on the physical hardware "
+            "backing this Substrate."
+        ),
+    )
+    supported_remote_decoding_protocols: list[str] = Field(
+        default_factory=lambda: ["NONE"],
+        description=(
+            "The structured output protocols this Substrate supports for "
+            "constrained decoding offload."
+        ),
+    )
+
+
 class FederatedDiscoveryIntent(BaseModel):
     """
     Simulated pure-math intent to initiate federated capability discovery.
