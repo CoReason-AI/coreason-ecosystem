@@ -172,7 +172,9 @@ class TestScanActionSpaceModules:
         assert count == 0
         # Original cache entry preserved
         assert (
-            registry._mock_state["urn:coreason:actionspace:solver:duplicate:v1"]["endpoint"]  # type: ignore[attr-defined]
+            registry._mock_state["urn:coreason:actionspace:solver:duplicate:v1"][  # type: ignore[attr-defined]
+                "endpoint"
+            ]
             == "http://existing:8000"
         )
 

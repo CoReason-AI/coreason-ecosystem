@@ -37,7 +37,7 @@ jobs:
         run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14 --all-extras --dev; fi
         shell: bash
       - name: Provision Ephemeral Orchestration Isolation
-        run: temporal operator namespace create $TEMPORAL_CI_NAMESPACE
+        run: temporal operator namespace create $TEMPORAL_CI_NAMESPACE || true
         shell: bash
       - name: Run pre-commit
         run: uv run pre-commit run --all-files
@@ -126,7 +126,7 @@ jobs:
         run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14t --dev; fi
         shell: bash
       - name: Provision Ephemeral Orchestration Isolation
-        run: temporal operator namespace create $TEMPORAL_CI_NAMESPACE
+        run: temporal operator namespace create $TEMPORAL_CI_NAMESPACE || true
         shell: bash
       - name: Run tests
         run: uv run pytest --cov=coreason_ecosystem --cov-report=xml
@@ -185,7 +185,7 @@ jobs:
         run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14t --dev; fi
         shell: bash
       - name: Provision Ephemeral Orchestration Isolation
-        run: temporal operator namespace create $TEMPORAL_CI_NAMESPACE
+        run: temporal operator namespace create $TEMPORAL_CI_NAMESPACE || true
         shell: bash
       - name: Run tests
         run: uv run pytest --cov=coreason_ecosystem --cov-report=xml

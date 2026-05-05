@@ -233,7 +233,7 @@ class PulumiActuator:
                 self._cached_stacks is not None
                 and (time.time() - self._last_sync_time) < 600.0
             ):
-                return self._cached_stacks
+                return [dict(s) for s in self._cached_stacks]
 
             def _reconcile() -> list[dict[str, Any]]:
                 active_stacks: list[dict[str, Any]] = []
@@ -274,7 +274,7 @@ class PulumiActuator:
             active_stacks_resolved = await asyncio.to_thread(_reconcile)
             self._cached_stacks = active_stacks_resolved
             self._last_sync_time = time.time()
-            return active_stacks_resolved
+            return [dict(s) for s in active_stacks_resolved]
 
     async def execute_thermodynamic_guillotine(
         self, assessment: "ThermodynamicAssessment"

@@ -122,6 +122,7 @@ class SovereignMCPRegistry:
         """Initialize the capability registry client wrapper."""
         self._client: Client | None = None
         self._worker: Worker | None = None
+        self._worker_task: asyncio.Task[Any] | None = None
         self._workflow_id = "sovereign-registry-workflow"
 
     async def initialize(self, temporal_url: str = "localhost:7233") -> None:
@@ -137,7 +138,7 @@ class SovereignMCPRegistry:
         )
 
         # Start the worker in the background
-        asyncio.create_task(self._worker.run())
+        self._worker_task = asyncio.create_task(self._worker.run())
 
         try:
             await self._client.start_workflow(
@@ -148,6 +149,15 @@ class SovereignMCPRegistry:
             )
         except WorkflowAlreadyStartedError:
             logger.info(f"Registry workflow {self._workflow_id} already running.")
+
+    async def shutdown(self) -> None:
+        """Gracefully shutdown the background Temporal worker."""
+        if hasattr(self, "_worker_task") and self._worker_task:
+            self._worker_task.cancel()
+            try:
+                await self._worker_task
+            except asyncio.CancelledError:
+                pass
 
     async def _update_urn(
         self,
@@ -322,13 +332,16 @@ class SovereignMCPRegistry:
                     case _:
                         pass
 
-            await self._update_urn(urn, endpoint, clearance, epistemic_status, content_hash)
+            await self._update_urn(
+                urn, endpoint, clearance, epistemic_status, content_hash
+            )
             logger.debug(
                 f"Registered capability metadata for {urn}: "
                 f"rigidity={capability_metadata['default_minimum_rigidity_tier']}, "
                 f"security={capability_metadata['provided_epistemic_security']}, "
                 f"protocols={capability_metadata['supported_remote_decoding_protocols']}, "
-                f"content_hash={content_hash or 'none'}")
+                f"content_hash={content_hash or 'none'}"
+            )
             count += 1
 
         logger.info(f"Hydrated {count} capabilities from {json_path.name}")
