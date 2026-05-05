@@ -57,7 +57,14 @@ class TestValidateActionspaceURN:
     @pytest.mark.asyncio
     async def test_valid_urn_passes(self) -> None:
         SovereignMCPRegistry.validate_archetype_urn(
-            "urn:coreason:archetype_b:tools:probe"
+            "urn:coreason:actionspace:solver:clinical_extractor:v1"
+        )
+
+    @pytest.mark.asyncio
+    async def test_valid_federated_urn_passes(self) -> None:
+        """Federated namespace authorities (e.g. nlm, ohdsi) must be accepted."""
+        SovereignMCPRegistry.validate_archetype_urn(
+            "urn:nlm:actionspace:oracle:mesh_lookup:v3"
         )
 
     @pytest.mark.asyncio
@@ -107,14 +114,14 @@ class TestScanActionSpaceModules:
         scan_dir.mkdir()
         module_file = scan_dir / "test_actuator.py"
         module_file.write_text(
-            '__action_space_urn__ = "urn:coreason:archetype_b:tools:probe"\n',
+            '__action_space_urn__ = "urn:coreason:actionspace:oracle:probe:v1"\n',
             encoding="utf-8",
         )
 
         registry = SovereignMCPRegistry()
         count = await registry.scan_action_space_modules([scan_dir])
         assert count == 1
-        assert "urn:coreason:archetype_b:tools:probe" in registry._mock_state  # type: ignore[attr-defined]
+        assert "urn:coreason:actionspace:oracle:probe:v1" in registry._mock_state  # type: ignore[attr-defined]
 
     @pytest.mark.asyncio
     async def test_rejects_invalid_prefix(self, tmp_path: Path) -> None:
@@ -151,12 +158,12 @@ class TestScanActionSpaceModules:
         scan_dir.mkdir()
         module_file = scan_dir / "actuator.py"
         module_file.write_text(
-            '__action_space_urn__ = "urn:coreason:archetype_b:tools:duplicate"\n',
+            '__action_space_urn__ = "urn:coreason:actionspace:solver:duplicate:v1"\n',
             encoding="utf-8",
         )
 
         registry = SovereignMCPRegistry()
-        registry._mock_state["urn:coreason:archetype_b:tools:duplicate"] = {  # type: ignore[attr-defined]
+        registry._mock_state["urn:coreason:actionspace:solver:duplicate:v1"] = {  # type: ignore[attr-defined]
             "endpoint": "http://existing:8000",
             "clearance": "PUBLIC",
             "epistemic_status": "PUBLISHED",
@@ -165,7 +172,9 @@ class TestScanActionSpaceModules:
         assert count == 0
         # Original cache entry preserved
         assert (
-            registry._mock_state["urn:coreason:archetype_b:tools:duplicate"]["endpoint"]  # type: ignore[attr-defined]
+            registry._mock_state["urn:coreason:actionspace:solver:duplicate:v1"][  # type: ignore[attr-defined]
+                "endpoint"
+            ]
             == "http://existing:8000"
         )
 
@@ -189,14 +198,14 @@ class TestScanActionSpaceModules:
         nested.mkdir(parents=True)
         module_file = nested / "deep_actuator.py"
         module_file.write_text(
-            '__action_space_urn__ = "urn:coreason:archetype_b:tools:test"\n',
+            '__action_space_urn__ = "urn:coreason:actionspace:oracle:test:v1"\n',
             encoding="utf-8",
         )
 
         registry = SovereignMCPRegistry()
         count = await registry.scan_action_space_modules([scan_dir])
         assert count == 1
-        assert "urn:coreason:archetype_b:tools:test" in registry._mock_state  # type: ignore[attr-defined]
+        assert "urn:coreason:actionspace:oracle:test:v1" in registry._mock_state  # type: ignore[attr-defined]
 
 
 class TestLegacyURNDeprecationWarnings:
@@ -259,7 +268,7 @@ class TestLegacyURNDeprecationWarnings:
         matrix_data = {
             "capabilities": [
                 {
-                    "urn": "urn:coreason:archetype_b:tools:clean",
+                    "urn": "urn:coreason:actionspace:solver:clean:v1",
                     "endpoint": "http://clean:8000",
                     "clearance": "PUBLIC",
                 }
