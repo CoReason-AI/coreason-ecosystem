@@ -77,7 +77,7 @@ class OracleExecutionReceipt(BaseModel):
     topology_class: Literal["oracle_execution_receipt"] = "oracle_execution_receipt"
     executed_urn: Annotated[
         str,
-        StringConstraints(max_length=2000, pattern=r"^urn:coreason:oracle:.*$"),
+        StringConstraints(max_length=2000, pattern=r"^urn:[a-z0-9_]+:oracle:.*$"),
     ]
     action_space_id: Annotated[
         str,
@@ -112,7 +112,7 @@ class OntologicalNormalizationIntent(BaseModel):
     ]
     target_ontology_urn: Annotated[
         str,
-        StringConstraints(max_length=2000, pattern=r"^urn:coreason:ontology:.*$"),
+        StringConstraints(max_length=2000, pattern=r"^urn:[a-z0-9_]+:ontology:.*$"),
     ]
 
 
@@ -125,7 +125,7 @@ class CapabilityEntry(BaseModel):
         str,
         StringConstraints(
             max_length=2000,
-            pattern=r"^urn:coreason:(actionspace|archetype_[a-d]|oracle|state):.*$",
+            pattern=r"^urn:[a-z0-9_]+:(actionspace|archetype_[a-d]|oracle|state):.*$",
         ),
     ] = Field(description="The unique semantic identifier for the node.")
     endpoint: str = Field(description="The physical routing URI endpoint.")

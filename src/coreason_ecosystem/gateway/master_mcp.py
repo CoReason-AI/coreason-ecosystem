@@ -113,6 +113,12 @@ async def _hydrate_registry() -> None:
     await registry.scan_action_space_modules()
 
 
+@app.on_event("shutdown")
+async def _shutdown_registry() -> None:
+    """Gracefully shutdown the capability registry and its background worker."""
+    await registry.shutdown()
+
+
 async def extract_and_verify_identity(request: Request) -> None:
     """Verify cryptographic semantic clearances binding identity envelopes bounds."""
     auth_header = request.headers.get("Authorization")

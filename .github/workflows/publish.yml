@@ -11,7 +11,7 @@ permissions:
   contents: write
   id-token: write
   pages: write
-  attestations: write
+  # attestations: write # Requires Enterprise Cloud or public repo for SLSA provenance
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -69,6 +69,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
+          attestations: false # Requires Enterprise Cloud or public repo
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
