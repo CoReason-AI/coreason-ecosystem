@@ -34,7 +34,7 @@ jobs:
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Dynamic Ecosystem Sync
-        run: if [ -f "pyproject.toml" ]; then uv sync --all-extras --dev; fi
+        run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14 --all-extras --dev; fi
         shell: bash
       - name: Provision Ephemeral Orchestration Isolation
         run: temporal operator namespace create $TEMPORAL_CI_NAMESPACE
@@ -86,7 +86,7 @@ jobs:
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Dynamic Ecosystem Sync
-        run: if [ -f "pyproject.toml" ]; then uv sync --all-extras; fi
+        run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14 --all-extras; fi
         shell: bash
       - name: Bandit Security Scan
         run: uvx bandit -r src/ scripts/ tests/ -s B101,B106,B108,B404
