@@ -176,7 +176,14 @@ class SovereignMCPRegistry:
         handle = self._client.get_workflow_handle(self._workflow_id)
         await handle.signal(
             RegistryStateWorkflow.update_urn,
-            args=[urn, endpoint, clearance, epistemic_status, capability_metadata, content_hash],
+            args=[
+                urn,
+                endpoint,
+                clearance,
+                epistemic_status,
+                capability_metadata,
+                content_hash,
+            ],
         )
 
     async def _get_state(self) -> dict[str, dict[str, Any]]:
@@ -336,7 +343,12 @@ class SovereignMCPRegistry:
                         pass
 
             await self._update_urn(
-                urn, endpoint, clearance, epistemic_status, capability_metadata, content_hash
+                urn,
+                endpoint,
+                clearance,
+                epistemic_status,
+                capability_metadata,
+                content_hash,
             )
             logger.debug(
                 f"Registered capability metadata for {urn}: "

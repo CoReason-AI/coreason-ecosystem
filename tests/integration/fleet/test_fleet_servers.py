@@ -68,7 +68,10 @@ async def test_daemon_no_viable_bid() -> None:
 
     # Set β₀ > 0 so scale-up logic triggers
     coreason_active_agents_total.set(1)
-    from coreason_ecosystem.fleet.telemetry_topology import coreason_aggregate_vram_demand_gb
+    from coreason_ecosystem.fleet.telemetry_topology import (
+        coreason_aggregate_vram_demand_gb,
+    )
+
     coreason_aggregate_vram_demand_gb.set(100)
 
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
@@ -89,4 +92,3 @@ async def test_daemon_no_viable_bid() -> None:
         finally:
             coreason_aggregate_vram_demand_gb.set(0.0)
             coreason_active_agents_total.set(0)
-
