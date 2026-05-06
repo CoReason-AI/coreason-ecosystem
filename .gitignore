@@ -141,3 +141,4 @@ cython_debug/
 
 # Runtime Logs
 logs/
+.uv_cache/
