@@ -341,7 +341,8 @@ async def test_execute_thermodynamic_guillotine_timeout(
         api_cost_hourly=0.0,
     )
 
-    async def _timeout(*args, **kwargs):
+    from typing import Any
+    async def _timeout(*args: Any, **kwargs: Any) -> Any:
         raise asyncio.TimeoutError()
 
     with (

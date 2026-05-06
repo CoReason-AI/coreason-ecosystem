@@ -8,25 +8,25 @@ from coreason_ecosystem.cli import app, version_callback
 
 runner = CliRunner()
 
-def test_version_callback_success():
+def test_version_callback_success() -> None:
     with patch("importlib.metadata.version", return_value="1.2.3"):
         result = runner.invoke(app, ["--version"])
         assert result.exit_code == 0
         assert "CoReason Ecosystem" in result.stdout
         assert "v1.2.3" in result.stdout
 
-def test_version_callback_fallback():
+def test_version_callback_fallback() -> None:
     with patch("importlib.metadata.version", side_effect=importlib.metadata.PackageNotFoundError):
         result = runner.invoke(app, ["--version"])
         assert result.exit_code == 0
         assert "unknown (local development)" in result.stdout
 
-def test_cli_callback():
+def test_cli_callback() -> None:
     result = runner.invoke(app, ["--help"])
     # Shows help
     assert result.exit_code == 0
 
-def test_init_command():
+def test_init_command() -> None:
     with (
         patch("coreason_ecosystem.utils.telemetry.start_otlp_background_worker") as mock_start,
         patch("coreason_ecosystem.utils.telemetry.stop_otlp_background_worker", new_callable=AsyncMock) as mock_stop,
@@ -38,7 +38,7 @@ def test_init_command():
         mock_init.assert_awaited_once_with("test_project", "base", "python")
         mock_stop.assert_awaited_once()
 
-def test_build_command():
+def test_build_command() -> None:
     with (
         patch("coreason_ecosystem.utils.telemetry.start_otlp_background_worker") as mock_start,
         patch("coreason_ecosystem.utils.telemetry.stop_otlp_background_worker", new_callable=AsyncMock) as mock_stop,
@@ -50,7 +50,7 @@ def test_build_command():
         mock_build.assert_awaited_once_with("target_path")
         mock_stop.assert_awaited_once()
 
-def test_up_command():
+def test_up_command() -> None:
     with (
         patch("coreason_ecosystem.utils.telemetry.start_otlp_background_worker") as mock_start,
         patch("coreason_ecosystem.utils.telemetry.stop_otlp_background_worker", new_callable=AsyncMock) as mock_stop,
@@ -62,7 +62,7 @@ def test_up_command():
         mock_up.assert_awaited_once()
         mock_stop.assert_awaited_once()
 
-def test_doctor_command():
+def test_doctor_command() -> None:
     with (
         patch("coreason_ecosystem.utils.telemetry.start_otlp_background_worker") as mock_start,
         patch("coreason_ecosystem.utils.telemetry.stop_otlp_background_worker", new_callable=AsyncMock) as mock_stop,
@@ -74,7 +74,7 @@ def test_doctor_command():
         mock_doc.assert_awaited_once()
         mock_stop.assert_awaited_once()
 
-def test_sync_command():
+def test_sync_command() -> None:
     with (
         patch("coreason_ecosystem.utils.telemetry.start_otlp_background_worker") as mock_start,
         patch("coreason_ecosystem.utils.telemetry.stop_otlp_background_worker", new_callable=AsyncMock) as mock_stop,
@@ -86,13 +86,13 @@ def test_sync_command():
         mock_sync.assert_awaited_once()
         mock_stop.assert_awaited_once()
 
-def test_docs_build_success():
+def test_docs_build_success() -> None:
     with patch("coreason_ecosystem.docs_generator.generate_dynamic_docs") as mock_gen:
         result = runner.invoke(app, ["docs", "build"])
         assert result.exit_code == 0
         mock_gen.assert_called_once()
 
-def test_docs_build_failure():
+def test_docs_build_failure() -> None:
     with patch("coreason_ecosystem.docs_generator.generate_dynamic_docs", side_effect=Exception("mocked error")):
         result = runner.invoke(app, ["docs", "build"])
         # Should catch Exception and print, but still exit 0 unless we specifically raise typer.Exit

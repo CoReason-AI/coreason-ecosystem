@@ -1,15 +1,16 @@
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any
 
 from coreason_ecosystem.fleet.expansion_loop import von_neumann_expansion_daemon, TREASURY_URN
 
 class MockAssessment:
-    def __init__(self, breached=False):
+    def __init__(self, breached: bool = False) -> None:
         self.threshold_breached = breached
 
 class MockBid:
-    def __init__(self, provider="aws"):
+    def __init__(self, provider: str = "aws") -> None:
         self.provider = provider
         self.market_type = None
         self.hardware_profile = None
@@ -19,7 +20,7 @@ class MockBid:
         self.escrow_policy = None
 
 @pytest.mark.asyncio
-async def test_von_neumann_expansion_daemon_missing_treasury():
+async def test_von_neumann_expansion_daemon_missing_treasury() -> None:
     registry = MagicMock()
     registry.resolve_urn = AsyncMock(side_effect=KeyError("Not found"))
     oracle = MagicMock()
@@ -30,7 +31,7 @@ async def test_von_neumann_expansion_daemon_missing_treasury():
         assert "not registered" in mock_err.call_args[0][0]
 
 @pytest.mark.asyncio
-async def test_von_neumann_expansion_daemon_economic_guillotine():
+async def test_von_neumann_expansion_daemon_economic_guillotine() -> None:
     registry = MagicMock()
     registry.resolve_urn = AsyncMock(return_value="http://treasury")
     oracle = MagicMock()
@@ -53,14 +54,14 @@ async def test_von_neumann_expansion_daemon_economic_guillotine():
         mock_actuator.execute_thermodynamic_guillotine.assert_awaited_once()
 
 @pytest.mark.asyncio
-async def test_von_neumann_expansion_daemon_provision_success():
+async def test_von_neumann_expansion_daemon_provision_success() -> None:
     registry = MagicMock()
     registry.resolve_urn = AsyncMock(return_value="http://treasury")
     oracle = MagicMock()
     oracle.calculate_optimal_bid = AsyncMock(return_value=MockBid("vast"))
     
     # We will raise CancelledError in sleep to exit the loop gracefully
-    async def mock_sleep(*args, **kwargs):
+    async def mock_sleep(*args: Any, **kwargs: Any) -> Any:
         raise asyncio.CancelledError()
         
     with (
@@ -85,13 +86,13 @@ async def test_von_neumann_expansion_daemon_provision_success():
         assert bid.provider == "vast"
 
 @pytest.mark.asyncio
-async def test_von_neumann_expansion_daemon_provision_spot():
+async def test_von_neumann_expansion_daemon_provision_spot() -> None:
     registry = MagicMock()
     registry.resolve_urn = AsyncMock(return_value="http://treasury")
     oracle = MagicMock()
     oracle.calculate_optimal_bid = AsyncMock(return_value=MockBid("aws"))
     
-    async def mock_sleep(*args, **kwargs):
+    async def mock_sleep(*args: Any, **kwargs: Any) -> Any:
         raise asyncio.CancelledError()
         
     with (
@@ -115,13 +116,13 @@ async def test_von_neumann_expansion_daemon_provision_spot():
         assert bid.market_type == "spot"
 
 @pytest.mark.asyncio
-async def test_von_neumann_expansion_daemon_no_bids():
+async def test_von_neumann_expansion_daemon_no_bids() -> None:
     registry = MagicMock()
     registry.resolve_urn = AsyncMock(return_value="http://treasury")
     oracle = MagicMock()
     oracle.calculate_optimal_bid = AsyncMock(return_value=None)
     
-    async def mock_sleep(*args, **kwargs):
+    async def mock_sleep(*args: Any, **kwargs: Any) -> Any:
         raise asyncio.CancelledError()
         
     with (
@@ -142,12 +143,12 @@ async def test_von_neumann_expansion_daemon_no_bids():
         mock_warn.assert_called_with("[ExpansionLoop] No viable bids found.")
 
 @pytest.mark.asyncio
-async def test_von_neumann_expansion_daemon_exception_handling():
+async def test_von_neumann_expansion_daemon_exception_handling() -> None:
     registry = MagicMock()
     registry.resolve_urn = AsyncMock(return_value="http://treasury")
     oracle = MagicMock()
     
-    async def mock_sleep(*args, **kwargs):
+    async def mock_sleep(*args: Any, **kwargs: Any) -> Any:
         raise asyncio.CancelledError()
         
     with (
