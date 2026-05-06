@@ -2,6 +2,7 @@ import runpy
 import sys
 from unittest.mock import patch
 
+
 def test_main_execution() -> None:
     with patch("coreason_ecosystem.cli.app") as mock_app:
         with patch.object(sys, "argv", ["coreason"]):

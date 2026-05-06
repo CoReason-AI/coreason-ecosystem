@@ -293,13 +293,17 @@ class TestEpistemicTransmuterCanonicalPayload:
         import hashlib
 
         payload = {"b": 2, "a": 1}
-        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
         canonical_hash = hashlib.sha256(canonical).hexdigest()
 
         # Should not raise
         epistemic_filter.transmute_canonical_payload(payload, canonical_hash)
 
-    def test_canonical_hash_mismatch(self, epistemic_filter: EpistemicTransmuter) -> None:
+    def test_canonical_hash_mismatch(
+        self, epistemic_filter: EpistemicTransmuter
+    ) -> None:
         from fastapi import HTTPException
 
         payload = {"b": 2, "a": 1}
@@ -307,6 +311,6 @@ class TestEpistemicTransmuterCanonicalPayload:
 
         with pytest.raises(HTTPException) as exc_info:
             epistemic_filter.transmute_canonical_payload(payload, bad_hash)
-        
+
         assert exc_info.value.status_code == 401
         assert "RFC 8785 canonical hash mismatch" in str(exc_info.value.detail)

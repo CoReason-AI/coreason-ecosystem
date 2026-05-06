@@ -219,18 +219,14 @@ async def test_provision_node_vast_with_payload(
     mock_auto.create_stack.return_value = mock_stack
     mock_stack.up.return_value.outputs = {}
 
-    with patch.object(
-        driver.injector, "compile_payload", return_value="BASE64PAYLOAD"
-    ):
+    with patch.object(driver.injector, "compile_payload", return_value="BASE64PAYLOAD"):
         res = await driver.provision_node(target)
 
     assert "stack_name" in res
     mock_stack.set_config.assert_any_call(
         "boot_payload_b64", mock_auto.ConfigValue(value="BASE64PAYLOAD")
     )
-    mock_stack.set_config.assert_any_call(
-        "market_type", mock_auto.ConfigValue("spot")
-    )
+    mock_stack.set_config.assert_any_call("market_type", mock_auto.ConfigValue("spot"))
 
 
 @pytest.mark.asyncio
@@ -314,9 +310,7 @@ async def test_execute_thermodynamic_guillotine_destroy_exception(
             new_callable=AsyncMock,
             side_effect=RuntimeError("boom"),
         ),
-        patch(
-            "coreason_ecosystem.fleet.pulumi_actuator.logger.error"
-        ) as mock_err,
+        patch("coreason_ecosystem.fleet.pulumi_actuator.logger.error") as mock_err,
     ):
         await driver.execute_thermodynamic_guillotine(assessment)
         mock_err.assert_called()
@@ -342,6 +336,7 @@ async def test_execute_thermodynamic_guillotine_timeout(
     )
 
     from typing import Any
+
     async def _timeout(*args: Any, **kwargs: Any) -> Any:
         raise asyncio.TimeoutError()
 
@@ -353,9 +348,7 @@ async def test_execute_thermodynamic_guillotine_timeout(
         ),
         patch.object(driver, "destroy_node", new_callable=AsyncMock),
         patch("asyncio.wait_for", side_effect=_timeout),
-        patch(
-            "coreason_ecosystem.fleet.pulumi_actuator.logger.error"
-        ) as mock_err,
+        patch("coreason_ecosystem.fleet.pulumi_actuator.logger.error") as mock_err,
     ):
         await driver.execute_thermodynamic_guillotine(assessment)
         mock_err.assert_called()
