@@ -365,7 +365,7 @@ async def test_federated_discovery_logic() -> None:
         with patch("coreason_ecosystem.gateway.master_mcp.registry.get_epistemic_status", new_callable=AsyncMock) as mock_status:
             mock_status.return_value = "PUBLISHED"
             import os
-            with patch.dict(os.environ, {"MESH_SECRET": "test_secret"}):
+            with patch.dict(os.environ, {"MESH_SECRET": "test_secret"}):  # nosec B105
                 res = await federated_discovery(arguments)
                 import json
                 data = json.loads(res)

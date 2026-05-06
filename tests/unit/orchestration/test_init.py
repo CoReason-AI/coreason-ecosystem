@@ -2,26 +2,27 @@ import asyncio
 import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
+from typing import Any
 
 from coreason_ecosystem.orchestration.init import execute_init
 
 
 @pytest.mark.asyncio
-async def test_execute_init_validation_path_separator(tmp_path: Path, monkeypatch) -> None:
+async def test_execute_init_validation_path_separator(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.chdir(tmp_path)
     with pytest.raises(ValueError, match="Project name cannot contain path separators"):
         await execute_init("invalid/path")
 
 
 @pytest.mark.asyncio
-async def test_execute_init_validation_outside_cwd(tmp_path: Path, monkeypatch) -> None:
+async def test_execute_init_validation_outside_cwd(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.chdir(tmp_path)
     with pytest.raises(ValueError, match="Project path must be a subdirectory"):
         await execute_init("..")
 
 
 @pytest.mark.asyncio
-async def test_execute_init_rust_topology(tmp_path: Path, monkeypatch) -> None:
+async def test_execute_init_rust_topology(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.chdir(tmp_path)
 
     with patch("asyncio.create_subprocess_exec") as mock_exec:
@@ -41,7 +42,7 @@ async def test_execute_init_rust_topology(tmp_path: Path, monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_execute_init_go_topology(tmp_path: Path, monkeypatch) -> None:
+async def test_execute_init_go_topology(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.chdir(tmp_path)
 
     with patch("asyncio.create_subprocess_exec") as mock_exec:
@@ -59,7 +60,7 @@ async def test_execute_init_go_topology(tmp_path: Path, monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_execute_init_python_base_topology(tmp_path: Path, monkeypatch) -> None:
+async def test_execute_init_python_base_topology(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.chdir(tmp_path)
 
     with patch("asyncio.create_subprocess_exec") as mock_exec:
@@ -77,7 +78,7 @@ async def test_execute_init_python_base_topology(tmp_path: Path, monkeypatch) ->
 
 
 @pytest.mark.asyncio
-async def test_execute_init_python_medallion_topology(tmp_path: Path, monkeypatch) -> None:
+async def test_execute_init_python_medallion_topology(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.chdir(tmp_path)
 
     with patch("asyncio.create_subprocess_exec") as mock_exec:
@@ -95,7 +96,7 @@ async def test_execute_init_python_medallion_topology(tmp_path: Path, monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_execute_init_python_rag_topology(tmp_path: Path, monkeypatch) -> None:
+async def test_execute_init_python_rag_topology(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.chdir(tmp_path)
 
     with patch("asyncio.create_subprocess_exec") as mock_exec:
@@ -112,12 +113,12 @@ async def test_execute_init_python_rag_topology(tmp_path: Path, monkeypatch) -> 
 
 
 @pytest.mark.asyncio
-async def test_execute_init_python_version_fallback(tmp_path: Path, monkeypatch) -> None:
+async def test_execute_init_python_version_fallback(tmp_path: Path, monkeypatch: Any) -> None:
     """Cover get_version() fallback when package is not installed."""
     import importlib.metadata
     monkeypatch.chdir(tmp_path)
 
-    def _raise(*args, **kwargs):
+    def _raise(*args: Any, **kwargs: Any) -> Any:
         raise importlib.metadata.PackageNotFoundError()
 
     with (

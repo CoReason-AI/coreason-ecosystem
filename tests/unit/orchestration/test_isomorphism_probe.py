@@ -7,23 +7,25 @@ import pytest
 
 from coreason_ecosystem.orchestration.isomorphism_probe import execute_oracle_diagnostic
 
+from typing import Any, Optional
+
 class MockResponse:
-    def __init__(self, status_code: int, elapsed_seconds: float = 0.1):
+    def __init__(self, status_code: int, elapsed_seconds: float = 0.1) -> None:
         self.status_code = status_code
         self.elapsed = type('obj', (object,), {'total_seconds': lambda *args, **kwargs: elapsed_seconds})()
 
 class MockAsyncClient:
-    def __init__(self, get_responses=None, stream_responses=None):
+    def __init__(self, get_responses: Optional[dict[str, Any]] = None, stream_responses: Optional[dict[str, Any]] = None) -> None:
         self.get_responses = get_responses or {}
         self.stream_responses = stream_responses or {}
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "MockAsyncClient":
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         pass
 
-    async def get(self, url, **kwargs):
+    async def get(self, url: str, **kwargs: Any) -> Any:
         if url in self.get_responses:
             resp = self.get_responses[url]
             if isinstance(resp, Exception):
@@ -31,15 +33,15 @@ class MockAsyncClient:
             return resp
         return MockResponse(200)
 
-    def stream(self, method, url, **kwargs):
+    def stream(self, method: str, url: str, **kwargs: Any) -> Any:
         class StreamContext:
-            def __init__(self, resp):
+            def __init__(self, resp: Any) -> None:
                 self.resp = resp
-            async def __aenter__(self):
+            async def __aenter__(self) -> Any:
                 if isinstance(self.resp, Exception):
                     raise self.resp
                 return self.resp
-            async def __aexit__(self, exc_type, exc_val, exc_tb):
+            async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
                 pass
         
         resp = self.stream_responses.get(url, MockResponse(200))

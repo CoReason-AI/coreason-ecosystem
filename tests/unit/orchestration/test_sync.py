@@ -100,8 +100,8 @@ async def test_execute_sync_docker_failure(tmp_path: Path) -> None:
 async def test_establish_federated_link() -> None:
     manifest = FederatedSecurityMacroManifest.model_construct(
         target_endpoint_uri="http://example.com",
-        federation_token="token",
-        allow_inbound=True
+        required_clearance="PUBLIC",  # type: ignore[arg-type]
+        max_liability_budget=100.0,  # type: ignore[arg-type]
     )
     with patch("coreason_ecosystem.orchestration.sync.execute_sync", new_callable=AsyncMock) as mock_sync:
         await establish_federated_link(manifest)

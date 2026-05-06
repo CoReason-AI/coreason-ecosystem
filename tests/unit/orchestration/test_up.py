@@ -3,6 +3,7 @@ import os
 import subprocess
 from pathlib import Path
 from unittest.mock import AsyncMock, patch, MagicMock
+from typing import Any, Generator, Tuple
 
 import pytest
 import typer
@@ -81,7 +82,7 @@ async def test_wait_for_port_timeout() -> None:
             await wait_for_port(8000, timeout=1.0)
 
 @pytest.fixture
-def mock_up_dependencies():
+def mock_up_dependencies() -> Generator[tuple[AsyncMock, AsyncMock, AsyncMock, AsyncMock, MagicMock], None, None]:
     with (
         patch("coreason_ecosystem.orchestration.up.Path.cwd") as mock_cwd,
         patch("shutil.copy2") as mock_copy,
@@ -106,7 +107,7 @@ def mock_up_dependencies():
             yield mock_exec, mock_wp, mock_wt, mock_port, mock_copy
 
 @pytest.mark.asyncio
-async def test_execute_up_success(mock_up_dependencies) -> None:
+async def test_execute_up_success(mock_up_dependencies: tuple[AsyncMock, AsyncMock, AsyncMock, AsyncMock, MagicMock]) -> None:
     mock_exec, mock_wp, mock_wt, mock_port, mock_copy = mock_up_dependencies
     
     await execute_up()
@@ -118,7 +119,7 @@ async def test_execute_up_success(mock_up_dependencies) -> None:
     mock_port.assert_awaited_once()
 
 @pytest.mark.asyncio
-async def test_execute_up_teardown_error(mock_up_dependencies) -> None:
+async def test_execute_up_teardown_error(mock_up_dependencies: tuple[AsyncMock, AsyncMock, AsyncMock, AsyncMock, MagicMock]) -> None:
     mock_exec, _, _, _, _ = mock_up_dependencies
     proc_err = AsyncMock()
     proc_err.communicate.return_value = (b"", b"error")
@@ -131,7 +132,7 @@ async def test_execute_up_teardown_error(mock_up_dependencies) -> None:
     assert mock_exec.call_count == 1
 
 @pytest.mark.asyncio
-async def test_execute_up_postgres_error(mock_up_dependencies) -> None:
+async def test_execute_up_postgres_error(mock_up_dependencies: tuple[AsyncMock, AsyncMock, AsyncMock, AsyncMock, MagicMock]) -> None:
     mock_exec, _, _, _, _ = mock_up_dependencies
     proc_ok = AsyncMock()
     proc_ok.communicate.return_value = (b"", b"")
@@ -149,7 +150,7 @@ async def test_execute_up_postgres_error(mock_up_dependencies) -> None:
     assert mock_exec.call_count == 2
 
 @pytest.mark.asyncio
-async def test_execute_up_postgres_timeout(mock_up_dependencies) -> None:
+async def test_execute_up_postgres_timeout(mock_up_dependencies: tuple[AsyncMock, AsyncMock, AsyncMock, AsyncMock, MagicMock]) -> None:
     mock_exec, mock_wp, _, _, _ = mock_up_dependencies
     mock_wp.side_effect = TimeoutError("PG timeout")
     
@@ -158,7 +159,7 @@ async def test_execute_up_postgres_timeout(mock_up_dependencies) -> None:
     assert exc.value.exit_code == 1
 
 @pytest.mark.asyncio
-async def test_execute_up_temporal_timeout(mock_up_dependencies) -> None:
+async def test_execute_up_temporal_timeout(mock_up_dependencies: tuple[AsyncMock, AsyncMock, AsyncMock, AsyncMock, MagicMock]) -> None:
     mock_exec, mock_wp, mock_wt, _, _ = mock_up_dependencies
     mock_wt.side_effect = TimeoutError("Temporal timeout")
     
@@ -167,7 +168,7 @@ async def test_execute_up_temporal_timeout(mock_up_dependencies) -> None:
     assert exc.value.exit_code == 1
 
 @pytest.mark.asyncio
-async def test_execute_up_daemon_timeout(mock_up_dependencies) -> None:
+async def test_execute_up_daemon_timeout(mock_up_dependencies: tuple[AsyncMock, AsyncMock, AsyncMock, AsyncMock, MagicMock]) -> None:
     mock_exec, mock_wp, mock_wt, mock_port, _ = mock_up_dependencies
     mock_port.side_effect = TimeoutError("Daemon timeout")
     
@@ -177,12 +178,9 @@ async def test_execute_up_daemon_timeout(mock_up_dependencies) -> None:
 
 @pytest.mark.asyncio
 async def test_provision_swarm_topology() -> None:
-    manifest = CognitiveSwarmDeploymentManifest.model_construct(
+    manifest = CognitiveSwarmDeploymentManifest.model_construct(  # type: ignore[call-arg]
         swarm_objective_prompt="test",
         agent_node_count=3,
-        capability_urns=[],
-        swarm_mesh_id="test_id",
-        minimum_epistemic_status="DRAFT"
     )
     with patch("coreason_ecosystem.orchestration.up.execute_up", new_callable=AsyncMock) as mock_up:
         await provision_swarm_topology(manifest)
