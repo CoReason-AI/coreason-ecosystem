@@ -125,3 +125,24 @@ async def test_poll_workflows_detects_causal_cycles(
 
     # β₁ > 0 proves a causal cycle was detected.
     assert coreason_causal_cycles_total._value.get() > 0
+
+
+@pytest.mark.asyncio
+async def test_poll_workflows_vram_demand_exception(
+    monitor: TelemetryTopologyMonitor,
+) -> None:
+    mock_wf = MagicMock()
+    mock_wf.id = "wf-test"
+    mock_wf.parent_id = None
+    mock_wf.search_attributes = {"vram_demand_gb": "invalid_float"}
+
+    mock_client = MagicMock()
+
+    async def mock_list_workflows(_query: str) -> Any:
+        yield mock_wf
+
+    mock_client.list_workflows = mock_list_workflows
+    monitor._client = mock_client
+
+    await monitor._poll_workflows()
+    # Execution completes without raising an error

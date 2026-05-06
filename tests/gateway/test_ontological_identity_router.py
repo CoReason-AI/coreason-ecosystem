@@ -164,3 +164,16 @@ class TestVerifyFederationSLA:
         assert broker.verify_federation_sla(sla, "public") is True
         with pytest.raises(ValueError, match="Federation Severance"):
             broker.verify_federation_sla(sla, "internal")
+
+    def test_missing_receiving_tenant_cid(
+        self, broker: OntologicalIdentityRouter
+    ) -> None:
+        sla = FederatedBilateralSLA.model_construct(
+            receiving_tenant_cid="",
+            max_permitted_classification=SemanticClassificationProfile.PUBLIC,
+            liability_limit_magnitude=100,
+        )
+        with pytest.raises(
+            ValueError, match="Federation Severance: receiving_tenant_cid is empty."
+        ):
+            broker.verify_federation_sla(sla, "public")

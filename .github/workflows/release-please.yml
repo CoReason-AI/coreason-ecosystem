@@ -18,6 +18,6 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@0dfd8538845b8e92600d271a895a5372865d4062 # v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

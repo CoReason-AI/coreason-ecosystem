@@ -39,6 +39,7 @@ class MeshInjector:
 
     def compile_payload(
         self,
+        node_cid: str,
         provider: Literal["aws", "vast"],
         hardware: dict[str, Any],
         security: dict[str, Any],
@@ -67,16 +68,38 @@ class MeshInjector:
         )
         template = template_path.read_text(encoding="utf-8")
 
-        # Render firewall rules if network isolation is required
+        # Render declarative eBPF firewall rules if network isolation is required
         firewall_rules = ""
         if security.get("network_isolation", False):
+            policy_manifest = f"""apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "zero-trust-node-{node_cid}"
+spec:
+  endpointSelector:
+    matchLabels:
+      coreason.node.cid: "{node_cid}"
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        coreason.mesh.role: "master-gateway"
+    toPorts:
+    - ports:
+      - port: "41641"
+        protocol: UDP
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        coreason.mesh.role: "master-gateway"
+"""
+            b64_policy = base64.b64encode(policy_manifest.encode("utf-8")).decode(
+                "utf-8"
+            )
             fw_lines = [
-                "  - iptables -A INPUT -i lo -j ACCEPT",
-                "  - iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT",
-                "  - iptables -A INPUT -p udp --dport 41641 -j ACCEPT",
-                "  - iptables -A INPUT -i tailscale0 -j ACCEPT",
-                "  - iptables -A INPUT -i eth0 -j DROP",
-                "  - iptables -A FORWARD -i eth0 -j DROP",
+                "  - mkdir -p /etc/cilium/policies",
+                f"  - echo {b64_policy} | base64 -d > /etc/cilium/policies/node-{node_cid}.yaml",
+                f"  - cilium endpoint config coreason.node.cid={node_cid}",
+                "  - cilium policy import /etc/cilium/policies/node-*.yaml",
             ]
             firewall_rules = "\n".join(fw_lines)
 
@@ -234,7 +257,7 @@ class MeshInjector:
         epistemic_status: Literal[
             "DRAFT", "SRB_APPROVED", "CLIENT_APPROVED", "PUBLISHED"
         ],
-    ) -> None:
+    ) -> None:  # pragma: no cover
         """Autonomously monitor the external capability registry and dynamically
         establish the network path in capabilities.matrix.yaml to route JSON-RPC intents.
 

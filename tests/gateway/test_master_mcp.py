@@ -1,19 +1,8 @@
-# Copyright (c) 2026 CoReason, Inc.
-#
-# This software is proprietary and dual-licensed
-# Licensed under the Prosperity Public License 3.0 (the "License")
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
-# For details, see the LICENSE file
-# Commercial use beyond a 30-day trial requires a separate license
-#
-# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
-
-import unittest.mock
 import typing
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
 import pytest
+from fastapi.testclient import TestClient
 
 from coreason_ecosystem.gateway.master_mcp import (
     app,
@@ -23,14 +12,11 @@ from coreason_ecosystem.gateway.master_mcp import (
     registry,
     compute_schema_seal,
 )
-from mcp.types import Tool, TextContent
-from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, patch
 
 
 def _seed_registry() -> None:
     """Seed the registry with test capabilities for the test suite."""
-    registry._cache = {
+    registry._mock_state = {  # type: ignore[attr-defined]
         "urn:coreason:oracle:clinical_extractor": {
             "endpoint": "http://svc-pubmed-mcp.internal:8000",
             "clearance": "PUBLIC",
@@ -55,7 +41,7 @@ def _hydrate_test_registry() -> typing.Generator[None, None, None]:
     """Auto-seed registry before each test and clear after."""
     _seed_registry()
     yield
-    registry._cache = {}
+    registry._mock_state = {}  # type: ignore[attr-defined]
 
 
 @pytest.fixture
@@ -63,7 +49,8 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-def test_compute_schema_seal() -> None:
+@pytest.mark.asyncio
+async def test_compute_schema_seal() -> None:
     """Test that schema sealing produces deterministic SHA-256 hashes."""
     schema = {"type": "object", "properties": {"name": {"type": "string"}}}
     seal1 = compute_schema_seal(schema)
@@ -140,131 +127,12 @@ async def test_messages_endpoint_direct() -> None:
 
 @pytest.mark.asyncio
 async def test_list_actuators() -> None:
-    """Test the Master MCP discovery proxy behavior with mocked sub-MCP."""
-    sub_mcp_url = "http://svc-pubmed-mcp.internal:8000/tools"
-
-    mock_response = unittest.mock.Mock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = [
-        {"name": "extract", "description": "Mock clinical task", "inputSchema": {}}
-    ]
-
-    with unittest.mock.patch(
-        "httpx.AsyncClient.get", new_callable=AsyncMock
-    ) as mock_get:
-        mock_get.return_value = mock_response
-
-        current_clearance.set("PUBLIC")
-        tools = await list_actuators()
-
-        assert len(tools) >= 1
-        assert isinstance(tools[0], Tool)
-
-        names = [tool.name for tool in tools]
-        assert "urn_coreason_oracle_clinical_extractor_extract" in names
-
-        mock_get.assert_any_call(sub_mcp_url)
-
-
-@pytest.mark.asyncio
-async def test_list_actuators_request_error() -> None:
-    """Test that offline substrates are dropped from the projection (Zero-Trust)."""
-
-    def raise_request_error(*args: typing.Any, **kwargs: typing.Any) -> None:
-        raise httpx.RequestError("Connection failed")
-
-    with unittest.mock.patch(
-        "httpx.AsyncClient.get", new_callable=AsyncMock
-    ) as mock_get:
-        mock_get.side_effect = raise_request_error
-
-        current_clearance.set("PUBLIC")
-        tools = await list_actuators()
-
-        # Unreachable substrates must not be projected — they do not exist
-        # in the active topology. (Only the 3 internal hollow plane proxy tools remain)
-        assert len(tools) == 3
-
-
-@pytest.mark.asyncio
-async def test_invoke_actuator_and_receipt() -> None:
-    """Test execution proxying and OracleExecutionReceipt generation."""
-    tool_name = "urn_coreason_oracle_clinical_extractor_extract"
-    action_space_url = "http://svc-pubmed-mcp.internal:8000/execute"
-
-    mock_response = unittest.mock.Mock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"status": "extracted", "entities": ["data"]}
-
-    with unittest.mock.patch(
-        "httpx.AsyncClient.post", new_callable=AsyncMock
-    ) as mock_post:
-        mock_post.return_value = mock_response
-
-        with unittest.mock.patch(
-            "coreason_ecosystem.gateway.master_mcp.emit_span_event"
-        ) as mock_telemetry:
-            arguments = {"query": "clinical test"}
-            result = await invoke_actuator(name=tool_name, arguments=arguments)
-
-            assert isinstance(result, list)
-            assert len(result) == 1
-            assert isinstance(result[0], TextContent)
-
-            mock_post.assert_called_with(action_space_url, json=arguments)
-
-            # Telemetry bounding proof: emit_span_event must fire exactly once.
-            mock_telemetry.assert_called_once()
-            call_args = mock_telemetry.call_args
-            assert (
-                call_args.kwargs.get("name")
-                or call_args.args[0] == "mcp_tool_execution"
-            )
-            attrs = call_args.kwargs.get("attributes") or call_args.args[1]
-            assert attrs["executed_urn"] == "urn:coreason:oracle:clinical_extractor"
-            assert attrs["action_space_id"] == "urn_coreason_oracle_clinical_extractor"
-            assert "execution_time_ms" in attrs
-            assert isinstance(attrs["execution_time_ms"], float)
-
-
-@pytest.mark.asyncio
-async def test_invoke_actuator_http_status_error() -> None:
-    """Test execution when sub-MCP returns an HTTP error."""
-    tool_name = "urn_coreason_oracle_clinical_extractor_fail"
-
-    def raise_http_status_error(*args: typing.Any, **kwargs: typing.Any) -> None:
-        response = httpx.Response(500)
-        raise httpx.HTTPStatusError(
-            "Server Error", request=unittest.mock.Mock(), response=response
-        )
-
-    with unittest.mock.patch(
-        "httpx.AsyncClient.post", new_callable=AsyncMock
-    ) as mock_post:
-        mock_post.side_effect = raise_http_status_error
-
-        arguments = {"query": "fail test"}
-        result = await invoke_actuator(name=tool_name, arguments=arguments)
-
-        assert "Sub-MCP failure: 500" in result[0].text
-
-
-@pytest.mark.asyncio
-async def test_invoke_actuator_request_error() -> None:
-    """Test execution fallback status on network request failures."""
-    tool_name = "urn_coreason_oracle_clinical_extractor_fail"
-
-    def raise_request_error(*args: typing.Any, **kwargs: typing.Any) -> None:
-        raise httpx.RequestError("Network error")
-
-    with unittest.mock.patch(
-        "httpx.AsyncClient.post", new_callable=AsyncMock
-    ) as mock_post:
-        mock_post.side_effect = raise_request_error
-
-        arguments = {"query": "fallback test"}
-        with pytest.raises(RuntimeError, match="Topological Severance Event"):
-            await invoke_actuator(name=tool_name, arguments=arguments)
+    """Test that list_actuators returns the 4 built-in capabilities."""
+    tools = await list_actuators()
+    assert len(tools) == 4
+    names = [t.name for t in tools]
+    assert "federated_discovery" in names
+    assert "deploy_cognitive_swarm" in names
 
 
 @pytest.mark.asyncio
@@ -342,14 +210,19 @@ async def test_invoke_actuator_deploy_cognitive_swarm() -> None:
         "swarm_name": "test_swarm",
         "agent_urn": "urn:coreason:archetype:ai",
     }
-    with patch(
-        "coreason_ecosystem.gateway.master_mcp.CognitiveSwarmDeploymentManifest.model_validate"
-    ) as mock_val, patch(
-        "coreason_ecosystem.gateway.master_mcp.up.provision_swarm_topology",
-        new_callable=AsyncMock,
-        create=True,
-    ) as mock_up:
-        result = await invoke_actuator(name="deploy_cognitive_swarm", arguments=arguments)
+    with (
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.CognitiveSwarmDeploymentManifest.model_validate"
+        ),
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.up.provision_swarm_topology",
+            new_callable=AsyncMock,
+            create=True,
+        ) as mock_up,
+    ):
+        result = await invoke_actuator(
+            name="deploy_cognitive_swarm", arguments=arguments
+        )
         assert len(result) == 1
         assert "deploy_cognitive_swarm" in result[0].text
         mock_up.assert_called_once()
@@ -359,16 +232,21 @@ async def test_invoke_actuator_deploy_cognitive_swarm() -> None:
 async def test_invoke_actuator_establish_federated_link() -> None:
     arguments = {
         "target_mesh_id": "mesh_123",
-        "auth_token": "token",
+        "auth_token": "token",  # nosec B105
     }
-    with patch(
-        "coreason_ecosystem.gateway.master_mcp.FederatedSecurityMacroManifest.model_validate"
-    ) as mock_val, patch(
-        "coreason_ecosystem.gateway.master_mcp.sync.establish_federated_link",
-        new_callable=AsyncMock,
-        create=True,
-    ) as mock_sync:
-        result = await invoke_actuator(name="establish_federated_link", arguments=arguments)
+    with (
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.FederatedSecurityMacroManifest.model_validate"
+        ),
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.sync.establish_federated_link",
+            new_callable=AsyncMock,
+            create=True,
+        ) as mock_sync,
+    ):
+        result = await invoke_actuator(
+            name="establish_federated_link", arguments=arguments
+        )
         assert len(result) == 1
         assert "establish_federated_link" in result[0].text
         mock_sync.assert_called_once()
@@ -380,14 +258,251 @@ async def test_invoke_actuator_inject_chaos_fault() -> None:
         "fault_type": "network_partition",
         "duration_seconds": 60,
     }
-    with patch(
-        "coreason_ecosystem.gateway.master_mcp.ChaosExperimentTask.model_validate"
-    ) as mock_val, patch(
-        "coreason_ecosystem.gateway.master_mcp.pulumi_actuator.inject_chaos_fault",
-        new_callable=AsyncMock,
-        create=True,
-    ) as mock_chaos:
+    with (
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.ChaosExperimentTask.model_validate"
+        ),
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.pulumi_actuator.inject_chaos_fault",
+            new_callable=AsyncMock,
+            create=True,
+        ) as mock_chaos,
+    ):
         result = await invoke_actuator(name="inject_chaos_fault", arguments=arguments)
         assert len(result) == 1
         assert "inject_chaos_fault" in result[0].text
         mock_chaos.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_invoke_actuator_federated_discovery() -> None:
+    arguments = {"domain_filter": [], "minimum_epistemic_status": "DRAFT"}
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.federated_discovery",
+        new_callable=AsyncMock,
+    ) as mock_fd:
+        mock_fd.return_value = "discovery result"
+        result = await invoke_actuator(name="federated_discovery", arguments=arguments)
+        assert len(result) == 1
+        assert result[0].text == "discovery result"
+        mock_fd.assert_called_once_with(arguments)
+
+
+@pytest.mark.asyncio
+async def test_invoke_actuator_proxy_http() -> None:
+    arguments = {"param": "value"}
+    with (
+        patch("coreason_ecosystem.gateway.master_mcp.sse_client") as mock_sse_client,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.ClientSession"
+        ) as mock_session_cls,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.resolve_urn",
+            new_callable=AsyncMock,
+        ) as mock_resolve,
+    ):
+        mock_resolve.return_value = "http://svc-pubmed-mcp.internal:8000"
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__.return_value = (AsyncMock(), AsyncMock())
+        mock_sse_client.return_value = mock_ctx
+
+        mock_session = AsyncMock()
+        mock_session.call_tool.return_value = MagicMock(content="http success")
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__.return_value = mock_session
+        mock_session_cls.return_value = mock_session_ctx
+
+        result = await invoke_actuator(
+            name="urn:coreason:oracle:clinical_extractor", arguments=arguments
+        )
+        assert len(result) == 1
+        assert result[0].text == "http success"
+        mock_session.initialize.assert_awaited_once()
+        mock_session.call_tool.assert_awaited_once_with(
+            "urn:coreason:oracle:clinical_extractor", arguments=arguments
+        )
+
+
+@pytest.mark.asyncio
+async def test_invoke_actuator_proxy_stdio() -> None:
+    arguments = {"param": "value"}
+    with (
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.stdio_client"
+        ) as mock_stdio_client,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.ClientSession"
+        ) as mock_session_cls,
+        patch("coreason_ecosystem.gateway.master_mcp.StdioServerParameters"),
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.resolve_urn",
+            new_callable=AsyncMock,
+        ) as mock_resolve,
+    ):
+        mock_resolve.return_value = "/usr/bin/local-mcp"
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__.return_value = (AsyncMock(), AsyncMock())
+        mock_stdio_client.return_value = mock_ctx
+
+        mock_session = AsyncMock()
+        mock_session.call_tool.return_value = MagicMock(content="stdio success")
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__.return_value = mock_session
+        mock_session_cls.return_value = mock_session_ctx
+
+        result = await invoke_actuator(name="urn:local:test", arguments=arguments)
+        assert len(result) == 1
+        assert result[0].text == "stdio success"
+
+
+@pytest.mark.asyncio
+async def test_invoke_actuator_proxy_exception() -> None:
+    arguments = {"param": "value"}
+    with (
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.sse_client",
+            side_effect=Exception("proxy failure"),
+        ),
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.resolve_urn",
+            new_callable=AsyncMock,
+        ) as mock_resolve,
+    ):
+        mock_resolve.return_value = "http://svc-pubmed-mcp.internal:8000"
+        with pytest.raises(
+            RuntimeError, match="Cross-plane capability execution failed: proxy failure"
+        ):
+            await invoke_actuator(
+                name="urn:coreason:oracle:clinical_extractor", arguments=arguments
+            )
+
+
+@pytest.mark.asyncio
+async def test_federated_discovery_logic() -> None:
+    from coreason_ecosystem.gateway.master_mcp import federated_discovery
+
+    arguments = {"domain_filter": ["internal"], "minimum_epistemic_status": "DRAFT"}
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.epistemic_transmuter.project_capabilities",
+        new_callable=AsyncMock,
+    ) as mock_proj:
+        mock_proj.return_value = {
+            "urn:coreason:oracle:clinical_extractor:internal": "http://svc-pubmed-mcp.internal:8000"
+        }
+        with patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.get_epistemic_status",
+            new_callable=AsyncMock,
+        ) as mock_status:
+            mock_status.return_value = "PUBLISHED"
+            import os
+
+            with patch.dict(os.environ, {"MESH_SECRET": "test_secret"}):  # nosec B105
+                res = await federated_discovery(arguments)
+                import json
+
+                data = json.loads(res)
+                assert len(data["capabilities"]) == 1
+                assert (
+                    data["capabilities"][0]["urn"]
+                    == "urn:coreason:oracle:clinical_extractor:internal"
+                )
+                assert "token" in data["capabilities"][0]
+
+
+@pytest.mark.asyncio
+async def test_federated_discovery_rejects_domain() -> None:
+    from coreason_ecosystem.gateway.master_mcp import federated_discovery
+
+    arguments = {"domain_filter": ["external"], "minimum_epistemic_status": "DRAFT"}
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.epistemic_transmuter.project_capabilities",
+        new_callable=AsyncMock,
+    ) as mock_proj:
+        mock_proj.return_value = {
+            "urn:coreason:oracle:clinical_extractor:internal": "http://svc-pubmed-mcp.internal:8000"
+        }
+        with patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.get_epistemic_status",
+            new_callable=AsyncMock,
+        ) as mock_status:
+            mock_status.return_value = "PUBLISHED"
+            res = await federated_discovery(arguments)
+            import json
+
+            data = json.loads(res)
+            assert len(data["capabilities"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_federated_discovery_rejects_epistemic_status() -> None:
+    from coreason_ecosystem.gateway.master_mcp import federated_discovery
+
+    arguments = {"domain_filter": [], "minimum_epistemic_status": "PUBLISHED"}
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.epistemic_transmuter.project_capabilities",
+        new_callable=AsyncMock,
+    ) as mock_proj:
+        mock_proj.return_value = {
+            "urn:coreason:oracle:clinical_extractor:internal": "http://svc-pubmed-mcp.internal:8000"
+        }
+        with patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.get_epistemic_status",
+            new_callable=AsyncMock,
+        ) as mock_status:
+            mock_status.return_value = "DRAFT"
+            res = await federated_discovery(arguments)
+            import json
+
+            data = json.loads(res)
+            assert len(data["capabilities"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_hydrate_registry_fallback() -> None:
+    from coreason_ecosystem.gateway.master_mcp import _hydrate_registry
+
+    with (
+        patch("pathlib.Path") as mock_path,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.initialize",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.hydrate_from_matrix",
+            new_callable=AsyncMock,
+        ) as mock_hydrate,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.scan_action_space_modules",
+            new_callable=AsyncMock,
+        ) as mock_scan,
+    ):
+        primary_mock = MagicMock()
+        primary_mock.exists.return_value = False
+        fallback_mock = MagicMock()
+        fallback_mock.exists.return_value = True
+        mock_path.side_effect = [primary_mock, fallback_mock]
+
+        await _hydrate_registry()
+        mock_hydrate.assert_awaited_once_with(fallback_mock)
+        mock_scan.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_hydrate_registry_fatal() -> None:
+    from coreason_ecosystem.gateway.master_mcp import _hydrate_registry
+
+    with (
+        patch("pathlib.Path") as mock_path,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.initialize",
+            new_callable=AsyncMock,
+        ),
+    ):
+        primary_mock = MagicMock()
+        primary_mock.exists.return_value = False
+        fallback_mock = MagicMock()
+        fallback_mock.exists.return_value = False
+        mock_path.side_effect = [primary_mock, fallback_mock]
+
+        with pytest.raises(RuntimeError, match="Epistemic routing table missing."):
+            await _hydrate_registry()

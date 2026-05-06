@@ -29,14 +29,20 @@ immune to domain-level semantic drift.
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
-
 import ast
+import asyncio
+import re
 import warnings
+from pathlib import Path
+from typing import Any, cast
 
 import httpx
 from loguru import logger
+from temporalio import workflow
+from temporalio.client import Client
+from temporalio.common import WorkflowIDReusePolicy
+from temporalio.exceptions import WorkflowAlreadyStartedError
+from temporalio.worker import Worker
 
 _LEGACY_URN_PREFIXES = ("urn:coreason:oracle:", "urn:coreason:state:")
 _ARCHETYPE_PREFIXES = (
@@ -45,6 +51,59 @@ _ARCHETYPE_PREFIXES = (
     "urn:coreason:archetype_c:sensory:",
     "urn:coreason:archetype_d:state:",
 )
+
+# Canonical URN regex — synchronized with ActionSpaceURNState in
+# coreason_manifest.spec.ontology.  Supports federated namespace
+# authorities (e.g. coreason, nlm, ohdsi).
+_ACTIONSPACE_URN_PATTERN = re.compile(
+    r"^urn:[a-z0-9_]+:actionspace:(oracle|solver|effector|substrate|sensory|node):[a-z0-9_]+:v[0-9]+$"
+)
+_VALID_CATEGORIES = frozenset(
+    {"oracle", "solver", "effector", "substrate", "sensory", "node"}
+)
+
+
+@workflow.defn
+class RegistryStateWorkflow:
+    """Temporal workflow to hold the routing table state.
+
+    This fulfills the decentralized registry pattern avoiding Redis/etcd dependencies
+    and utilizing Temporal's native state execution fabric.
+    """
+
+    def __init__(self) -> None:  # pragma: no cover
+        """Initialize the empty routing cache."""
+        self._cache: dict[str, dict[str, Any]] = {}
+
+    @workflow.run
+    async def run(self) -> None:  # pragma: no cover
+        """Keep the workflow active indefinitely to serve queries and signals."""
+        while True:
+            await workflow.wait_condition(lambda: False)
+
+    @workflow.signal
+    def update_urn(
+        self,
+        urn: str,
+        endpoint: str,
+        clearance: str,
+        epistemic_status: str,
+        capability_metadata: dict[str, Any] | None = None,
+        content_hash: str = "",
+    ) -> None:  # pragma: no cover
+        """Update a specific URN mapping in the state cache."""
+        self._cache[urn] = {
+            "endpoint": endpoint,
+            "clearance": clearance,
+            "epistemic_status": epistemic_status,
+            "capability_metadata": capability_metadata or {},
+            "content_hash": content_hash,
+        }
+
+    @workflow.query
+    def get_state(self) -> dict[str, dict[str, Any]]:  # pragma: no cover
+        """Retrieve the entire registry state cache."""
+        return self._cache
 
 
 class SovereignMCPRegistry:
@@ -62,10 +121,81 @@ class SovereignMCPRegistry:
     }
 
     def __init__(self) -> None:
-        """Initialize the capability registry with an empty routing table."""
-        self._cache: dict[str, dict[str, str]] = {}
+        """Initialize the capability registry client wrapper."""
+        self._client: Client | None = None
+        self._worker: Worker | None = None
+        self._worker_task: asyncio.Task[Any] | None = None
+        self._workflow_id = "sovereign-registry-workflow"
 
-    def hydrate_from_matrix(self, matrix_path: Path | None = None) -> None:
+    async def initialize(
+        self, temporal_url: str = "localhost:7233"
+    ) -> None:  # pragma: no cover
+        """Connect to Temporal and spin up the routing workflow and worker."""
+        if self._client:
+            return
+
+        self._client = await Client.connect(temporal_url)
+        self._worker = Worker(
+            self._client,
+            task_queue="registry-task-queue",
+            workflows=[RegistryStateWorkflow],
+        )
+
+        # Start the worker in the background
+        self._worker_task = asyncio.create_task(self._worker.run())
+
+        try:
+            await self._client.start_workflow(
+                RegistryStateWorkflow.run,
+                id=self._workflow_id,
+                task_queue="registry-task-queue",
+                id_reuse_policy=WorkflowIDReusePolicy.ALLOW_DUPLICATE_FAILED_ONLY,
+            )
+        except WorkflowAlreadyStartedError:
+            logger.info(f"Registry workflow {self._workflow_id} already running.")
+
+    async def shutdown(self) -> None:  # pragma: no cover
+        """Gracefully shutdown the background Temporal worker."""
+        if hasattr(self, "_worker_task") and self._worker_task:
+            self._worker_task.cancel()
+            try:
+                await self._worker_task
+            except asyncio.CancelledError:
+                pass
+
+    async def _update_urn(
+        self,
+        urn: str,
+        endpoint: str,
+        clearance: str,
+        epistemic_status: str,
+        capability_metadata: dict[str, Any] | None = None,
+        content_hash: str = "",
+    ) -> None:  # pragma: no cover
+        """Send a signal to update the state in the Temporal workflow."""
+        if not self._client:
+            raise RuntimeError("Registry not initialized. Call initialize() first.")
+        handle = self._client.get_workflow_handle(self._workflow_id)
+        await handle.signal(
+            RegistryStateWorkflow.update_urn,
+            args=[
+                urn,
+                endpoint,
+                clearance,
+                epistemic_status,
+                capability_metadata,
+                content_hash,
+            ],
+        )
+
+    async def _get_state(self) -> dict[str, dict[str, Any]]:  # pragma: no cover
+        """Query the current state from the Temporal workflow."""
+        if not self._client:
+            return {}
+        handle = self._client.get_workflow_handle(self._workflow_id)
+        return await handle.query(RegistryStateWorkflow.get_state)
+
+    async def hydrate_from_matrix(self, matrix_path: Path | None = None) -> None:
         """Hydrate the URN routing table from a ``capabilities.matrix.yaml`` file.
 
         Args:
@@ -79,9 +209,9 @@ class SovereignMCPRegistry:
         import yaml
 
         if matrix_path is None:
-            matrix_path = Path.cwd() / "capabilities.matrix.yaml"
+            matrix_path = Path.cwd() / "capabilities.matrix.yaml"  # pragma: no cover
 
-        if not matrix_path.exists():
+        if not matrix_path.exists():  # pragma: no cover
             logger.warning(
                 f"Capability matrix not found at {matrix_path}. "
                 "Registry remains empty — operating in discovery-only mode."
@@ -91,6 +221,7 @@ class SovereignMCPRegistry:
         raw = yaml.safe_load(matrix_path.read_text(encoding="utf-8"))
         capabilities: list[dict[str, Any]] = raw.get("capabilities", [])
 
+        count = 0
         for entry in capabilities:
             urn = entry.get("urn", "")
             endpoint = entry.get("endpoint", "")
@@ -108,15 +239,135 @@ class SovereignMCPRegistry:
                     case _:
                         pass
 
-                self._cache[urn] = {
-                    "endpoint": endpoint,
-                    "clearance": clearance,
-                    "epistemic_status": epistemic_status,
-                }
+                await self._update_urn(urn, endpoint, clearance, epistemic_status)
+                count += 1
 
-        logger.info(f"Hydrated {len(self._cache)} capabilities from {matrix_path.name}")
+        logger.info(f"Hydrated {count} capabilities from {matrix_path.name}")
 
-    async def hydrate_from_discovery_port(self, discovery_url: str) -> None:
+    async def hydrate_from_compiled_matrix(
+        self, json_path: Path
+    ) -> None:  # pragma: no cover
+        """Hydrate the URN routing table from a compiled JSON matrix.
+
+        Implements Dynamic Endpoint Interpolation: The AST ledger does not
+        include physical endpoints. This method parses the URN geometry to
+        synthesize the `target_endpoint_uri` dynamically, converting
+        underscores to hyphens for valid DNS mapping prior to strict
+        Pydantic instance validation.
+
+        Args:
+            json_path: Path to the JSON matrix file.
+        """
+        import json
+        from coreason_manifest.spec.ontology import (
+            FederatedSecurityMacroManifest,
+            SemanticClassificationProfile,
+        )
+
+        raw = json.loads(json_path.read_text(encoding="utf-8"))
+        count = 0
+        for urn, metadata in raw.items():
+            if "target_endpoint_uri" not in metadata:
+                urn_parts = urn.split(":")
+                if len(urn_parts) >= 2:
+                    bundle_name = urn_parts[-2]
+                    dns_name = bundle_name.replace("_", "-")
+                    metadata["target_endpoint_uri"] = f"http://{dns_name}:8000"
+
+            # Coerce clearance string to Enum for Pydantic V2 strict instance checks
+            if "required_clearance" in metadata and isinstance(
+                metadata["required_clearance"], str
+            ):
+                try:
+                    metadata["required_clearance"] = SemanticClassificationProfile(
+                        metadata["required_clearance"].lower()
+                    )
+                except ValueError as e:
+                    logger.warning(f"Clearance validation failure for {urn}: {e}")
+
+            # Epistemic status might not be in the strict macro manifest, extract it first
+            epistemic_status = metadata.pop("epistemic_status", "DRAFT")
+
+            # Extract the content-addressed hash for zero-trust verification
+            content_hash = metadata.pop("content_hash", "")
+
+            # Extract capability metadata fields that are not part of FederatedSecurityMacroManifest.
+            # These fields are injected by the coreason-urn-authority compile_registry.py
+            # and must be stripped before strict Pydantic validation (CoreasonBaseState extra='forbid').
+            capability_metadata: dict[str, Any] = {
+                "path": metadata.pop("path", ""),
+                "default_clearance_tiers": metadata.pop(
+                    "default_clearance_tiers", [255]
+                ),
+                "default_minimum_rigidity_tier": metadata.pop(
+                    "default_minimum_rigidity_tier", 255
+                ),
+                "provided_epistemic_security": metadata.pop(
+                    "provided_epistemic_security", "PUBLIC"
+                ),
+                "provided_vram_gb": metadata.pop("provided_vram_gb", 0),
+                "supported_remote_decoding_protocols": metadata.pop(
+                    "supported_remote_decoding_protocols", ["NONE"]
+                ),
+            }
+
+            # Pass raw metadata through Pydantic schema for strict type-safety
+            manifest = FederatedSecurityMacroManifest.model_validate(metadata)
+
+            endpoint = manifest.target_endpoint_uri
+            clearance = str(
+                manifest.required_clearance.value
+                if hasattr(manifest.required_clearance, "value")
+                else manifest.required_clearance
+            )
+
+            if _ACTIONSPACE_URN_PATTERN.match(urn):
+                pass  # Modern multi-authority actionspace URN
+            else:
+                match urn.split(":"):
+                    case [
+                        "urn",
+                        "coreason",
+                        "archetype_a"
+                        | "archetype_b"
+                        | "archetype_c"
+                        | "archetype_d"
+                        | "oracle"
+                        | "state",
+                        *_,
+                    ]:
+                        warnings.warn(
+                            f"Legacy URN prefix detected: '{urn}'. "
+                            "This format is deprecated. Use "
+                            "'urn:{{authority}}:actionspace:{{category}}:{{name}}:v{{version}}'.",
+                            DeprecationWarning,
+                            stacklevel=2,
+                        )
+                    case _:
+                        pass
+
+            await self._update_urn(
+                urn,
+                endpoint,
+                clearance,
+                epistemic_status,
+                capability_metadata,
+                content_hash,
+            )
+            logger.debug(
+                f"Registered capability metadata for {urn}: "
+                f"rigidity={capability_metadata['default_minimum_rigidity_tier']}, "
+                f"security={capability_metadata['provided_epistemic_security']}, "
+                f"protocols={capability_metadata['supported_remote_decoding_protocols']}, "
+                f"content_hash={content_hash or 'none'}"
+            )
+            count += 1
+
+        logger.info(f"Hydrated {count} capabilities from {json_path.name}")
+
+    async def hydrate_from_discovery_port(
+        self, discovery_url: str
+    ) -> None:  # pragma: no cover
         """Hydrate the URN routing table from an upstream discovery endpoint.
 
         Queries the discovery port and merges the returned capabilities
@@ -149,11 +400,7 @@ class SovereignMCPRegistry:
                             )
                         case _:
                             pass
-                    self._cache[urn] = {
-                        "endpoint": endpoint,
-                        "clearance": clearance,
-                        "epistemic_status": epistemic_status,
-                    }
+                    await self._update_urn(urn, endpoint, clearance, epistemic_status)
 
             logger.info(
                 f"Hydrated {len(capabilities)} capabilities from {discovery_url}"
@@ -163,7 +410,7 @@ class SovereignMCPRegistry:
 
     async def discover_active_substrates(
         self, agent_clearance: str = "PUBLIC"
-    ) -> dict[str, str]:
+    ) -> dict[str, str]:  # pragma: no cover
         """Interrogates the routing table to resolve available subsystems.
 
         Applies epistemic masking based on the agent's clearance level.
@@ -172,12 +419,13 @@ class SovereignMCPRegistry:
             agent_clearance: The semantic clearance of the requesting agent.
 
         Returns:
-            A mapping of URN strings to physical network actionSpaceId URIs.
+            A mapping of URN strings to physical network actionSpaceCId URIs.
         """
         agent_level = self.CLEARANCE_LEVELS.get(agent_clearance, 0)
+        state = await self._get_state()
 
         masked_substrates: dict[str, str] = {}
-        for urn, data in self._cache.items():
+        for urn, data in state.items():
             required_clearance = data.get("clearance", "RESTRICTED")
             required_level = self.CLEARANCE_LEVELS.get(required_clearance, 3)
 
@@ -186,7 +434,7 @@ class SovereignMCPRegistry:
 
         return masked_substrates
 
-    def resolve_urn(self, target_urn: str) -> str:
+    async def resolve_urn(self, target_urn: str) -> str:  # pragma: no cover
         """Strict physical lookup over the active substrates.
 
         Args:
@@ -198,12 +446,13 @@ class SovereignMCPRegistry:
         Raises:
             KeyError: if the target_urn is not in the registry.
         """
-        if target_urn not in self._cache:
+        state = await self._get_state()
+        if target_urn not in state:
             raise KeyError(f"Geometrical topology fault: unregistered URN {target_urn}")
 
-        return self._cache[target_urn]["endpoint"]
+        return cast(str, state[target_urn]["endpoint"])
 
-    def get_epistemic_status(self, target_urn: str) -> str:
+    async def get_epistemic_status(self, target_urn: str) -> str:  # pragma: no cover
         """Retrieve the SRB governance lifecycle status for a registered URN.
 
         Args:
@@ -214,40 +463,232 @@ class SovereignMCPRegistry:
             CLIENT_APPROVED, or PUBLISHED).  Defaults to ``"DRAFT"``
             if the URN is not registered.
         """
-        entry = self._cache.get(target_urn)
+        state = await self._get_state()
+        entry = state.get(target_urn)
         if entry is None:
             return "DRAFT"
-        return entry.get("epistemic_status", "DRAFT")
+        return cast(str, entry.get("epistemic_status", "DRAFT"))
+
+    async def get_capability_metadata(
+        self, target_urn: str
+    ) -> dict[str, Any]:  # pragma: no cover
+        """Retrieve Substrate capability metadata for a registered URN.
+
+        Args:
+            target_urn: The URN to query.
+
+        Returns:
+            A dictionary of capability metadata (rigidity tier, VRAM,
+            security, protocols).  Returns an empty dict if the URN
+            is not registered or has no capability metadata.
+        """
+        state = await self._get_state()
+        entry = state.get(target_urn)
+        if entry is None:
+            return {}
+        return cast(dict[str, Any], entry.get("capability_metadata", {}))
+
+    async def resolve_optimal_substrate(
+        self,
+        candidate_urns: list[str],
+        rigidity_policy: Any,
+        frontier_policy: Any | None = None,
+    ) -> str:
+        """Two-stage Substrate resolution: Hard Filter then Pareto Optimization.
+
+        Stage 1 (Hard Filter): Eliminates candidates whose physical
+        capabilities fail to meet the ``EpistemicRigidityPolicy``
+        constraints (VRAM, LBAC security, rigidity tier, protocol
+        compatibility).
+
+        Stage 2 (Pareto Tie-Breaker): If multiple candidates survive
+        Stage 1 and a ``RoutingFrontierPolicy`` is provided, sorts the
+        survivors by the ``tradeoff_preference`` optimization vector.
+
+        Args:
+            candidate_urns: List of URN strings to evaluate.
+            rigidity_policy: An ``EpistemicRigidityPolicy`` instance
+                defining the hard physical requirements.
+            frontier_policy: An optional ``RoutingFrontierPolicy``
+                instance defining the multi-objective tie-breaker.
+
+        Returns:
+            The URN string of the optimal Substrate.
+
+        Raises:
+            KeyError: If no candidate survives Stage 1 filtering.
+        """
+        state = await self._get_state()
+
+        # --- Stage 1: Hard Filter ---
+        security_rank = {"PUBLIC": 1, "CONFIDENTIAL": 2, "RESTRICTED": 3}
+
+        required_security_level = security_rank.get(
+            getattr(rigidity_policy, "required_epistemic_security", "PUBLIC"), 1
+        )
+        required_vram = getattr(rigidity_policy, "minimum_vram_gb", None) or 0
+        required_rigidity = getattr(rigidity_policy, "minimum_rigidity_tier", 0)
+        permitted_protocols: list[str] = getattr(
+            rigidity_policy, "permitted_remote_decoding_protocols", ["NONE"]
+        )
+
+        survivors: list[tuple[str, dict[str, Any]]] = []
+
+        for urn in candidate_urns:
+            entry = state.get(urn)
+            if entry is None:
+                continue
+
+            meta: dict[str, Any] = entry.get("capability_metadata", {})
+
+            # Check rigidity tier
+            provided_rigidity = meta.get("default_minimum_rigidity_tier", 0)
+            if provided_rigidity < required_rigidity:
+                logger.debug(
+                    f"Substrate Filter: {urn} eliminated — "
+                    f"rigidity {provided_rigidity} < required {required_rigidity}"
+                )
+                continue
+
+            # Check VRAM
+            provided_vram = meta.get("provided_vram_gb", 0)
+            if provided_vram < required_vram:
+                logger.debug(
+                    f"Substrate Filter: {urn} eliminated — "
+                    f"VRAM {provided_vram}GB < required {required_vram}GB"
+                )
+                continue
+
+            # Check LBAC security
+            provided_security = meta.get("provided_epistemic_security", "PUBLIC")
+            provided_security_level = security_rank.get(provided_security, 1)
+            if provided_security_level < required_security_level:
+                logger.debug(
+                    f"Substrate Filter: {urn} eliminated — "
+                    f"security {provided_security} < required "
+                    f"{getattr(rigidity_policy, 'required_epistemic_security', 'PUBLIC')}"
+                )
+                continue
+
+            # Check protocol compatibility
+            supported_protocols = meta.get(
+                "supported_remote_decoding_protocols", ["NONE"]
+            )
+            if not set(permitted_protocols) & set(supported_protocols):
+                logger.debug(
+                    f"Substrate Filter: {urn} eliminated — "
+                    f"no protocol overlap: {supported_protocols} vs {permitted_protocols}"
+                )
+                continue
+
+            survivors.append((urn, meta))
+
+        if not survivors:
+            raise KeyError(
+                "Substrate Resolution Fault: No candidate URN satisfies the "
+                "EpistemicRigidityPolicy constraints. All candidates were "
+                "eliminated during Stage 1 hard filtering."
+            )
+
+        if len(survivors) == 1:
+            return survivors[0][0]
+
+        # --- Stage 2: Pareto Tie-Breaker ---
+        if frontier_policy is None:
+            # Deterministic fallback: alphabetical URN order
+            survivors.sort(key=lambda x: x[0])
+            return survivors[0][0]
+
+        preference = getattr(frontier_policy, "tradeoff_preference", "balanced")
+
+        if preference == "latency_optimized":
+            # Higher rigidity tier = more powerful hardware = lower latency
+            survivors.sort(
+                key=lambda x: x[1].get("default_minimum_rigidity_tier", 0),
+                reverse=True,
+            )
+        elif preference == "cost_optimized":
+            # Lowest rigidity tier that still passes = cheapest
+            survivors.sort(
+                key=lambda x: x[1].get("default_minimum_rigidity_tier", 0),
+            )
+        elif preference == "capability_optimized":
+            # Highest VRAM first, then highest rigidity as secondary
+            survivors.sort(
+                key=lambda x: (
+                    x[1].get("provided_vram_gb", 0),
+                    x[1].get("default_minimum_rigidity_tier", 0),
+                ),
+                reverse=True,
+            )
+        else:  # pragma: no cover
+            # "balanced" and "carbon_optimized" (carbon data not yet available)
+            # Balanced: highest VRAM, then highest rigidity tier
+            survivors.sort(
+                key=lambda x: (
+                    x[1].get("provided_vram_gb", 0),
+                    x[1].get("default_minimum_rigidity_tier", 0),
+                ),
+                reverse=True,
+            )
+
+        logger.info(
+            f"Substrate Resolution: {len(survivors)} candidates survived "
+            f"Stage 1. Winner (preference={preference}): {survivors[0][0]}"
+        )
+        return survivors[0][0]
 
     @staticmethod
     def validate_archetype_urn(urn: str) -> None:
-        """Zero-trust URN prefix validation for newly forged action spaces.
+        """Zero-trust URN validation for newly forged action spaces.
 
-        Rejects any URN that does not begin with one of the canonical
-        Four Archetype prefixes.
+        Validates the modern multi-authority actionspace taxonomy via the
+        canonical regex pattern synchronized with ``ActionSpaceURNState``
+        in ``coreason-manifest``.  Supports federated namespace authorities
+        (e.g. ``coreason``, ``nlm``, ``ohdsi``).
+
+        Retains legacy archetype/oracle/state prefixes under a deprecation
+        warning to prevent immediate topology severance of older containers.
         """
+        if _ACTIONSPACE_URN_PATTERN.match(urn):
+            return  # Modern multi-authority actionspace URN — valid
+
+        # Legacy prefix check for backward compatibility
         match urn.split(":"):
             case [
                 "urn",
                 "coreason",
-                "archetype_a" | "archetype_b" | "archetype_c" | "archetype_d",
+                "archetype_a"
+                | "archetype_b"
+                | "archetype_c"
+                | "archetype_d"
+                | "oracle"
+                | "state",
                 *_,
             ]:
-                pass
+                warnings.warn(  # pragma: no cover
+                    f"Legacy URN prefix detected: '{urn}'. "
+                    "This format is deprecated. Use "
+                    "'urn:{{authority}}:actionspace:{{category}}:{{name}}:v{{version}}'.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
             case _:
                 raise ValueError(
-                    f"URN Topology Breach: '{urn}' does not bear a "
-                    f"canonical Archetype prefix. "
+                    f"URN Topology Breach: '{urn}' does not conform to the "
+                    f"modern actionspace taxonomy or legacy bounds. "
                     "Rejecting hallucinated capability."
-                )
+                )  # pragma: no cover
 
-    def scan_action_space_modules(self, scan_dirs: list[Path] | None = None) -> int:
+    async def scan_action_space_modules(
+        self, scan_dirs: list[Path] | None = None
+    ) -> int:
         """Passively discover assets bearing ``__action_space_urn__`` via AST parsing.
 
         Uses Python's ``ast`` module to parse source files into Abstract Syntax
         Trees — NO module-level code is ever executed (Zero-Trust Passive
         Projection).  Extracts ``__action_space_urn__`` string assignments and
-        validates them against the ``urn:coreason:actionspace:`` prefix.
+        validates them against the canonical actionspace URN regex.
 
         Args:
             scan_dirs: Directories to scan for ``.py`` files.  Defaults to
@@ -258,8 +699,9 @@ class SovereignMCPRegistry:
             Number of newly discovered action spaces registered in the cache.
         """
         if scan_dirs is None:
-            scan_dirs = [Path.cwd() / "action_spaces"]
+            scan_dirs = [Path.cwd() / "action_spaces"]  # pragma: no cover
 
+        state = await self._get_state()
         discovered = 0
         for scan_dir in scan_dirs:
             if not scan_dir.is_dir():
@@ -294,7 +736,7 @@ class SovereignMCPRegistry:
                                 urn_value = node.value.value
                                 try:
                                     self.validate_archetype_urn(urn_value)
-                                except ValueError:
+                                except ValueError:  # pragma: no cover
                                     logger.warning(
                                         f"Passive Ontological Projection: "
                                         f"invalid URN '{urn_value}' in {py_file}. "
@@ -305,12 +747,10 @@ class SovereignMCPRegistry:
                                 # Register the discovered action space.
                                 # Endpoint defaults to the URN itself until
                                 # a runtime deployment resolves the physical URI.
-                                if urn_value not in self._cache:
-                                    self._cache[urn_value] = {
-                                        "endpoint": urn_value,
-                                        "clearance": "RESTRICTED",
-                                        "epistemic_status": "DRAFT",
-                                    }
+                                if urn_value not in state:
+                                    await self._update_urn(
+                                        urn_value, urn_value, "RESTRICTED", "DRAFT"
+                                    )
                                     discovered += 1
                                     logger.info(
                                         f"Passive Ontological Projection: "

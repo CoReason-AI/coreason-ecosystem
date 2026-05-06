@@ -1,87 +1,210 @@
-# Copyright (c) 2026 CoReason, Inc.
-#
-# This software is proprietary and dual-licensed
-# Licensed under the Prosperity Public License 3.0 (the "License")
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
-# For details, see the LICENSE file
-# Commercial use beyond a 30-day trial requires a separate license
-#
-# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
-
+import asyncio
 import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any
 
-from coreason_ecosystem.fleet.expansion_loop import (
-    HARDWARE_NODE_COST_GWEI,
-    SAFETY_MARGIN_GWEI,
-    TREASURY_URN,
-    von_neumann_expansion_daemon,
-)
-from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
-from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
+from coreason_ecosystem.fleet.expansion_loop import von_neumann_expansion_daemon
 
 
-def _seeded_registry() -> SovereignMCPRegistry:
-    """Create a registry with the Sovereign Treasury MCP registered."""
-    registry = SovereignMCPRegistry()
-    registry._cache = {
-        TREASURY_URN: {
-            "endpoint": "http://treasury-mcp:8000",
-            "clearance": "RESTRICTED",
-            "epistemic_status": "PUBLISHED",
-        },
-    }
-    return registry
+class MockAssessment:
+    def __init__(self, breached: bool = False) -> None:
+        self.threshold_breached = breached
+
+
+class MockBid:
+    def __init__(self, provider: str = "aws") -> None:
+        self.provider = provider
+        self.market_type = None
+        self.hardware_profile = None
+        self.security_profile = None
+        self.mesh_auth_key = None
+        self.temporal_mesh_ip = None
+        self.escrow_policy = None
 
 
 @pytest.mark.asyncio
-async def test_expansion_loop_raises_not_implemented() -> None:
-    """Expansion loop raises NotImplementedError until Sovereign Treasury MCP is deployed."""
-    registry = _seeded_registry()
-    oracle = PricingOracle()
+async def test_von_neumann_expansion_daemon_missing_treasury() -> None:
+    registry = MagicMock()
+    registry.resolve_urn = AsyncMock(side_effect=KeyError("Not found"))
+    oracle = MagicMock()
 
-    with pytest.raises(NotImplementedError, match="Sovereign Treasury MCP"):
-        await von_neumann_expansion_daemon(registry, oracle)
+    with patch("coreason_ecosystem.fleet.expansion_loop.logger.error") as mock_err:
+        await von_neumann_expansion_daemon(registry, oracle, "key", "ip")
+        mock_err.assert_called_once()
+        assert "not registered" in mock_err.call_args[0][0]
 
 
 @pytest.mark.asyncio
-async def test_expansion_loop_economic_guillotine() -> None:
-    """When VFE threshold is breached, the daemon exits cleanly (no NotImplementedError)."""
-    from unittest.mock import AsyncMock, patch
+async def test_von_neumann_expansion_daemon_economic_guillotine() -> None:
+    registry = MagicMock()
+    registry.resolve_urn = AsyncMock(return_value="http://treasury")
+    oracle = MagicMock()
 
-    from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
-
-    registry = _seeded_registry()
-    oracle = PricingOracle()
-
-    mock_assessment = ThermodynamicAssessment(
-        gpu_utilization=0.95,
-        token_velocity=100.0,
-        api_cost_hourly=50.0,
-        vfe_divergence=0.99,
-        threshold_breached=True,
-    )
-
-    with patch(
-        "coreason_ecosystem.fleet.expansion_loop.assess_thermodynamic_expenditure",
-        new_callable=AsyncMock,
-        return_value=mock_assessment,
+    # We will raise CancelledError after first iteration to exit loop
+    with (
+        patch(
+            "coreason_ecosystem.fleet.expansion_loop.coreason_aggregate_vram_demand_gb._value.get",
+            return_value=40.0,
+        ),
+        patch(
+            "coreason_ecosystem.fleet.expansion_loop.PulumiActuator"
+        ) as mock_actuator_cls,
+        patch(
+            "coreason_ecosystem.fleet.expansion_loop.assess_thermodynamic_expenditure",
+            new_callable=AsyncMock,
+        ) as mock_assess,
     ):
-        # Should NOT raise — the guillotine triggers a clean return.
-        await von_neumann_expansion_daemon(registry, oracle)
+        mock_actuator = MagicMock()
+        mock_actuator.reconcile_state = AsyncMock(return_value=[{"vram_capacity": 10}])
+        mock_actuator.execute_thermodynamic_guillotine = AsyncMock()
+        mock_actuator_cls.return_value = mock_actuator
+
+        mock_assess.return_value = MockAssessment(breached=True)
+
+        await von_neumann_expansion_daemon(registry, oracle, "key", "ip")
+
+        mock_actuator.execute_thermodynamic_guillotine.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_expansion_loop_missing_treasury_urn() -> None:
-    """When treasury URN is not registered, daemon exits cleanly with a log."""
-    empty_registry = SovereignMCPRegistry()
-    oracle = PricingOracle()
+async def test_von_neumann_expansion_daemon_provision_success() -> None:
+    registry = MagicMock()
+    registry.resolve_urn = AsyncMock(return_value="http://treasury")
+    oracle = MagicMock()
+    oracle.calculate_optimal_bid = AsyncMock(return_value=MockBid("vast"))
 
-    # Should NOT raise — logs error and returns.
-    await von_neumann_expansion_daemon(empty_registry, oracle)
+    # We will raise CancelledError in sleep to exit the loop gracefully
+    async def mock_sleep(*args: Any, **kwargs: Any) -> Any:
+        raise asyncio.CancelledError()
+
+    with (
+        patch(
+            "coreason_ecosystem.fleet.expansion_loop.coreason_aggregate_vram_demand_gb._value.get",
+            return_value=10.0,
+        ),
+        patch(
+            "coreason_ecosystem.fleet.expansion_loop.PulumiActuator"
+        ) as mock_actuator_cls,
+        patch(
+            "coreason_ecosystem.fleet.expansion_loop.assess_thermodynamic_expenditure",
+            new_callable=AsyncMock,
+        ) as mock_assess,
+        patch("asyncio.sleep", side_effect=mock_sleep),
+    ):
+        mock_actuator = MagicMock()
+        # total_active > 0, on_demand_count = 0 => target_market_type = 'on-demand'
+        mock_actuator.reconcile_state = AsyncMock(
+            return_value=[{"vram_capacity": 5, "market_type": "spot"}]
+        )
+        mock_actuator.provision_node = AsyncMock()
+        mock_actuator_cls.return_value = mock_actuator
+
+        mock_assess.return_value = MockAssessment(breached=False)
+
+        await von_neumann_expansion_daemon(registry, oracle, "key", "ip")
+
+        mock_actuator.provision_node.assert_awaited_once()
+        bid = mock_actuator.provision_node.call_args[0][0]
+        assert bid.market_type == "on-demand"
+        assert bid.provider == "vast"
 
 
-def test_constants() -> None:
-    """Test that constants are sensible values."""
-    assert HARDWARE_NODE_COST_GWEI == 10_000_000_000
-    assert SAFETY_MARGIN_GWEI == 2_000_000_000
-    assert TREASURY_URN == "urn:coreason:state:treasury"
+@pytest.mark.asyncio
+async def test_von_neumann_expansion_daemon_provision_spot() -> None:
+    registry = MagicMock()
+    registry.resolve_urn = AsyncMock(return_value="http://treasury")
+    oracle = MagicMock()
+    oracle.calculate_optimal_bid = AsyncMock(return_value=MockBid("aws"))
+
+    async def mock_sleep(*args: Any, **kwargs: Any) -> Any:
+        raise asyncio.CancelledError()
+
+    with (
+        patch(
+            "coreason_ecosystem.fleet.expansion_loop.coreason_aggregate_vram_demand_gb._value.get",
+            return_value=10.0,
+        ),
+        patch(
+            "coreason_ecosystem.fleet.expansion_loop.PulumiActuator"
+        ) as mock_actuator_cls,
+        patch(
+            "coreason_ecosystem.fleet.expansion_loop.assess_thermodynamic_expenditure",
+            new_callable=AsyncMock,
+        ) as mock_assess,
+        patch("asyncio.sleep", side_effect=mock_sleep),
+    ):
+        mock_actuator = MagicMock()
+        # 1 active, 1 on-demand => 100% on-demand > 0.3 => target_market_type = 'spot'
+        mock_actuator.reconcile_state = AsyncMock(
+            return_value=[{"vram_capacity": 5, "market_type": "on-demand"}]
+        )
+        mock_actuator.provision_node = AsyncMock()
+        mock_actuator_cls.return_value = mock_actuator
+
+        mock_assess.return_value = MockAssessment(breached=False)
+
+        await von_neumann_expansion_daemon(registry, oracle, "key", "ip")
+
+        mock_actuator.provision_node.assert_awaited_once()
+        bid = mock_actuator.provision_node.call_args[0][0]
+        assert bid.market_type == "spot"
+
+
+@pytest.mark.asyncio
+async def test_von_neumann_expansion_daemon_no_bids() -> None:
+    registry = MagicMock()
+    registry.resolve_urn = AsyncMock(return_value="http://treasury")
+    oracle = MagicMock()
+    oracle.calculate_optimal_bid = AsyncMock(return_value=None)
+
+    async def mock_sleep(*args: Any, **kwargs: Any) -> Any:
+        raise asyncio.CancelledError()
+
+    with (
+        patch(
+            "coreason_ecosystem.fleet.expansion_loop.coreason_aggregate_vram_demand_gb._value.get",
+            return_value=10.0,
+        ),
+        patch(
+            "coreason_ecosystem.fleet.expansion_loop.PulumiActuator"
+        ) as mock_actuator_cls,
+        patch(
+            "coreason_ecosystem.fleet.expansion_loop.assess_thermodynamic_expenditure",
+            new_callable=AsyncMock,
+        ) as mock_assess,
+        patch("coreason_ecosystem.fleet.expansion_loop.logger.warning") as mock_warn,
+        patch("asyncio.sleep", side_effect=mock_sleep),
+    ):
+        mock_actuator = MagicMock()
+        mock_actuator.reconcile_state = AsyncMock(return_value=[])
+        mock_actuator_cls.return_value = mock_actuator
+
+        mock_assess.return_value = MockAssessment(breached=False)
+
+        await von_neumann_expansion_daemon(registry, oracle, "key", "ip")
+
+        mock_warn.assert_called_with("[ExpansionLoop] No viable bids found.")
+
+
+@pytest.mark.asyncio
+async def test_von_neumann_expansion_daemon_exception_handling() -> None:
+    registry = MagicMock()
+    registry.resolve_urn = AsyncMock(return_value="http://treasury")
+    oracle = MagicMock()
+
+    async def mock_sleep(*args: Any, **kwargs: Any) -> Any:
+        raise asyncio.CancelledError()
+
+    with (
+        patch(
+            "coreason_ecosystem.fleet.expansion_loop.coreason_aggregate_vram_demand_gb._value.get",
+            side_effect=RuntimeError("Test error"),
+        ),
+        patch("coreason_ecosystem.fleet.expansion_loop.logger.error") as mock_err,
+        patch("asyncio.sleep", side_effect=mock_sleep),
+    ):
+        await von_neumann_expansion_daemon(registry, oracle, "key", "ip")
+
+        # Ensure it caught the exception and didn't crash
+        mock_err.assert_called_once()
+        assert "Runtime execution anomaly" in str(mock_err.call_args)

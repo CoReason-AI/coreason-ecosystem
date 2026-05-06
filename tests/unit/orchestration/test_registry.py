@@ -1,83 +1,85 @@
-# Copyright (c) 2026 CoReason, Inc
-#
-# This software is proprietary and dual-licensed
-# Licensed under the Prosperity Public License 3.0 (the "License")
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
-# For details, see the LICENSE file
-# Commercial use beyond a 30-day trial requires a separate license
-#
-# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
-
-import asyncio
+import hashlib
+import json
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
-import importlib.metadata
+
+import pytest
 
 from coreason_ecosystem.orchestration.registry import (
     calculate_epistemic_root,
-    read_registry_lock,
     write_registry_lock,
+    read_registry_lock,
 )
 
 
-@patch("importlib.metadata.version")
-@patch("coreason_ecosystem.orchestration.registry.Path.exists")
-@patch("coreason_ecosystem.orchestration.registry.Path.read_bytes")
-def test_calculate_epistemic_root(
-    mock_read_bytes: Any, mock_exists: Any, mock_version: Any
+@pytest.mark.asyncio
+async def test_calculate_epistemic_root_all_files_exist(tmp_path: Path) -> None:
+    schema_path = tmp_path / "coreason_ontology.schema.json"
+    schema_path.write_bytes(b"test schema")
+
+    ledger_path = tmp_path / ".coreason" / "capability_ledger.json"
+    ledger_path.parent.mkdir()
+    ledger_path.write_bytes(b'{"test": "ledger"}')
+
+    with patch("importlib.metadata.version") as mock_version:
+        mock_version.return_value = "1.0.0"
+        root = await calculate_epistemic_root(tmp_path)
+
+        # Verify hashes manually
+        h_ontology = hashlib.sha256(b"test schema").hexdigest()
+        env_str = "coreason-manifest==1.0.0\ncoreason-runtime==1.0.0\n"
+        h_env = hashlib.sha256(env_str.encode("utf-8")).hexdigest()
+        h_cap = hashlib.sha256(b'{"test": "ledger"}').hexdigest()
+        expected = hashlib.sha256(
+            (h_ontology + h_env + h_cap).encode("utf-8")
+        ).hexdigest()
+
+        assert root == expected
+
+
+@pytest.mark.asyncio
+async def test_calculate_epistemic_root_missing_files_package_error(
+    tmp_path: Path,
 ) -> None:
-    mock_exists.return_value = True
-    mock_read_bytes.side_effect = [b'{"title": "ontology"}', b'{"cap": "hash"}']
-    mock_version.return_value = "1.0"
+    from importlib.metadata import PackageNotFoundError
 
-    root = asyncio.run(calculate_epistemic_root(Path("/tmp")))
-    assert root is not None
-    assert isinstance(root, str)
-    assert len(root) == 64
+    with patch("importlib.metadata.version", side_effect=PackageNotFoundError):
+        root = await calculate_epistemic_root(tmp_path)
 
+        h_ontology = hashlib.sha256(b"").hexdigest()
+        env_str = "coreason-manifest==unknown\ncoreason-runtime==unknown\n"
+        h_env = hashlib.sha256(env_str.encode("utf-8")).hexdigest()
+        h_cap = hashlib.sha256(b"{}").hexdigest()
+        expected = hashlib.sha256(
+            (h_ontology + h_env + h_cap).encode("utf-8")
+        ).hexdigest()
 
-@patch("importlib.metadata.version")
-@patch("coreason_ecosystem.orchestration.registry.Path.exists")
-def test_calculate_epistemic_root_missing_files(
-    mock_exists: Any, mock_version: Any
-) -> None:
-    mock_exists.return_value = False
-    mock_version.side_effect = importlib.metadata.PackageNotFoundError()
-
-    root = asyncio.run(calculate_epistemic_root(Path("/tmp")))
-    assert root is not None
-    assert isinstance(root, str)
-    assert len(root) == 64
+        assert root == expected
 
 
-@patch("coreason_ecosystem.orchestration.registry.Path.write_text")
-@patch("coreason_ecosystem.orchestration.registry.Path.mkdir")
-def test_write_registry_lock(mock_mkdir: Any, mock_write_text: Any) -> None:
-    write_registry_lock(Path("/tmp"), "deadbeef")
-    mock_mkdir.assert_called_once()
-    mock_write_text.assert_called_once_with(
-        '{\n  "epistemic_root": "deadbeef"\n}', encoding="utf-8"
-    )
+def test_write_registry_lock(tmp_path: Path) -> None:
+    write_registry_lock(tmp_path, "test_root_hash")
+    lock_file = tmp_path / ".coreason" / "registry.lock"
+    assert lock_file.exists()
+    data = json.loads(lock_file.read_text())
+    assert data["epistemic_root"] == "test_root_hash"
 
 
-@patch("coreason_ecosystem.orchestration.registry.Path.exists")
-@patch("coreason_ecosystem.orchestration.registry.Path.read_text")
-def test_read_registry_lock(mock_read_text: Any, mock_exists: Any) -> None:
-    mock_exists.return_value = True
-    mock_read_text.return_value = '{"epistemic_root": "deadbeef"}'
-    assert read_registry_lock(Path("/tmp")) == "deadbeef"
+def test_read_registry_lock_valid(tmp_path: Path) -> None:
+    lock_file = tmp_path / ".coreason" / "registry.lock"
+    lock_file.parent.mkdir()
+    lock_file.write_text('{"epistemic_root": "test_hash"}')
+
+    assert read_registry_lock(tmp_path) == "test_hash"
 
 
-@patch("coreason_ecosystem.orchestration.registry.Path.exists")
-def test_read_registry_lock_missing(mock_exists: Any) -> None:
-    mock_exists.return_value = False
-    assert read_registry_lock(Path("/tmp")) is None
+def test_read_registry_lock_invalid_json(tmp_path: Path) -> None:
+    lock_file = tmp_path / ".coreason" / "registry.lock"
+    lock_file.parent.mkdir()
+    lock_file.write_text("invalid_hash_string")
+
+    assert read_registry_lock(tmp_path) == "invalid_hash_string"
 
 
-@patch("coreason_ecosystem.orchestration.registry.Path.exists")
-@patch("coreason_ecosystem.orchestration.registry.Path.read_text")
-def test_read_registry_lock_invalid_json(mock_read_text: Any, mock_exists: Any) -> None:
-    mock_exists.return_value = True
-    mock_read_text.return_value = "deadbeef_non_json"
-    assert read_registry_lock(Path("/tmp")) == "deadbeef_non_json"
+def test_read_registry_lock_missing(tmp_path: Path) -> None:
+    assert read_registry_lock(tmp_path) is None

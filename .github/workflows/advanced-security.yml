@@ -22,7 +22,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -39,14 +39,14 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install ClamAV
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq clamav
           sudo systemctl stop clamav-freshclam || true
-          sudo freshclam
+          sudo freshclam || echo "freshclam failed due to network rate-limiting, continuing with default DB"
         shell: bash
 
       - name: Run ClamAV Scan

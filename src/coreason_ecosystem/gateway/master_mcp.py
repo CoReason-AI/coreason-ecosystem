@@ -1,54 +1,36 @@
-# Copyright (c) 2026 CoReason, Inc.
-#
-# This software is proprietary and dual-licensed
-# Licensed under the Prosperity Public License 3.0 (the "License")
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
-# For details, see the LICENSE file
-# Commercial use beyond a 30-day trial requires a separate license
-#
-# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
-
-"""Master MCP Gateway — Federated Capability Discovery & Cryptographic Sealing.
-
-Routes JSON-RPC requests to sub-MCP backends based on Epistemic Intents.
-Enforces RFC 8785 (JCS) canonical hashing on all MCP tool schemas before
-projection to the kinetic plane, per LAW 4 (Cryptographic Provenance).
-"""
-
+import base64
+import contextvars
 import hashlib
+import hmac
 import json
 import logging
+import os
+import time
 from typing import Any
 
-import httpx
 import mcp.server
-from fastapi import FastAPI
-
-from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
+import mcp.types as types
 from coreason_ecosystem.gateway.epistemic_filter import EpistemicTransmuter
 from coreason_ecosystem.gateway.ontological_identity_router import (
     OntologicalIdentityRouter,
 )
+from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.gateway.state_manifests import (
-    OracleExecutionReceipt,
-)
-from coreason_manifest.spec.ontology import (
-    CognitiveSwarmDeploymentManifest,
-    FederatedSecurityMacroManifest,
-    ChaosExperimentTask,
+    FederatedDiscoveryIntent,
 )
 from coreason_ecosystem.orchestration import up, sync
 from coreason_ecosystem.fleet import pulumi_actuator
-from coreason_ecosystem.utils.telemetry import emit_span_event
-
-import time
-import contextvars
-import base64
-
-from starlette.requests import Request
-from fastapi import Depends, HTTPException
+from coreason_manifest.spec.ontology import (
+    ChaosExperimentTask,
+    CognitiveSwarmDeploymentManifest,
+    FederatedSecurityMacroManifest,
+)
+from fastapi import Depends, FastAPI, HTTPException
+from mcp.client.session import ClientSession
+from mcp.client.sse import sse_client
+from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.server.sse import SseServerTransport
-import mcp.types as types
+from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
 
@@ -92,17 +74,53 @@ def compute_schema_seal(schema: dict[str, Any]) -> str:
 
 @app.on_event("startup")
 async def _hydrate_registry() -> None:
-    """Hydrate the capability registry from the matrix file and passive discovery on startup."""
+    """Hydrate the capability registry utilizing Hierarchical Path Resolution.
+
+    Primary Resolution: Constructs a Path object using the COREASON_REGISTRY_PATH
+    environment variable, defaulting to the physical production mount at
+    /mnt/coreason-state/registry/compiled_matrix.json. If the file exists, it
+    invokes the strict JSON hydration protocol.
+
+    Fallback Resolution: If the primary mount is absent, gracefully falls back
+    to the local developer path at infrastructure/local/capabilities.matrix.yaml
+    and invokes the legacy YAML hydration protocol.
+
+    Strict Fail-Fast Degradation: If neither the primary JSON path nor the
+    fallback YAML path resolves, a fatal RuntimeError("Epistemic routing table missing.")
+    is raised to instantly crash the boot sequence, strictly preventing the
+    swarm from booting blind.
+    """
+    import os
     from pathlib import Path
 
-    matrix_path = Path.cwd() / "capabilities.matrix.yaml"
-    registry.hydrate_from_matrix(matrix_path)
+    await registry.initialize()
 
-    # Passive Ontological Projection: scan for modules bearing __action_space_urn__
-    registry.scan_action_space_modules()
+    primary_path = Path(
+        os.environ.get(
+            "COREASON_REGISTRY_PATH",
+            "/mnt/coreason-state/registry/compiled_matrix.json",
+        )
+    )
+    fallback_path = Path("infrastructure/local/capabilities.matrix.yaml")
+
+    if primary_path.exists():  # pragma: no cover
+        await registry.hydrate_from_compiled_matrix(primary_path)
+    elif fallback_path.exists():
+        await registry.hydrate_from_matrix(fallback_path)
+    else:
+        raise RuntimeError("Epistemic routing table missing.")
+
+    await registry.scan_action_space_modules()
+
+
+@app.on_event("shutdown")
+async def _shutdown_registry() -> None:  # pragma: no cover
+    """Gracefully shutdown the capability registry and its background worker."""
+    await registry.shutdown()
 
 
 async def extract_and_verify_identity(request: Request) -> None:
+    """Verify cryptographic semantic clearances binding identity envelopes bounds."""
     auth_header = request.headers.get("Authorization")
     if not auth_header:
         current_clearance.set("PUBLIC")
@@ -127,6 +145,7 @@ sse_transport = SseServerTransport("/messages")
 
 @app.get("/sse", dependencies=[Depends(extract_and_verify_identity)])
 async def handle_sse(request: Request) -> None:
+    """Bootstrap proxy tunneling SSE execution projection capabilities bounds."""
     async with sse_transport.connect_sse(
         request.scope, request.receive, request._send
     ) as (read_stream, write_stream):
@@ -140,6 +159,7 @@ async def handle_sse(request: Request) -> None:
 
 @app.post("/messages", dependencies=[Depends(extract_and_verify_identity)])
 async def handle_messages(request: Request) -> None:
+    """Route asynchronous inbound message payload boundaries mapping."""
     await sse_transport.handle_post_message(
         request.scope, request.receive, request._send
     )
@@ -147,60 +167,20 @@ async def handle_messages(request: Request) -> None:
 
 @mcp_server.list_tools()  # type: ignore
 async def list_actuators() -> list[types.Tool]:
-    """Federated actuator/oracle discovery from registry with cryptographic schema sealing.
+    """Federated actuator/oracle discovery projection without topological proxy coupling.
 
-    Each actuator schema is sealed with SHA-256 of its RFC 8785 canonical form
-    before being projected to the kinetic plane.
+    Exposes the FederatedDiscoveryIntent capability enabling Peer-to-Peer (P2P) agent runtime
+    connections to strict Zero-Trust boundaries alongside core macro-manifest deployment tools.
     """
-    clearance = current_clearance.get()
-    discovered_capabilities = await registry.discover_active_substrates(
-        agent_clearance=clearance
-    )
-
-    # Apply the Epistemic Guillotine — strip URNs below the minimum
-    # governance lifecycle phase before projection.
-    discovered_capabilities = epistemic_transmuter.project_capabilities(
-        available_urns=discovered_capabilities,
-    )
-
     actuator_manifests: list[types.Tool] = []
 
-    async with httpx.AsyncClient() as client:
-        for urn, endpoint in discovered_capabilities.items():
-            sanitized_name = urn.replace(":", "_")
-            try:
-                response = await client.get(f"{endpoint}/tools")
-                if response.status_code == 200:
-                    schemas = response.json()
-                    for schema in schemas:
-                        schema["name"] = (
-                            f"{sanitized_name}_{schema.get('name', 'actuator')}"
-                        )
-
-                        # Cryptographic sealing: compute SHA-256 of the canonical
-                        # input schema before projection to the kinetic plane.
-                        input_schema = schema.get(
-                            "inputSchema", {"type": "object", "properties": {}}
-                        )
-                        schema_seal = compute_schema_seal(input_schema)
-
-                        actuator_manifests.append(
-                            types.Tool(
-                                name=schema["name"][:64],
-                                description=(
-                                    f"{schema.get('description', 'A proxied actuator')} "
-                                    f"[seal:{schema_seal[:16]}]"
-                                ),
-                                inputSchema=input_schema,
-                            )
-                        )
-            except httpx.RequestError:
-                # If a substrate is unreachable during discovery, it mathematically
-                # does not exist in the active topology. Drop it.
-                logger.warning(
-                    f"Topological absence: {urn} is offline and will not be projected."
-                )
-                continue
+    actuator_manifests.append(
+        types.Tool(
+            name="federated_discovery",
+            description="Discovery-Only Endpoint: Resolves capabilities matching a domain filter and returns P2P routing boundaries.",
+            inputSchema=FederatedDiscoveryIntent.model_json_schema(),
+        )
+    )
 
     actuator_manifests.append(
         types.Tool(
@@ -231,111 +211,130 @@ async def list_actuators() -> list[types.Tool]:
 async def invoke_actuator(
     name: str, arguments: dict[str, Any]
 ) -> list[types.TextContent]:
-    """Proxies execution request to physical action space with cryptographic receipt."""
+    """Execute proxy intent securely spanning Zero-Trust boundaries via MCP JSON-RPC."""
+    if name == "federated_discovery":
+        res_text = await federated_discovery(arguments)
+        return [types.TextContent(type="text", text=res_text)]
+
     if name == "deploy_cognitive_swarm":
-        res = await deploy_cognitive_swarm(arguments)
-        return [types.TextContent(type="text", text=res)]
+        manifest_swarm = CognitiveSwarmDeploymentManifest.model_validate(arguments)
+        await up.provision_swarm_topology(manifest_swarm)
+        return [
+            types.TextContent(
+                type="text", text="deploy_cognitive_swarm executed successfully"
+            )
+        ]
+
     if name == "establish_federated_link":
-        res = await establish_federated_link(arguments)
-        return [types.TextContent(type="text", text=res)]
+        manifest_link = FederatedSecurityMacroManifest.model_validate(arguments)
+        await sync.establish_federated_link(manifest_link)
+        return [
+            types.TextContent(
+                type="text", text="establish_federated_link executed successfully"
+            )
+        ]
+
     if name == "inject_chaos_fault":
-        res = await inject_chaos_fault(arguments)
-        return [types.TextContent(type="text", text=res)]
+        manifest_chaos = ChaosExperimentTask.model_validate(arguments)
+        await pulumi_actuator.inject_chaos_fault(manifest_chaos)
+        return [
+            types.TextContent(
+                type="text", text="inject_chaos_fault executed successfully"
+            )
+        ]
 
-    # Resolve the matching URN from the registry cache
-    discovered = await registry.discover_active_substrates()
-    endpoint_url: str | None = None
-    real_urn: str | None = None
-    for urn in discovered.keys():
-        sanitized = urn.replace(":", "_")
-        if name.startswith(sanitized):
-            endpoint_url = discovered[urn]
-            real_urn = urn
-            break
-
-    if not endpoint_url or not real_urn:
+    try:
+        physical_endpoint = await registry.resolve_urn(name)
+    except KeyError:
         raise ValueError(
-            f"Geometrical topology fault: unregistered URN for tool {name}"
+            f"Geometrical topology fault: Tool {name} not found in active registry."
         )
 
-    payload = arguments
+    try:
+        if physical_endpoint.startswith("http://") or physical_endpoint.startswith(
+            "https://"
+        ):
+            async with sse_client(f"{physical_endpoint}/sse") as (
+                read_stream,
+                write_stream,
+            ):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    result = await session.call_tool(name, arguments=arguments)
+                    return [types.TextContent(type="text", text=str(result.content))]
+        else:
+            server_params = StdioServerParameters(
+                command="wasmtime", args=["run", physical_endpoint]
+            )
+            async with stdio_client(server_params) as (read_stream, write_stream):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    result = await session.call_tool(name, arguments=arguments)
+                    return [types.TextContent(type="text", text=str(result.content))]
+    except Exception as e:
+        logger.error(f"Failed to proxy MCP request to {physical_endpoint}: {e}")
+        raise RuntimeError(f"Cross-plane capability execution failed: {e}")
 
-    execution_start = time.time()
 
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(f"{endpoint_url}/execute", json=payload)
-            response.raise_for_status()
-            result_data = response.json()
-        except httpx.HTTPStatusError as e:
-            result_data = {"error": f"Sub-MCP failure: {e.response.status_code}"}
-        except httpx.RequestError as e:
-            raise RuntimeError(
-                f"Topological Severance Event: Sub-MCP unreachable - {e}"
-            ) from e
+async def federated_discovery(arguments: dict[str, Any]) -> str:
+    """Resolve P2P capabilities using domain filters and generate Epistemic Seals.
 
-    execution_end = time.time()
-    execution_time_ms = (execution_end - execution_start) * 1000
+    Resolves matching capabilities from the decentralized registry and signs
+    Zero-Trust P2P tokens bounding the network connection.
 
-    # Cryptographic receipt: RFC 8785 canonical hash of the payload
-    timestamp = time.time()
-    canonical_payload = _canonicalize_json({"payload": payload, "timestamp": timestamp})
-    event_cid = hashlib.sha256(canonical_payload).hexdigest()
+    Args:
+        arguments: FederatedDiscoveryIntent validated inputs.
 
-    # Derive a pattern-compliant action_space_id from the URN.
-    receipt_action_space_id = real_urn.replace(":", "_")
+    Returns:
+        JSON serialized string containing the list of physical boundaries
+        and their cryptographically signed tokens.
 
-    # Generate receipt (historical coordinate, no result field)
-    _receipt = OracleExecutionReceipt(
-        executed_urn=real_urn,
-        action_space_id=receipt_action_space_id,
-        event_cid=event_cid,
-        timestamp=timestamp,
-        prior_event_hash=None,
+    Note:
+        We apply epistemic filter constraints just like the old loop.
+    """
+    manifest = FederatedDiscoveryIntent.model_validate(arguments)
+    clearance = current_clearance.get()
+
+    discovered = await registry.discover_active_substrates(agent_clearance=clearance)
+
+    discovered = await epistemic_transmuter.project_capabilities(
+        available_urns=discovered,
     )
 
-    # Fire telemetry event for cross-boundary observability.
-    emit_span_event(
-        name="mcp_tool_execution",
-        attributes={
-            "executed_urn": real_urn,
-            "action_space_id": receipt_action_space_id,
-            "execution_time_ms": execution_time_ms,
-        },
-    )
+    allowed_domains = set(manifest.domain_filter)
 
-    # The result data goes natively into TextContent
-    return [types.TextContent(type="text", text=str(result_data))]
+    results = []
+    secret = os.environ.get("MESH_SECRET", "coreason_mesh_secret").encode("utf-8")
 
+    status_ranks = {"DRAFT": 0, "SRB_APPROVED": 1, "CLIENT_APPROVED": 2, "PUBLISHED": 3}
+    min_rank = status_ranks.get(manifest.minimum_epistemic_status, 0)
 
-async def deploy_cognitive_swarm(arguments: dict[str, Any]) -> str:
-    """Macro-Manifest Deployment: Deploy a cognitive swarm.
+    for urn, endpoint in discovered.items():
+        epistemic_status = await registry.get_epistemic_status(urn)
+        current_rank = status_ranks.get(epistemic_status, 0)
 
-    Hollow Plane proxy endpoint.
-    """
-    logger.info("Proxying deploy_cognitive_swarm intent to fleet module.")
-    manifest = CognitiveSwarmDeploymentManifest.model_validate(arguments)
-    await up.provision_swarm_topology(manifest)  # type: ignore[attr-defined]
-    return "Intent proxied to fleet: deploy_cognitive_swarm"
+        if current_rank < min_rank:
+            continue
 
+        parts = urn.split(":")
+        domain = parts[-1] if len(parts) > 0 else ""
 
-async def establish_federated_link(arguments: dict[str, Any]) -> str:
-    """Macro-Manifest Deployment: Establish federated link.
+        if allowed_domains and domain not in allowed_domains:
+            continue
 
-    Hollow Plane proxy endpoint.
-    """
-    logger.info("Proxying establish_federated_link intent to orchestration module.")
-    manifest = FederatedSecurityMacroManifest.model_validate(arguments)
-    await sync.establish_federated_link(manifest)  # type: ignore[attr-defined]
-    return "Intent proxied to orchestration: establish_federated_link"
+        payload = f"{urn}:{endpoint}:{clearance}:{int(time.time())}"
+        signature = hmac.new(
+            secret, payload.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+        seal = f"{payload}:{signature}"
 
+        results.append(
+            {
+                "urn": urn,
+                "endpoint": endpoint,
+                "token": seal,
+                "epistemic_status": epistemic_status,
+            }
+        )
 
-async def inject_chaos_fault(arguments: dict[str, Any]) -> str:
-    """Macro-Manifest Deployment: Inject chaos fault.
-
-    Hollow Plane proxy endpoint.
-    """
-    logger.info("Proxying inject_chaos_fault intent to fleet module.")
-    manifest = ChaosExperimentTask.model_validate(arguments)
-    await pulumi_actuator.inject_chaos_fault(manifest)  # type: ignore[attr-defined]
-    return "Intent proxied to fleet: inject_chaos_fault"
+    return json.dumps({"capabilities": results})

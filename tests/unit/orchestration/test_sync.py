@@ -1,104 +1,151 @@
-# Copyright (c) 2026 CoReason, Inc
-#
-# This software is proprietary and dual-licensed
-# Licensed under the Prosperity Public License 3.0 (the "License")
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
-# For details, see the LICENSE file
-# Commercial use beyond a 30-day trial requires a separate license
-#
-# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
-
-from typing import Any
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-from typer.testing import CliRunner
+import pytest
+import typer
 
-from coreason_ecosystem.cli import app
-
-runner = CliRunner()
-
-
-@patch("coreason_ecosystem.orchestration.sync.execute_build", new_callable=AsyncMock)
-@patch("coreason_ecosystem.orchestration.sync.Path.exists")
-@patch(
-    "coreason_ecosystem.orchestration.sync.asyncio.create_subprocess_exec",
-    new_callable=AsyncMock,
+from coreason_ecosystem.orchestration.sync import (
+    detect_and_heal_drift,
+    execute_sync,
+    establish_federated_link,
 )
-@patch("coreason_ecosystem.orchestration.sync.write_registry_lock")
-@patch(
-    "coreason_ecosystem.orchestration.sync.calculate_epistemic_root",
-    new_callable=AsyncMock,
-)
-@patch("coreason_ecosystem.orchestration.sync.Path.open")
-def test_sync_command(
-    mock_open: Any,
-    mock_calc_root: Any,
-    mock_write_lock: Any,
-    mock_sub_exec: Any,
-    mock_exists: Any,
-    mock_execute_build: Any,
-) -> None:
-    """Test the sync command execution logic."""
-    import io
-
-    mock_file = io.StringIO()
-    mock_open.return_value.__enter__.return_value = mock_file
-    mock_calc_root.return_value = "deadbeef"
-    mock_exists.return_value = True
-
-    # Mock the returned process
-    mock_process = AsyncMock()
-    mock_process.returncode = 0
-    mock_process.communicate.return_value = (b"", b"")
-    mock_sub_exec.return_value = mock_process
-
-    result = runner.invoke(app, ["sync"])
-    assert result.exit_code == 0
-    assert "Autopoietic Healing Complete" in result.stdout
-    mock_execute_build.assert_called_once()
-    mock_calc_root.assert_called_once()
-    mock_write_lock.assert_called_once()
-    mock_sub_exec.assert_called_once()
-    mock_process.communicate.assert_called_once()
+from coreason_manifest.spec.ontology import FederatedSecurityMacroManifest
 
 
-@patch("coreason_ecosystem.orchestration.sync.execute_build", new_callable=AsyncMock)
-@patch("coreason_ecosystem.orchestration.sync.Path.exists")
-@patch(
-    "coreason_ecosystem.orchestration.sync.asyncio.create_subprocess_exec",
-    new_callable=AsyncMock,
-)
-@patch("coreason_ecosystem.orchestration.sync.write_registry_lock")
-@patch(
-    "coreason_ecosystem.orchestration.sync.calculate_epistemic_root",
-    new_callable=AsyncMock,
-)
-@patch("coreason_ecosystem.orchestration.sync.Path.open")
-def test_sync_command_compose_fallback(
-    mock_open: Any,
-    mock_calc_root: Any,
-    mock_write_lock: Any,
-    mock_sub_exec: Any,
-    mock_exists: Any,
-    mock_execute_build: Any,
-) -> None:
-    """Test the sync command execution logic."""
-    import io
+@pytest.mark.asyncio
+async def test_detect_and_heal_drift() -> None:
+    with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec:
+        proc_prune = AsyncMock()
+        proc_prune.communicate.return_value = (b"", b"")
+        proc_ls = AsyncMock()
+        proc_ls.communicate.return_value = (
+            b"coreason-1\ncoreason-default\nother-net\n",
+            b"",
+        )
+        proc_rm = AsyncMock()
+        proc_rm.communicate.return_value = (b"", b"")
 
-    mock_file = io.StringIO()
-    mock_open.return_value.__enter__.return_value = mock_file
-    mock_calc_root.return_value = "deadbeef"
-    mock_exists.side_effect = [False, True]
+        mock_exec.side_effect = [proc_prune, proc_ls, proc_rm]
 
-    # Mock the returned process
-    mock_process = AsyncMock()
-    mock_process.returncode = 0
-    mock_process.communicate.return_value = (b"", b"")
-    mock_sub_exec.return_value = mock_process
+        await detect_and_heal_drift("docker")
 
-    result = runner.invoke(app, ["sync"])
-    assert result.exit_code == 0
-    assert "Autopoietic Healing Complete" in result.stdout
-    mock_execute_build.assert_called_once()
-    mock_sub_exec.assert_called_once()
-    mock_process.communicate.assert_called_once()
+        assert mock_exec.call_count == 3
+        # prune
+        assert mock_exec.mock_calls[0].args == ("docker", "network", "prune", "-f")
+        # ls
+        assert mock_exec.mock_calls[1].args == (
+            "docker",
+            "network",
+            "ls",
+            "--format",
+            "{{.Name}}",
+        )
+        # rm
+        assert mock_exec.mock_calls[2].args == ("docker", "network", "rm", "coreason-1")
+
+
+@pytest.mark.asyncio
+async def test_execute_sync_success(tmp_path: Path) -> None:
+    with (
+        patch("coreason_ecosystem.orchestration.sync.Path.cwd", return_value=tmp_path),
+        patch(
+            "coreason_ecosystem.orchestration.sync.detect_and_heal_drift",
+            new_callable=AsyncMock,
+        ) as mock_drift,
+        patch(
+            "coreason_ecosystem.orchestration.sync.execute_build",
+            new_callable=AsyncMock,
+        ) as mock_build,
+        patch(
+            "coreason_ecosystem.orchestration.sync.calculate_epistemic_root",
+            new_callable=AsyncMock,
+        ) as mock_calc,
+        patch(
+            "coreason_ecosystem.orchestration.sync.write_registry_lock"
+        ) as mock_write,
+        patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec,
+        patch("coreason_ecosystem.orchestration.sync.Path.exists", return_value=True),
+    ):
+        mock_calc.return_value = "fake_root_hash"
+
+        proc_up = AsyncMock()
+        proc_up.communicate.return_value = (b"", b"")
+        proc_up.returncode = 0
+        mock_exec.return_value = proc_up
+
+        await execute_sync()
+
+        mock_drift.assert_awaited_once()
+        assert (tmp_path / "coreason_ontology.schema.json").exists()
+        mock_build.assert_awaited_once()
+        mock_calc.assert_awaited_once()
+        mock_write.assert_called_once()
+        mock_exec.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_execute_sync_missing_compose(tmp_path: Path) -> None:
+    with (
+        patch("coreason_ecosystem.orchestration.sync.Path.cwd", return_value=tmp_path),
+        patch(
+            "coreason_ecosystem.orchestration.sync.detect_and_heal_drift",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "coreason_ecosystem.orchestration.sync.execute_build",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "coreason_ecosystem.orchestration.sync.calculate_epistemic_root",
+            new_callable=AsyncMock,
+        ),
+        patch("coreason_ecosystem.orchestration.sync.write_registry_lock"),
+        patch("coreason_ecosystem.orchestration.sync.Path.exists", return_value=False),
+    ):
+        with pytest.raises(typer.Exit) as exc:
+            await execute_sync()
+        assert exc.value.exit_code == 1
+
+
+@pytest.mark.asyncio
+async def test_execute_sync_docker_failure(tmp_path: Path) -> None:
+    with (
+        patch("coreason_ecosystem.orchestration.sync.Path.cwd", return_value=tmp_path),
+        patch(
+            "coreason_ecosystem.orchestration.sync.detect_and_heal_drift",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "coreason_ecosystem.orchestration.sync.execute_build",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "coreason_ecosystem.orchestration.sync.calculate_epistemic_root",
+            new_callable=AsyncMock,
+        ),
+        patch("coreason_ecosystem.orchestration.sync.write_registry_lock"),
+        patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec,
+        patch("coreason_ecosystem.orchestration.sync.Path.exists", return_value=True),
+    ):
+        proc_up = AsyncMock()
+        proc_up.communicate.return_value = (b"", b"docker error")
+        proc_up.returncode = 1
+        mock_exec.return_value = proc_up
+
+        with pytest.raises(typer.Exit) as exc:
+            await execute_sync()
+        assert exc.value.exit_code == 1
+
+
+@pytest.mark.asyncio
+async def test_establish_federated_link() -> None:
+    manifest = FederatedSecurityMacroManifest.model_construct(
+        target_endpoint_uri="http://example.com",
+        required_clearance="PUBLIC",  # type: ignore[arg-type]
+        max_liability_budget=100.0,  # type: ignore[arg-type]
+    )
+    with patch(
+        "coreason_ecosystem.orchestration.sync.execute_sync", new_callable=AsyncMock
+    ) as mock_sync:
+        await establish_federated_link(manifest)
+        mock_sync.assert_awaited_once()
