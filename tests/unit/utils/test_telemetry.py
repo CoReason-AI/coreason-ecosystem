@@ -354,3 +354,13 @@ def test_logger_patch_record_none() -> None:
     _patch_record(record)  # type: ignore[arg-type]
     assert "workflow_id" not in record["extra"]
     assert "epistemic_root" not in record["extra"]
+
+
+def test_emit_span_event() -> None:
+    from coreason_ecosystem.utils.telemetry import emit_span_event
+
+    with patch("opentelemetry.trace.get_tracer") as mock_get_tracer:
+        emit_span_event("test_event", {"key": "value"})
+        mock_get_tracer.assert_called_once_with("coreason.gateway.telemetry")
+        mock_span = mock_get_tracer.return_value.start_as_current_span.return_value.__enter__.return_value
+        mock_span.set_attribute.assert_called_once_with("key", "value")

@@ -19,6 +19,7 @@ import pytest
 from coreason_ecosystem.fleet.daemon import AutonomicFleetManager
 from coreason_ecosystem.fleet.telemetry_topology import (
     coreason_active_agents_total,
+    coreason_aggregate_vram_demand_gb,
 )
 from coreason_ecosystem.fleet.pulumi_actuator import ComputeNodeTarget
 from coreason_manifest.spec.ontology import (
@@ -48,8 +49,10 @@ def manager(templates_path: Path) -> AutonomicFleetManager:
 async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
     """When β₀ > 0, the daemon provisions compute."""
     coreason_active_agents_total.set(2)
+    coreason_aggregate_vram_demand_gb.set(24.0)
 
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
+    setattr(manager.driver, "reconcile_state", AsyncMock(return_value=[]))
 
     bid = ComputeNodeTarget(
         provider="aws",
@@ -69,18 +72,30 @@ async def test_daemon_start_scale_up(manager: AutonomicFleetManager) -> None:
         AsyncMock(return_value={"stack_name": "fleet-worker-test"}),
     )
 
-    with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
+    async def mock_sleep(delay: float) -> None:
+        if delay == 300:
+            return
+        raise asyncio.CancelledError()
+
+    with patch("asyncio.sleep", side_effect=mock_sleep):
         await manager.start()
+
+        # Wait for the background task to finish to hit line 125
+        # Must be inside the patch block so the task uses mock_sleep
+        for task in list(manager._background_tasks):
+            await task
 
     getattr(manager.oracle, "calculate_optimal_bid").assert_awaited_once()
     getattr(manager.driver, "provision_node").assert_awaited_once()
     assert manager._running is False
+    assert manager.pending_provisions == 0
 
 
 @pytest.mark.asyncio
 async def test_daemon_start_scale_down(manager: AutonomicFleetManager) -> None:
     """When β₀ == 0, the daemon destroys orphaned stacks."""
     coreason_active_agents_total.set(0)
+    coreason_aggregate_vram_demand_gb.set(0.0)
 
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
     setattr(
@@ -107,6 +122,7 @@ async def test_daemon_start_scale_down_queue_empty_nothing_to_destroy(
 ) -> None:
     """When β₀ == 0 and no stacks, no destruction occurs."""
     coreason_active_agents_total.set(0)
+    coreason_aggregate_vram_demand_gb.set(0.0)
 
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
     setattr(
@@ -159,8 +175,10 @@ async def test_daemon_start_general_exception(manager: AutonomicFleetManager) ->
 async def test_daemon_start_no_bid_found(manager: AutonomicFleetManager) -> None:
     """When oracle returns None, no provisioning occurs."""
     coreason_active_agents_total.set(1)
+    coreason_aggregate_vram_demand_gb.set(24.0)
 
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
+    setattr(manager.driver, "reconcile_state", AsyncMock(return_value=[]))
     setattr(manager.oracle, "calculate_optimal_bid", AsyncMock(return_value=None))
     setattr(manager.driver, "provision_node", AsyncMock())
 
@@ -174,8 +192,10 @@ async def test_daemon_start_no_bid_found(manager: AutonomicFleetManager) -> None
 async def test_daemon_provision_exception(manager: AutonomicFleetManager) -> None:
     """When provisioning fails, pending_provisions is decremented immediately."""
     coreason_active_agents_total.set(1)
+    coreason_aggregate_vram_demand_gb.set(24.0)
 
     setattr(manager.monitor, "_poll_workflows", AsyncMock())
+    setattr(manager.driver, "reconcile_state", AsyncMock(return_value=[]))
 
     bid = ComputeNodeTarget(
         provider="aws",

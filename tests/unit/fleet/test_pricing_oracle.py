@@ -155,3 +155,12 @@ async def test_vfe_assessment_zero_budget() -> None:
     # cost_pressure = 1.0, vfe = 0.6*0.0 + 0.4*1.0 = 0.4
     assert assessment.vfe_divergence == pytest.approx(0.4)
     assert not assessment.threshold_breached
+
+
+@pytest.mark.asyncio
+async def test_calculate_optimal_bid_no_qualifying_instances(
+    oracle: PricingOracle, mock_boto3: MagicMock
+) -> None:
+    profile = HardwareProfile(min_vram_gb=100.0, provider_whitelist=["aws"])
+    bid = await oracle.calculate_optimal_bid(profile, max_budget_hr=5.0)
+    assert bid is None

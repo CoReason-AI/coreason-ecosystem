@@ -1,148 +1,201 @@
-# Copyright (c) 2026 CoReason, Inc
-#
-# This software is proprietary and dual-licensed
-# Licensed under the Prosperity Public License 3.0 (the "License")
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
-# For details, see the LICENSE file
-# Commercial use beyond a 30-day trial requires a separate license
-#
-# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
-
+import asyncio
+import hashlib
 import json
 from pathlib import Path
-from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 
-from typer.testing import CliRunner
+import pytest
+import typer
 
-from coreason_ecosystem.cli import app
+from coreason_ecosystem.orchestration.build import (
+    compile_and_hash,
+    is_mcp_tool,
+    execute_build,
+)
 
-runner = CliRunner()
+@pytest.mark.asyncio
+async def test_compile_and_hash_py(tmp_path: Path) -> None:
+    py_file = tmp_path / "test.py"
+    py_file.write_text("print('test')")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    
+    with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec:
+        proc = AsyncMock()
+        proc.communicate.return_value = (b"", b"")
+        proc.returncode = 0
+        mock_exec.return_value = proc
+        
+        # mock the read_bytes for the target wasm
+        with patch.object(Path, "read_bytes", return_value=b"wasm_content"):
+            rel_path, f_hash = await compile_and_hash(py_file, bin_dir)
+            assert f_hash == hashlib.sha256(b"wasm_content").hexdigest()
+            mock_exec.assert_called_once()
+            assert "componentize-py" in mock_exec.mock_calls[0].args
 
-
-@patch("coreason_ecosystem.orchestration.build.Path.exists")
-@patch("coreason_ecosystem.orchestration.build.Path.read_bytes")
-@patch("coreason_ecosystem.orchestration.build.Path.open")
-@patch("coreason_ecosystem.orchestration.build.Path.mkdir")
-@patch("coreason_ecosystem.orchestration.build.FileLock")
-@patch("coreason_ecosystem.orchestration.build.Path.is_dir")
-@patch("coreason_ecosystem.orchestration.build.Path.rglob")
-@patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
-def test_build_command_dir(
-    mock_create_subprocess_exec: Any,
-    mock_rglob: Any,
-    mock_is_dir: Any,
-    mock_filelock: Any,
-    mock_mkdir: Any,
-    mock_open: Any,
-    mock_read_bytes: Any,
-    mock_exists: Any,
-) -> None:
-    """Test the build command execution logic."""
-    mock_exists.return_value = True
-    mock_read_bytes.return_value = b"test bytes"
-    mock_is_dir.return_value = True
-    mock_rglob.side_effect = [
-        [Path.cwd() / "test1.py", Path.cwd() / "test2.py"],  # .py
-        [],  # .rs
-        [],  # .go
-    ]
-
-    mock_process = AsyncMock()
-    mock_process.returncode = 0
-    mock_process.communicate.return_value = (b"", b"")
-    mock_create_subprocess_exec.return_value = mock_process
-
-    import io
-
-    # We need to simulate the file open for both reading and writing the JSON
-    # For writing, mock the open context manager
-    mock_file = io.StringIO(json.dumps({"test": "hash"}))
-    mock_open.return_value.__enter__.return_value = mock_file
-
-    with patch(
-        "coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()
+@pytest.mark.asyncio
+async def test_compile_and_hash_rs(tmp_path: Path) -> None:
+    cargo_dir = tmp_path / "test_rs_project"
+    cargo_dir.mkdir()
+    (cargo_dir / "Cargo.toml").write_text("[package]")
+    
+    # Put rs_file deeper so it triggers the while loop
+    rs_file = cargo_dir / "src" / "deep" / "main.rs"
+    rs_file.parent.mkdir(parents=True)
+    rs_file.write_text("fn main() {}")
+    
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    
+    with (
+        patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec,
+        patch("shutil.copy2") as mock_copy
     ):
-        result = runner.invoke(app, ["build", str(Path.cwd() / "dummy_dir")])
-        assert result.exit_code == 0
-        assert "Capability Crystallized" in result.stdout
+        proc = AsyncMock()
+        proc.communicate.return_value = (b"", b"")
+        proc.returncode = 0
+        mock_exec.return_value = proc
+        
+        # Create a dummy output wasm file so exists() returns True
+        out_wasm_dir = cargo_dir / "target" / "wasm32-wasip1" / "release"
+        out_wasm_dir.mkdir(parents=True)
+        out_wasm = out_wasm_dir / f"{cargo_dir.name.replace('-', '_')}.wasm"
+        out_wasm.touch()
+        
+        with patch.object(Path, "read_bytes", return_value=b"wasm_content"):
+            rel_path, f_hash = await compile_and_hash(rs_file, bin_dir)
+            assert f_hash == hashlib.sha256(b"wasm_content").hexdigest()
+            mock_exec.assert_called_once()
+            assert "cargo" in mock_exec.mock_calls[0].args
+            mock_copy.assert_called_once()
 
+@pytest.mark.asyncio
+async def test_compile_and_hash_go(tmp_path: Path) -> None:
+    go_file = tmp_path / "test.go"
+    go_file.write_text("package main")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    
+    with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec:
+        proc = AsyncMock()
+        proc.communicate.return_value = (b"", b"")
+        proc.returncode = 0
+        mock_exec.return_value = proc
+        
+        with patch.object(Path, "read_bytes", return_value=b"wasm_content"):
+            rel_path, f_hash = await compile_and_hash(go_file, bin_dir)
+            assert f_hash == hashlib.sha256(b"wasm_content").hexdigest()
+            mock_exec.assert_called_once()
+            assert "tinygo" in mock_exec.mock_calls[0].args
 
-@patch("coreason_ecosystem.orchestration.build.Path.exists")
-@patch("coreason_ecosystem.orchestration.build.Path.open")
-@patch("coreason_ecosystem.orchestration.build.Path.mkdir")
-@patch("coreason_ecosystem.orchestration.build.FileLock")
-@patch("coreason_ecosystem.orchestration.build.Path.is_dir")
-@patch("coreason_ecosystem.orchestration.build.Path.rglob")
-def test_build_command_dir_no_files(
-    mock_rglob: Any,
-    mock_is_dir: Any,
-    mock_filelock: Any,
-    mock_mkdir: Any,
-    mock_open: Any,
-    mock_exists: Any,
-) -> None:
-    """Test the build command execution logic."""
-    mock_exists.return_value = True
-    mock_is_dir.return_value = True
-    mock_rglob.return_value = []
+@pytest.mark.asyncio
+async def test_compile_and_hash_unsupported(tmp_path: Path) -> None:
+    unsupported_file = tmp_path / "test.txt"
+    unsupported_file.write_text("test")
+    bin_dir = tmp_path / "bin"
+    
+    with pytest.raises(ValueError, match="Unsupported file type"):
+        await compile_and_hash(unsupported_file, bin_dir)
 
-    result = runner.invoke(app, ["build", "dummy_dir"])
-    assert result.exit_code == 0
-    assert "Warning" in result.stdout
+@pytest.mark.asyncio
+async def test_compile_and_hash_compiler_missing(tmp_path: Path) -> None:
+    py_file = tmp_path / "test.py"
+    py_file.write_text("print('test')")
+    bin_dir = tmp_path / "bin"
+    
+    with patch("asyncio.create_subprocess_exec", side_effect=FileNotFoundError):
+        with pytest.raises(typer.Exit) as exc:
+            await compile_and_hash(py_file, bin_dir)
+        assert exc.value.exit_code == 1
 
+@pytest.mark.asyncio
+async def test_compile_and_hash_compile_error(tmp_path: Path) -> None:
+    py_file = tmp_path / "test.py"
+    py_file.write_text("print('test')")
+    bin_dir = tmp_path / "bin"
+    
+    with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_exec:
+        proc = AsyncMock()
+        proc.communicate.return_value = (b"", b"error")
+        proc.returncode = 1
+        mock_exec.return_value = proc
+        
+        with pytest.raises(typer.Exit) as exc:
+            await compile_and_hash(py_file, bin_dir)
+        assert exc.value.exit_code == 1
 
-@patch("coreason_ecosystem.orchestration.build.Path.exists")
-@patch("coreason_ecosystem.orchestration.build.Path.open")
-@patch("coreason_ecosystem.orchestration.build.Path.mkdir")
-@patch("coreason_ecosystem.orchestration.build.FileLock")
-@patch("coreason_ecosystem.orchestration.build.Path.is_dir")
-@patch("coreason_ecosystem.orchestration.build.Path.rglob")
-@patch("coreason_ecosystem.orchestration.build.asyncio.create_subprocess_exec")
-def test_build_compiler_not_found(
-    mock_create_subprocess_exec: Any,
-    mock_rglob: Any,
-    mock_is_dir: Any,
-    mock_filelock: Any,
-    mock_mkdir: Any,
-    mock_open: Any,
-    mock_exists: Any,
-) -> None:
-    """Test the build command when componentize-py is not found."""
-    mock_exists.return_value = True
-    mock_is_dir.return_value = False  # Target is a file
-    mock_create_subprocess_exec.side_effect = FileNotFoundError
+def test_is_mcp_tool(tmp_path: Path) -> None:
+    py_tool = tmp_path / "tool.py"
+    py_tool.write_text("import mcp")
+    assert is_mcp_tool(py_tool) is True
+    
+    py_tool2 = tmp_path / "tool2.py"
+    py_tool2.write_text("__action_space_urn__ = 'test'")
+    assert is_mcp_tool(py_tool2) is True
+    
+    py_tool3 = tmp_path / "tool3.py"
+    py_tool3.write_text("from mcp import foo")
+    assert is_mcp_tool(py_tool3) is True
+    
+    py_not_tool = tmp_path / "not_tool.py"
+    py_not_tool.write_text("import os")
+    assert is_mcp_tool(py_not_tool) is False
+    
+    txt_file = tmp_path / "not.txt"
+    assert is_mcp_tool(txt_file) is False
 
-    import io
+    py_not_tool2 = tmp_path / "not_tool2.py"
+    py_not_tool2.write_text("import json")
+    assert is_mcp_tool(py_not_tool2) is False
 
-    # Mock open for ledger reading
-    mock_open.return_value.__enter__.return_value = io.StringIO("{}")
+    py_not_tool3 = tmp_path / "not_tool3.py"
+    py_not_tool3.write_text("from os import path")
+    assert is_mcp_tool(py_not_tool3) is False
 
-    with patch(
-        "coreason_ecosystem.orchestration.build.Path.cwd", return_value=Path.cwd()
+@pytest.mark.asyncio
+async def test_execute_build_missing_target() -> None:
+    with patch("coreason_ecosystem.cli.console.print") as mock_print:
+        await execute_build("/nonexistent/path")
+        mock_print.assert_called_once()
+        assert "does not exist" in mock_print.mock_calls[0].args[0]
+
+@pytest.mark.asyncio
+async def test_execute_build_success(tmp_path: Path) -> None:
+    target_dir = tmp_path / "project"
+    target_dir.mkdir()
+    
+    cap_dir = target_dir / "src" / "capabilities"
+    cap_dir.mkdir(parents=True)
+    src_file = cap_dir / "app.py"
+    src_file.write_text("print('hello')")
+    rs_file = cap_dir / "app.rs"
+    rs_file.write_text("fn main() {}")
+    go_file = cap_dir / "app.go"
+    go_file.write_text("package main")
+    
+    with (
+        patch("coreason_ecosystem.orchestration.build.Path.cwd", return_value=tmp_path),
+        patch("coreason_ecosystem.orchestration.build.compile_and_hash", new_callable=AsyncMock) as mock_compile
     ):
-        result = runner.invoke(app, ["build", str(Path.cwd() / "test.py")])
+        mock_compile.return_value = ("project/src/capabilities/app.py", "fakehash")
+        await execute_build(str(target_dir))
+        
+        assert mock_compile.call_count == 3
+        
+        ledger_path = tmp_path / ".coreason" / "capability_ledger.json"
+        assert ledger_path.exists()
+        ledger_data = json.loads(ledger_path.read_text())
+        assert ledger_data["project/src/capabilities/app.py"] == "fakehash"
 
-        assert result.exit_code == 1
-        assert "Missing compiler for toolchain" in result.stdout
-
-
-@patch("coreason_ecosystem.orchestration.build.Path.exists")
-@patch("coreason_ecosystem.orchestration.build.Path.open")
-@patch("coreason_ecosystem.orchestration.build.Path.mkdir")
-@patch("coreason_ecosystem.orchestration.build.FileLock")
-@patch("coreason_ecosystem.orchestration.build.Path.is_dir")
-def test_build_command_dir_no_cap_dir(
-    mock_is_dir: Any,
-    mock_filelock: Any,
-    mock_mkdir: Any,
-    mock_open: Any,
-    mock_exists: Any,
-) -> None:
-    """Test the build command execution logic when capabilities dir does not exist."""
-    mock_exists.side_effect = [True, False, False, False]
-    mock_is_dir.return_value = True
-
-    result = runner.invoke(app, ["build", "dummy_dir"])
-    assert result.exit_code == 0
-    assert "Warning" in result.stdout
+@pytest.mark.asyncio
+async def test_execute_build_no_capabilities(tmp_path: Path) -> None:
+    target_dir = tmp_path / "project"
+    target_dir.mkdir()
+    # Create an MCP tool which should be filtered out
+    mcp_file = target_dir / "tool.py"
+    mcp_file.write_text("import mcp")
+    
+    with patch("coreason_ecosystem.cli.console.print") as mock_print:
+        await execute_build(str(target_dir))
+        mock_print.assert_called_once()
+        assert "No capabilities found to build" in mock_print.mock_calls[0].args[0]
