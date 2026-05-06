@@ -61,25 +61,26 @@ def test_mesh_injector_vast_not_isolated() -> None:
 def test_verify_payload_integrity() -> None:
     import json
     import hashlib
-    
+
     injector = MeshInjector()
-    
+
     # Test valid JSON
     valid_json = {"test": 123, "a": "b"}
     raw_bytes = json.dumps(valid_json).encode("utf-8")
-    expected_hash = hashlib.sha256(json.dumps(valid_json, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    expected_hash = hashlib.sha256(
+        json.dumps(valid_json, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
     assert injector.verify_payload_integrity(raw_bytes, expected_hash) is True
-    
+
     # Test invalid JSON / binary payload
     binary_payload = b"\x80\x81\x82"
     expected_binary_hash = hashlib.sha256(binary_payload).hexdigest()
-    assert injector.verify_payload_integrity(binary_payload, expected_binary_hash) is True
-    
+    assert (
+        injector.verify_payload_integrity(binary_payload, expected_binary_hash) is True
+    )
+
     # Test mismatch
     import pytest
+
     with pytest.raises(ValueError, match="Payload Quarantine Breach"):
         injector.verify_payload_integrity(raw_bytes, "wrong_hash")
-
-
-
-

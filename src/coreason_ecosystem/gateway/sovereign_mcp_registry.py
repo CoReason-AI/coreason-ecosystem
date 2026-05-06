@@ -127,7 +127,9 @@ class SovereignMCPRegistry:
         self._worker_task: asyncio.Task[Any] | None = None
         self._workflow_id = "sovereign-registry-workflow"
 
-    async def initialize(self, temporal_url: str = "localhost:7233") -> None:  # pragma: no cover
+    async def initialize(
+        self, temporal_url: str = "localhost:7233"
+    ) -> None:  # pragma: no cover
         """Connect to Temporal and spin up the routing workflow and worker."""
         if self._client:
             return
@@ -242,7 +244,9 @@ class SovereignMCPRegistry:
 
         logger.info(f"Hydrated {count} capabilities from {matrix_path.name}")
 
-    async def hydrate_from_compiled_matrix(self, json_path: Path) -> None:  # pragma: no cover
+    async def hydrate_from_compiled_matrix(
+        self, json_path: Path
+    ) -> None:  # pragma: no cover
         """Hydrate the URN routing table from a compiled JSON matrix.
 
         Implements Dynamic Endpoint Interpolation: The AST ledger does not
@@ -361,7 +365,9 @@ class SovereignMCPRegistry:
 
         logger.info(f"Hydrated {count} capabilities from {json_path.name}")
 
-    async def hydrate_from_discovery_port(self, discovery_url: str) -> None:  # pragma: no cover
+    async def hydrate_from_discovery_port(
+        self, discovery_url: str
+    ) -> None:  # pragma: no cover
         """Hydrate the URN routing table from an upstream discovery endpoint.
 
         Queries the discovery port and merges the returned capabilities
@@ -463,7 +469,9 @@ class SovereignMCPRegistry:
             return "DRAFT"
         return cast(str, entry.get("epistemic_status", "DRAFT"))
 
-    async def get_capability_metadata(self, target_urn: str) -> dict[str, Any]:  # pragma: no cover
+    async def get_capability_metadata(
+        self, target_urn: str
+    ) -> dict[str, Any]:  # pragma: no cover
         """Retrieve Substrate capability metadata for a registered URN.
 
         Args:
