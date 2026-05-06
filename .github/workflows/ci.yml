@@ -113,13 +113,16 @@ jobs:
         uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
+      - name: Install System Dependencies
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        shell: bash
       - name: Set PYTHON_GIL for Free-Threading
         if: matrix.python-version == '3.14t-dev'
         run: echo "PYTHON_GIL=0" >> $GITHUB_ENV
         shell: bash
       - name: Dynamic Ecosystem Sync (standard)
         if: matrix.python-version != '3.14t-dev'
-        run: if [ -f "pyproject.toml" ]; then uv sync --all-extras --dev; fi
+        run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14 --all-extras --dev; fi
         shell: bash
       - name: Dynamic Ecosystem Sync (free-threaded, skip lancedb)
         if: matrix.python-version == '3.14t-dev'
@@ -172,13 +175,16 @@ jobs:
         uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
+      - name: Install System Dependencies
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        shell: bash
       - name: Set PYTHON_GIL for Free-Threading
         if: matrix.python-version == '3.14t-dev'
         run: echo "PYTHON_GIL=0" >> $GITHUB_ENV
         shell: bash
       - name: Dynamic Ecosystem Sync (standard)
         if: matrix.python-version != '3.14t-dev'
-        run: if [ -f "pyproject.toml" ]; then uv sync --all-extras --dev; fi
+        run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14 --all-extras --dev; fi
         shell: bash
       - name: Dynamic Ecosystem Sync (free-threaded, skip lancedb)
         if: matrix.python-version == '3.14t-dev'
