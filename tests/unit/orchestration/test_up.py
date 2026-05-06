@@ -46,9 +46,7 @@ async def test_wait_for_postgres_timeout() -> None:
 @pytest.mark.asyncio
 async def test_wait_for_temporal_success() -> None:
     with (
-        patch(
-            "temporalio.client.Client.connect", new_callable=AsyncMock
-        ),
+        patch("temporalio.client.Client.connect", new_callable=AsyncMock),
         patch("asyncio.wait_for", new_callable=AsyncMock) as mock_wait,
     ):
         mock_wait.return_value = MagicMock()

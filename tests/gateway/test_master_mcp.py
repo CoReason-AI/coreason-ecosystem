@@ -333,9 +333,7 @@ async def test_invoke_actuator_proxy_stdio() -> None:
         patch(
             "coreason_ecosystem.gateway.master_mcp.ClientSession"
         ) as mock_session_cls,
-        patch(
-            "coreason_ecosystem.gateway.master_mcp.StdioServerParameters"
-        ),
+        patch("coreason_ecosystem.gateway.master_mcp.StdioServerParameters"),
         patch(
             "coreason_ecosystem.gateway.master_mcp.registry.resolve_urn",
             new_callable=AsyncMock,
