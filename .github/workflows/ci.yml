@@ -114,7 +114,7 @@ jobs:
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Install System Dependencies
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        run: for i in {1..10}; do sudo apt-get update && sudo apt-get install -y protobuf-compiler && break || sleep 15; done
         shell: bash
       - name: Set PYTHON_GIL for Free-Threading
         if: matrix.python-version == '3.14t-dev'
@@ -176,7 +176,7 @@ jobs:
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Install System Dependencies
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+        run: for i in {1..10}; do sudo apt-get update && sudo apt-get install -y protobuf-compiler && break || sleep 15; done
         shell: bash
       - name: Set PYTHON_GIL for Free-Threading
         if: matrix.python-version == '3.14t-dev'
