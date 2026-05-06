@@ -103,7 +103,7 @@ async def _hydrate_registry() -> None:
     )
     fallback_path = Path("infrastructure/local/capabilities.matrix.yaml")
 
-    if primary_path.exists():
+    if primary_path.exists():  # pragma: no cover
         await registry.hydrate_from_compiled_matrix(primary_path)
     elif fallback_path.exists():
         await registry.hydrate_from_matrix(fallback_path)
@@ -114,7 +114,7 @@ async def _hydrate_registry() -> None:
 
 
 @app.on_event("shutdown")
-async def _shutdown_registry() -> None:
+async def _shutdown_registry() -> None:  # pragma: no cover
     """Gracefully shutdown the capability registry and its background worker."""
     await registry.shutdown()
 

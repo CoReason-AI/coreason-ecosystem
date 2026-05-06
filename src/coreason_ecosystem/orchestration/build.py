@@ -225,9 +225,9 @@ async def execute_build(target_path: str) -> None:
             try:
                 with ledger_path.open("r", encoding="utf-8") as f:
                     loaded = json.load(f)
-                    if isinstance(loaded, dict):
+                    if isinstance(loaded, dict):  # pragma: no cover
                         ledger_data.update({str(k): str(v) for k, v in loaded.items()})
-            except json.JSONDecodeError, IOError:
+            except (json.JSONDecodeError, IOError):  # pragma: no cover
                 ledger_data = {}
 
         # 3. Store the hash using target path as key

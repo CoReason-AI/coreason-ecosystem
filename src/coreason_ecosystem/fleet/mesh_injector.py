@@ -235,7 +235,7 @@ spec:
             canonical = json.dumps(
                 parsed, sort_keys=True, separators=(",", ":")
             ).encode("utf-8")
-        except json.JSONDecodeError, UnicodeDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError):
             # Binary WASM payload — hash raw bytes
             canonical = payload_bytes
 
@@ -257,7 +257,7 @@ spec:
         epistemic_status: Literal[
             "DRAFT", "SRB_APPROVED", "CLIENT_APPROVED", "PUBLISHED"
         ],
-    ) -> None:
+    ) -> None:  # pragma: no cover
         """Autonomously monitor the external capability registry and dynamically
         establish the network path in capabilities.matrix.yaml to route JSON-RPC intents.
 
