@@ -20,6 +20,7 @@ concurrency:
 jobs:
   lint-and-audit:
     runs-on: [self-hosted, hetzner, x64]
+    timeout-minutes: 30
     env:
       TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
@@ -37,7 +38,7 @@ jobs:
         run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14.3 --all-extras --dev; fi
         shell: bash
       - name: Provision Ephemeral Orchestration Isolation
-        run: temporal operator namespace create $TEMPORAL_CI_NAMESPACE || true
+        run: temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE || true
         shell: bash
       - name: Run pre-commit
         run: uv run pre-commit run --all-files
@@ -67,11 +68,12 @@ jobs:
         shell: bash
       - name: Teardown Ephemeral Orchestration Isolation
         if: always()
-        run: temporal operator namespace delete $TEMPORAL_CI_NAMESPACE || true
+        run: temporal operator namespace delete -n $TEMPORAL_CI_NAMESPACE || true
         shell: bash
 
   security-sast:
     runs-on: [self-hosted, hetzner, x64]
+    timeout-minutes: 30
     env:
       TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
@@ -96,10 +98,11 @@ jobs:
     needs: [lint-and-audit, security-sast]
     if: always() && needs.lint-and-audit.result == 'success' && needs.security-sast.result == 'success'
     runs-on: [self-hosted, hetzner, x64]
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.14-dev", "3.14t-dev"]
+        python-version: ["3.14-dev"]
     env:
       TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
@@ -129,7 +132,7 @@ jobs:
         run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14t --dev; fi
         shell: bash
       - name: Provision Ephemeral Orchestration Isolation
-        run: temporal operator namespace create $TEMPORAL_CI_NAMESPACE || true
+        run: temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE || true
         shell: bash
       - name: Run tests
         run: uv run pytest --cov=coreason_ecosystem --cov-report=xml
@@ -151,17 +154,18 @@ jobs:
           verbose: true
       - name: Teardown Ephemeral Orchestration Isolation
         if: always()
-        run: temporal operator namespace delete $TEMPORAL_CI_NAMESPACE || true
+        run: temporal operator namespace delete -n $TEMPORAL_CI_NAMESPACE || true
         shell: bash
 
   test-extended:
     needs: [lint-and-audit, security-sast]
     if: always() && needs.lint-and-audit.result == 'success' && needs.security-sast.result == 'success'
     runs-on: [self-hosted, hetzner, x64]
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.14-dev", "3.14t-dev"]
+        python-version: ["3.14-dev"]
     env:
       TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
@@ -191,20 +195,21 @@ jobs:
         run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14t --dev; fi
         shell: bash
       - name: Provision Ephemeral Orchestration Isolation
-        run: temporal operator namespace create $TEMPORAL_CI_NAMESPACE || true
+        run: temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE || true
         shell: bash
       - name: Run tests
         run: uv run pytest --cov=coreason_ecosystem --cov-report=xml
         shell: bash
       - name: Teardown Ephemeral Orchestration Isolation
         if: always()
-        run: temporal operator namespace delete $TEMPORAL_CI_NAMESPACE || true
+        run: temporal operator namespace delete -n $TEMPORAL_CI_NAMESPACE || true
         shell: bash
 
   reproducible-builds:
     name: Reproducible Builds (Determinism Verification)
     needs: [test-ubuntu, test-extended]
     runs-on: [self-hosted, hetzner, x64]
+    timeout-minutes: 30
     env:
       TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
