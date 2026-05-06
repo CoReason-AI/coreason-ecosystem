@@ -183,3 +183,254 @@ async def test_provision_node_rejects_exceeded_budget(
     )
     with pytest.raises(ValueError, match="Hardware Guillotine"):
         await driver.provision_node(target)
+
+
+@pytest.mark.asyncio
+@patch("coreason_ecosystem.fleet.pulumi_actuator.auto")
+async def test_provision_node_vast_with_payload(
+    mock_auto: MagicMock, driver: PulumiActuator
+) -> None:
+    """Cover the boot-payload + market_type config paths for vast provider."""
+    from coreason_manifest.spec.ontology import (
+        SpatialHardwareProfile,
+        EpistemicSecurityProfile,
+    )
+
+    target = ComputeNodeTarget(
+        provider="vast",
+        instance_id="99999",
+        hourly_cost=0.10,
+        vram_gb=24.0,
+        escrow_policy=EscrowPolicy(
+            escrow_locked_magnitude=10000,
+            release_condition_metric="test",
+            refund_target_node_cid="did:coreason:fleet:vast",
+        ),
+        hardware_profile=SpatialHardwareProfile(
+            min_vram_gb=24.0, provider_whitelist=["vast"]
+        ),
+        security_profile=EpistemicSecurityProfile(network_isolation=True),
+        mesh_auth_key="auth-key",
+        temporal_mesh_ip="10.0.0.1",
+        market_type="spot",
+    )
+
+    mock_stack = MagicMock()
+    mock_auto.create_stack.return_value = mock_stack
+    mock_stack.up.return_value.outputs = {}
+
+    with patch.object(
+        driver.injector, "compile_payload", return_value="BASE64PAYLOAD"
+    ):
+        res = await driver.provision_node(target)
+
+    assert "stack_name" in res
+    mock_stack.set_config.assert_any_call(
+        "boot_payload_b64", mock_auto.ConfigValue(value="BASE64PAYLOAD")
+    )
+    mock_stack.set_config.assert_any_call(
+        "market_type", mock_auto.ConfigValue("spot")
+    )
+
+
+@pytest.mark.asyncio
+async def test_reconcile_state_uses_cache(driver: PulumiActuator) -> None:
+    """Cover the TTL cache-hit branch in reconcile_state."""
+    import time
+
+    driver._cached_stacks = [{"stack_name": "cached", "provider": "aws"}]
+    driver._last_sync_time = time.time()
+
+    result = await driver.reconcile_state()
+    assert result == [{"stack_name": "cached", "provider": "aws"}]
+
+
+@pytest.mark.asyncio
+async def test_execute_thermodynamic_guillotine_no_breach(
+    driver: PulumiActuator,
+) -> None:
+    from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
+
+    assessment = ThermodynamicAssessment(
+        threshold_breached=False,
+        vfe_divergence=0.0,
+        current_epistemic_value=0.0,
+        current_thermodynamic_cost=0.0,
+        gpu_utilization=0.0,
+        token_velocity=0.0,
+        api_cost_hourly=0.0,
+    )
+    with patch.object(driver, "reconcile_state") as mock_reconcile:
+        await driver.execute_thermodynamic_guillotine(assessment)
+        mock_reconcile.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_execute_thermodynamic_guillotine_no_stacks(
+    driver: PulumiActuator,
+) -> None:
+    """Cover the early-return when coroutines list is empty."""
+    from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
+
+    assessment = ThermodynamicAssessment(
+        threshold_breached=True,
+        vfe_divergence=1.0,
+        current_epistemic_value=0.0,
+        current_thermodynamic_cost=0.0,
+        gpu_utilization=0.0,
+        token_velocity=0.0,
+        api_cost_hourly=0.0,
+    )
+    with patch.object(driver, "reconcile_state", return_value=[]):
+        # Should return early without error
+        await driver.execute_thermodynamic_guillotine(assessment)
+
+
+@pytest.mark.asyncio
+async def test_execute_thermodynamic_guillotine_destroy_exception(
+    driver: PulumiActuator,
+) -> None:
+    from unittest.mock import AsyncMock
+    from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
+
+    assessment = ThermodynamicAssessment(
+        threshold_breached=True,
+        vfe_divergence=2.0,
+        current_epistemic_value=0.0,
+        current_thermodynamic_cost=0.0,
+        gpu_utilization=0.0,
+        token_velocity=0.0,
+        api_cost_hourly=0.0,
+    )
+    with (
+        patch.object(
+            driver,
+            "reconcile_state",
+            return_value=[{"stack_name": "s1", "provider": "aws"}],
+        ),
+        patch.object(
+            driver,
+            "destroy_node",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("boom"),
+        ),
+        patch(
+            "coreason_ecosystem.fleet.pulumi_actuator.logger.error"
+        ) as mock_err,
+    ):
+        await driver.execute_thermodynamic_guillotine(assessment)
+        mock_err.assert_called()
+        assert "boom" in str(mock_err.call_args)
+
+
+@pytest.mark.asyncio
+async def test_execute_thermodynamic_guillotine_timeout(
+    driver: PulumiActuator,
+) -> None:
+    import asyncio
+    from unittest.mock import AsyncMock
+    from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
+
+    assessment = ThermodynamicAssessment(
+        threshold_breached=True,
+        vfe_divergence=3.0,
+        current_epistemic_value=0.0,
+        current_thermodynamic_cost=0.0,
+        gpu_utilization=0.0,
+        token_velocity=0.0,
+        api_cost_hourly=0.0,
+    )
+
+    async def _timeout(*args, **kwargs):
+        raise asyncio.TimeoutError()
+
+    with (
+        patch.object(
+            driver,
+            "reconcile_state",
+            return_value=[{"stack_name": "s1", "provider": "aws"}],
+        ),
+        patch.object(driver, "destroy_node", new_callable=AsyncMock),
+        patch("asyncio.wait_for", side_effect=_timeout),
+        patch(
+            "coreason_ecosystem.fleet.pulumi_actuator.logger.error"
+        ) as mock_err,
+    ):
+        await driver.execute_thermodynamic_guillotine(assessment)
+        mock_err.assert_called()
+        assert "timed out" in str(mock_err.call_args)
+
+
+@pytest.mark.asyncio
+async def test_inject_chaos_fault_targeted_node() -> None:
+    from unittest.mock import AsyncMock, patch
+    from coreason_ecosystem.fleet.pulumi_actuator import inject_chaos_fault
+    from coreason_manifest.spec.ontology import (
+        ChaosExperimentTask,
+        FaultInjectionProfile,
+        SteadyStateHypothesisState,
+    )
+
+    hypothesis = SteadyStateHypothesisState(
+        expected_max_latency=1.0, max_loops_allowed=10
+    )
+    manifest = ChaosExperimentTask(
+        experiment_cid="exp-1",
+        hypothesis=hypothesis,
+        faults=[
+            FaultInjectionProfile(
+                fault_category="latency_spike",
+                target_node_cid="s1",
+                intensity=1.0,
+            )
+        ],
+    )
+
+    with (
+        patch(
+            "coreason_ecosystem.fleet.pulumi_actuator.PulumiActuator.reconcile_state",
+            new_callable=AsyncMock,
+            return_value=[{"stack_name": "s1", "provider": "aws"}],
+        ),
+        patch(
+            "coreason_ecosystem.fleet.pulumi_actuator.PulumiActuator.destroy_node",
+            new_callable=AsyncMock,
+        ) as mock_destroy,
+    ):
+        await inject_chaos_fault(manifest)
+        mock_destroy.assert_awaited_once_with("s1", "aws")
+
+
+@pytest.mark.asyncio
+async def test_inject_chaos_fault_swarm_wide() -> None:
+    from unittest.mock import AsyncMock, patch
+    from coreason_ecosystem.fleet.pulumi_actuator import inject_chaos_fault
+    from coreason_manifest.spec.ontology import (
+        ChaosExperimentTask,
+        FaultInjectionProfile,
+        SteadyStateHypothesisState,
+    )
+
+    hypothesis = SteadyStateHypothesisState(
+        expected_max_latency=1.0, max_loops_allowed=10
+    )
+    manifest = ChaosExperimentTask(
+        experiment_cid="exp-2",
+        hypothesis=hypothesis,
+        faults=[
+            FaultInjectionProfile(
+                fault_category="token_throttle",
+                intensity=0.5,
+            )
+        ],
+    )
+
+    with patch(
+        "coreason_ecosystem.fleet.pulumi_actuator.PulumiActuator.execute_thermodynamic_guillotine",
+        new_callable=AsyncMock,
+    ) as mock_guillotine:
+        await inject_chaos_fault(manifest)
+        mock_guillotine.assert_awaited_once()
+        assessment = mock_guillotine.call_args[0][0]
+        assert assessment.threshold_breached is True
+        assert assessment.vfe_divergence == 50.0
