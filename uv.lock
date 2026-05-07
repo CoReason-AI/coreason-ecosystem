@@ -326,7 +326,7 @@ dev = [
 requires-dist = [
     { name = "boto3", specifier = ">=1.38.0" },
     { name = "click", specifier = ">=8.1.7" },
-    { name = "coreason-manifest", git = "https://github.com/CoReason-AI/coreason-manifest.git?rev=20260507-pypi-typeb" },
+    { name = "coreason-manifest", path = "wheels/coreason_manifest-0.50.13.dev25+gece9adf98-py3-none-any.whl" },
     { name = "cryptography", specifier = ">=44.0.0" },
     { name = "fastapi", specifier = ">=0.135.3" },
     { name = "filelock", specifier = ">=3.25.2" },
@@ -381,7 +381,7 @@ dev = [
 [[package]]
 name = "coreason-manifest"
 version = "0.50.13.dev25+gece9adf98"
-source = { git = "https://github.com/CoReason-AI/coreason-manifest.git?rev=20260507-pypi-typeb#ece9adf98d42772070ddf1d1453874e2cd7e68ed" }
+source = { path = "wheels/coreason_manifest-0.50.13.dev25+gece9adf98-py3-none-any.whl" }
 dependencies = [
     { name = "canonicaljson" },
     { name = "jsonpatch" },
@@ -390,6 +390,21 @@ dependencies = [
     { name = "pycrdt" },
     { name = "pydantic" },
 ]
+wheels = [
+    { filename = "coreason_manifest-0.50.13.dev25+gece9adf98-py3-none-any.whl", hash = "sha256:852663d0797726efed5607e093437feaa1799074880b837cd11e739c4a817a22" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "canonicaljson", specifier = ">=2.0.0" },
+    { name = "jsonpatch", specifier = ">=1.33" },
+    { name = "msgspec", specifier = ">=0.21.1" },
+    { name = "numpy", specifier = ">=2.4" },
+    { name = "pycrdt", specifier = ">=0.12.50" },
+    { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "rustworkx", marker = "extra == 'graph'", specifier = ">=0.17.1" },
+]
+provides-extras = ["graph"]
 
 [[package]]
 name = "coverage"
