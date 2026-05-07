@@ -197,3 +197,6 @@ ignore-words-list = "wit,WIT"
 [tool.pyright]
 include = ["src", "tests", "infrastructure"]
 extraPaths = ["."]
+
+[tool.uv.sources]
+coreason-manifest = { path = "../coreason-manifest", editable = true }
