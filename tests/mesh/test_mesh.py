@@ -1,7 +1,7 @@
 from coreason_ecosystem.mesh import KademliaDHTMock, MeshGateway, ZeroCopyStreamingMock
 from coreason_manifest.spec.ontology import (
     FederatedDiscoveryIntent,
-    CIDFetchIntent,
+    FederatedCIDFetchIntent,
 )
 
 
@@ -60,10 +60,10 @@ def test_zero_copy_streaming_mock() -> None:
     stream = ZeroCopyStreamingMock()
     stream.store_blob(valid_cid, b"mocked_binary_content")
 
-    intent = CIDFetchIntent(target_cid=valid_cid)
+    intent = FederatedCIDFetchIntent(target_cid=valid_cid)
 
     data = stream.handle_fetch_intent(intent)
     assert data == b"mocked_binary_content"
 
-    intent_missing = CIDFetchIntent(target_cid=missing_cid)
+    intent_missing = FederatedCIDFetchIntent(target_cid=missing_cid)
     assert stream.handle_fetch_intent(intent_missing) == b""

@@ -199,4 +199,4 @@ include = ["src", "tests", "infrastructure"]
 extraPaths = ["."]
 
 [tool.uv.sources]
-coreason-manifest = { path = "wheels/coreason_manifest-0.50.13.dev25+gece9adf98-py3-none-any.whl" }
+coreason-manifest = { path = "wheels/coreason_manifest-0.50.13.dev34+g9794d0837-py3-none-any.whl" }

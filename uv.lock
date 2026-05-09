@@ -326,7 +326,7 @@ dev = [
 requires-dist = [
     { name = "boto3", specifier = ">=1.38.0" },
     { name = "click", specifier = ">=8.1.7" },
-    { name = "coreason-manifest", path = "wheels/coreason_manifest-0.50.13.dev25+gece9adf98-py3-none-any.whl" },
+    { name = "coreason-manifest", path = "wheels/coreason_manifest-0.50.13.dev34+g9794d0837-py3-none-any.whl" },
     { name = "cryptography", specifier = ">=44.0.0" },
     { name = "fastapi", specifier = ">=0.135.3" },
     { name = "filelock", specifier = ">=3.25.2" },
@@ -380,8 +380,8 @@ dev = [
 
 [[package]]
 name = "coreason-manifest"
-version = "0.50.13.dev25+gece9adf98"
-source = { path = "wheels/coreason_manifest-0.50.13.dev25+gece9adf98-py3-none-any.whl" }
+version = "0.50.13.dev34+g9794d0837"
+source = { path = "wheels/coreason_manifest-0.50.13.dev34+g9794d0837-py3-none-any.whl" }
 dependencies = [
     { name = "canonicaljson" },
     { name = "jsonpatch" },
@@ -391,7 +391,7 @@ dependencies = [
     { name = "pydantic" },
 ]
 wheels = [
-    { filename = "coreason_manifest-0.50.13.dev25+gece9adf98-py3-none-any.whl", hash = "sha256:852663d0797726efed5607e093437feaa1799074880b837cd11e739c4a817a22" },
+    { filename = "coreason_manifest-0.50.13.dev34+g9794d0837-py3-none-any.whl", hash = "sha256:9b69e1c6b2fd5162ddb4e4eb10e15df8ff5bdb356fd75d13286cfe7dabae4ba8" },
 ]
 
 [package.metadata]
