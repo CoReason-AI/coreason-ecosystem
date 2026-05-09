@@ -326,7 +326,7 @@ dev = [
 requires-dist = [
     { name = "boto3", specifier = ">=1.38.0" },
     { name = "click", specifier = ">=8.1.7" },
-    { name = "coreason-manifest", specifier = ">=0.50.8" },
+    { name = "coreason-manifest", path = "wheels/coreason_manifest-0.50.13.dev34+g9794d0837-py3-none-any.whl" },
     { name = "cryptography", specifier = ">=44.0.0" },
     { name = "fastapi", specifier = ">=0.135.3" },
     { name = "filelock", specifier = ">=3.25.2" },
@@ -380,8 +380,8 @@ dev = [
 
 [[package]]
 name = "coreason-manifest"
-version = "0.50.8"
-source = { registry = "https://pypi.org/simple" }
+version = "0.50.13.dev34+g9794d0837"
+source = { path = "wheels/coreason_manifest-0.50.13.dev34+g9794d0837-py3-none-any.whl" }
 dependencies = [
     { name = "canonicaljson" },
     { name = "jsonpatch" },
@@ -390,10 +390,21 @@ dependencies = [
     { name = "pycrdt" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/54/2f/e5264c8360d03d14be0efd3716b73b2b76074a5c4e7ebb73b103227d0e4e/coreason_manifest-0.50.8.tar.gz", hash = "sha256:ee8ffb98d257df053a5c629fd0cf996bf52560408881afe1e4aa08d414cb530e", size = 902958, upload-time = "2026-04-18T04:43:31.813Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/d4/7deff9837d2fcbb60c0c95c803f934ef1015ccb54a265294ea5bb4553969/coreason_manifest-0.50.8-py3-none-any.whl", hash = "sha256:fc6e3e6217ae5268d1761b680d6cd592b8f42b686168a42478832bfdda2816f5", size = 212003, upload-time = "2026-04-18T04:43:30.318Z" },
+    { filename = "coreason_manifest-0.50.13.dev34+g9794d0837-py3-none-any.whl", hash = "sha256:9b69e1c6b2fd5162ddb4e4eb10e15df8ff5bdb356fd75d13286cfe7dabae4ba8" },
 ]
+
+[package.metadata]
+requires-dist = [
+    { name = "canonicaljson", specifier = ">=2.0.0" },
+    { name = "jsonpatch", specifier = ">=1.33" },
+    { name = "msgspec", specifier = ">=0.21.1" },
+    { name = "numpy", specifier = ">=2.4" },
+    { name = "pycrdt", specifier = ">=0.12.50" },
+    { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "rustworkx", marker = "extra == 'graph'", specifier = ">=0.17.1" },
+]
+provides-extras = ["graph"]
 
 [[package]]
 name = "coverage"
