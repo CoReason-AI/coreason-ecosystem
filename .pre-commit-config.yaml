@@ -14,12 +14,14 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
+  - repo: local
     hooks:
       - id: mypy
-        additional_dependencies: ["pydantic>=2.0", "pydantic-settings>=2.0", "pytest", "types-PyYAML", "click-types", "typer", "rich", "httpx", "loguru", "filelock", "pandas-stubs", "coreason-manifest>=0.50.8", "pulumi", "pulumi-aws", "temporalio", "hypothesis", "moto", "boto3-stubs[ec2,s3]", "boto3"]
-        args: [--config-file, pyproject.toml]
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        require_serial: true
         exclude: ^infrastructure/
   - repo: https://github.com/AleksaC/hadolint-py
     rev: v2.14.0
