@@ -122,7 +122,7 @@ async def extract_and_verify_identity(request: Request) -> None:
 
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid token format")
-        
+
     current_clearance.set("PUBLIC")
 
 
