@@ -1,3 +1,4 @@
+import contextvars
 import hashlib
 import hmac
 import json
@@ -34,6 +35,8 @@ mcp_server = mcp.server.Server("coreason-master-gateway")
 
 registry = SovereignMCPRegistry()
 epistemic_transmuter = EpistemicTransmuter(registry)
+
+current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
 
 
 def _canonicalize_json(obj: Any) -> bytes:
@@ -112,13 +115,15 @@ async def _shutdown_registry() -> None:  # pragma: no cover
 
 
 async def extract_and_verify_identity(request: Request) -> None:
-    """Verify perimeter authentication token (MTLS/Token)."""
+    """Verify perimeter authentication token (MTLS/Token) and bind semantic clearances."""
     auth_header = request.headers.get("Authorization")
     if not auth_header:
         raise HTTPException(status_code=401, detail="Missing perimeter auth token")
 
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid token format")
+
+    current_clearance.set("PUBLIC")
 
 
 sse_transport = SseServerTransport("/messages")
