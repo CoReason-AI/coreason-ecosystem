@@ -1,5 +1,5 @@
 import typing
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -62,10 +62,9 @@ async def test_compute_schema_seal() -> None:
 async def test_sse_endpoint_direct() -> None:
     from coreason_ecosystem.gateway.master_mcp import handle_sse
 
-    request = MagicMock()
-    request.scope = {}
-    request.receive = AsyncMock()
-    request._send = AsyncMock()
+    from fastapi import Request
+
+    request = Request({"type": "http"}, receive=AsyncMock(), send=AsyncMock())
 
     with patch(
         "coreason_ecosystem.gateway.master_mcp.sse_transport.connect_sse"
@@ -86,10 +85,9 @@ async def test_sse_endpoint_direct() -> None:
 async def test_sse_endpoint_direct_exception() -> None:
     from coreason_ecosystem.gateway.master_mcp import handle_sse
 
-    request = MagicMock()
-    request.scope = {}
-    request.receive = AsyncMock()
-    request._send = AsyncMock()
+    from fastapi import Request
+
+    request = Request({"type": "http"}, receive=AsyncMock(), send=AsyncMock())
 
     with patch(
         "coreason_ecosystem.gateway.master_mcp.sse_transport.connect_sse"
@@ -111,10 +109,9 @@ async def test_sse_endpoint_direct_exception() -> None:
 async def test_messages_endpoint_direct() -> None:
     from coreason_ecosystem.gateway.master_mcp import handle_messages
 
-    request = MagicMock()
-    request.scope = {}
-    request.receive = AsyncMock()
-    request._send = AsyncMock()
+    from fastapi import Request
+
+    request = Request({"type": "http"}, receive=AsyncMock(), send=AsyncMock())
 
     with patch(
         "coreason_ecosystem.gateway.master_mcp.sse_transport.handle_post_message",
@@ -150,8 +147,9 @@ async def test_extract_and_verify_identity_missing_header() -> None:
     from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
     from fastapi import HTTPException
 
-    request = MagicMock()
-    request.headers = {}
+    from fastapi import Request
+
+    request = Request({"type": "http", "headers": []})
     with pytest.raises(HTTPException) as exc:
         await extract_and_verify_identity(request)
     assert exc.value.status_code == 401
@@ -162,8 +160,9 @@ async def test_extract_and_verify_identity_invalid_format() -> None:
     from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
     from fastapi import HTTPException
 
-    request = MagicMock()
-    request.headers = {"Authorization": "Basic 1234"}
+    from fastapi import Request
+
+    request = Request({"type": "http", "headers": [(b"authorization", b"Basic 1234")]})
     with pytest.raises(HTTPException) as exc:
         await extract_and_verify_identity(request)
     assert exc.value.status_code == 401
@@ -173,6 +172,7 @@ async def test_extract_and_verify_identity_invalid_format() -> None:
 async def test_extract_and_verify_identity_valid_token() -> None:
     from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
 
-    request = MagicMock()
-    request.headers = {"Authorization": "Bearer whatever_token"}
+    from fastapi import Request
+
+    request = Request({"type": "http", "headers": [(b"authorization", b"Bearer whatever_token")]})
     await extract_and_verify_identity(request)
