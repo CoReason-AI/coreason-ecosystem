@@ -151,7 +151,6 @@ async def test_execute_up_failure(
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.orchestration.up.execute_up", new_callable=AsyncMock)
 async def test_provision_swarm_topology(mock_execute_up: Any) -> None:
-
     manifest = MagicMock()
     manifest.swarm_objective_prompt = "test"
     manifest.agent_node_count = 3

@@ -257,7 +257,6 @@ async def test_invoke_actuator_nemoclaw_routing() -> None:
 @respx.mock
 @pytest.mark.asyncio
 async def test_invoke_actuator_nemoclaw_exceptions() -> None:
-
     with patch(
         "coreason_ecosystem.gateway.master_mcp.registry.resolve_urn",
         new_callable=AsyncMock,
