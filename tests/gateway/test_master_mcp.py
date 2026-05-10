@@ -174,5 +174,7 @@ async def test_extract_and_verify_identity_valid_token() -> None:
 
     from fastapi import Request
 
-    request = Request({"type": "http", "headers": [(b"authorization", b"Bearer whatever_token")]})
+    request = Request(
+        {"type": "http", "headers": [(b"authorization", b"Bearer whatever_token")]}
+    )
     await extract_and_verify_identity(request)
