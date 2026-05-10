@@ -22,50 +22,16 @@ from coreason_manifest.spec.ontology import (
     FederatedSecurityMacroManifest,
 )
 from fastapi import Depends, FastAPI, HTTPException
+from contextlib import asynccontextmanager
 from mcp.server.sse import SseServerTransport
 import httpx
 from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="coreason-master-gateway")
-mcp_server = mcp.server.Server("coreason-master-gateway")
-
 registry = SovereignMCPRegistry()
 epistemic_transmuter = EpistemicTransmuter(registry)
 
-current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
-
-
-def _canonicalize_json(obj: Any) -> bytes:
-    """Produce RFC 8785 (JCS) canonical JSON serialization.
-
-    Sorts keys recursively and uses compact separators with no trailing
-    whitespace, which is the subset of JCS achievable via Python's stdlib.
-
-    Args:
-        obj: The object to canonicalize.
-
-    Returns:
-        UTF-8 encoded canonical JSON bytes.
-    """
-    return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
-
-
-def compute_schema_seal(schema: dict[str, Any]) -> str:
-    """Compute the SHA-256 seal of a canonicalized MCP tool schema.
-
-    Args:
-        schema: The MCP tool input schema dictionary.
-
-    Returns:
-        Hexadecimal SHA-256 digest string.
-    """
-    canonical = _canonicalize_json(schema)
-    return hashlib.sha256(canonical).hexdigest()
-
-
-@app.on_event("startup")
 async def _hydrate_registry() -> None:
     """Hydrate the capability registry utilizing Hierarchical Path Resolution.
 
@@ -105,11 +71,49 @@ async def _hydrate_registry() -> None:
 
     await registry.scan_action_space_modules()
 
-
-@app.on_event("shutdown")
 async def _shutdown_registry() -> None:  # pragma: no cover
     """Gracefully shutdown the capability registry and its background worker."""
     await registry.shutdown()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await _hydrate_registry()
+    yield
+    await _shutdown_registry()
+
+app = FastAPI(title="coreason-master-gateway", lifespan=lifespan)
+mcp_server = mcp.server.Server("coreason-master-gateway")
+
+current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
+
+
+def _canonicalize_json(obj: Any) -> bytes:
+    """Produce RFC 8785 (JCS) canonical JSON serialization.
+
+    Sorts keys recursively and uses compact separators with no trailing
+    whitespace, which is the subset of JCS achievable via Python's stdlib.
+
+    Args:
+        obj: The object to canonicalize.
+
+    Returns:
+        UTF-8 encoded canonical JSON bytes.
+    """
+    return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def compute_schema_seal(schema: dict[str, Any]) -> str:
+    """Compute the SHA-256 seal of a canonicalized MCP tool schema.
+
+    Args:
+        schema: The MCP tool input schema dictionary.
+
+    Returns:
+        Hexadecimal SHA-256 digest string.
+    """
+    canonical = _canonicalize_json(schema)
+    return hashlib.sha256(canonical).hexdigest()
+
 
 
 async def extract_and_verify_identity(request: Request) -> None:

@@ -71,6 +71,7 @@ dev = [
     "boto3-stubs[ec2,s3]>=1.42.89",
     "types-protobuf>=6.32.1.20260221",
     "moto>=5.1.22",
+    "respx>=0.23.1",
 ]
 
 [tool.hatch.build.targets.wheel]
