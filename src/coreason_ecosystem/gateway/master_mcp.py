@@ -252,9 +252,13 @@ async def invoke_actuator(
             response = await client.post(url, json=payload)
             response.raise_for_status()
             result = response.json()
-            return [types.TextContent(type="text", text=str(result.get("content", result)))]
+            return [
+                types.TextContent(type="text", text=str(result.get("content", result)))
+            ]
     except httpx.HTTPStatusError as e:
-        logger.error(f"NemoClaw returned HTTP error: {e.response.status_code} - {e.response.text}")
+        logger.error(
+            f"NemoClaw returned HTTP error: {e.response.status_code} - {e.response.text}"
+        )
         if e.response.status_code == 500:
             raise RuntimeError(f"NemoClaw internal server error: {e}") from e
         raise RuntimeError(f"NemoClaw HTTP error: {e}") from e
