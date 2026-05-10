@@ -89,3 +89,11 @@ def test_cli_build_docs_failure(mock_generate: Any) -> None:
         result.exit_code == 0
     )  # It catches the exception and prints it, does not exit with code 1
     mock_generate.assert_called_once()
+
+
+@patch("coreason_ecosystem.cli.app")
+def test_cli_main(mock_app: Any) -> None:
+    from coreason_ecosystem.cli import main
+
+    main()
+    mock_app.assert_called_once()

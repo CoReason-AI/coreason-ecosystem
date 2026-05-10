@@ -455,3 +455,22 @@ async def test_federated_discovery_hypothesis(domain: str) -> None:
         data = json.loads(res)
         # The seeded registry has specific domains, so most fuzzed domains will return 0 capabilities unless matched
         assert isinstance(data["capabilities"], list)
+
+
+@pytest.mark.asyncio
+async def test_lifespan() -> None:
+    from coreason_ecosystem.gateway.master_mcp import lifespan, app
+
+    with (
+        patch(
+            "coreason_ecosystem.gateway.master_mcp._hydrate_registry",
+            new_callable=AsyncMock,
+        ) as mock_hydrate,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp._shutdown_registry",
+            new_callable=AsyncMock,
+        ) as mock_shutdown,
+    ):
+        async with lifespan(app):
+            mock_hydrate.assert_awaited_once()
+        mock_shutdown.assert_awaited_once()

@@ -36,7 +36,7 @@ def global_excepthook(
     sys.exit(1)
 
 
-sys.excepthook = global_excepthook
+sys.excepthook = global_excepthook  # pragma: no cover
 
 
 def version_callback(value: bool) -> None:
@@ -113,7 +113,7 @@ def up() -> None:
         stop_otlp_background_worker,
     )
 
-    async def _run() -> None:
+    async def _run() -> None:  # pragma: no cover
         start_otlp_background_worker()
         try:
             await execute_up()

@@ -84,3 +84,25 @@ def test_verify_payload_integrity() -> None:
 
     with pytest.raises(ValueError, match="Payload Quarantine Breach"):
         injector.verify_payload_integrity(raw_bytes, "wrong_hash")
+
+
+def test_inject_ocap_middleware() -> None:
+    import pytest
+
+    injector = MeshInjector()
+
+    with pytest.raises(ValueError, match="Invalid JWT token format"):
+        injector.inject_ocap_middleware("invalid_token", {})
+
+    with pytest.raises(ValueError, match="Invalid JWT token format"):
+        injector.inject_ocap_middleware("", {})
+
+    token = "header.payload.signature"
+    assert injector.inject_ocap_middleware(token, {"test": 123}) == {"test": 123}
+
+    complex_payload = {"a": {"b": [1, 2, 3]}, "c": 4}
+    assert injector.inject_ocap_middleware(token, complex_payload) == complex_payload
+
+    large_payload = {"items": [i for i in range(10001)]}
+    with pytest.raises(ValueError, match="Payload exceeds 10,000 node limit"):
+        injector.inject_ocap_middleware(token, large_payload)
