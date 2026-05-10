@@ -22,10 +22,8 @@ from coreason_manifest.spec.ontology import (
     FederatedSecurityMacroManifest,
 )
 from fastapi import Depends, FastAPI, HTTPException
-from mcp.client.session import ClientSession
-from mcp.client.sse import sse_client
-from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.server.sse import SseServerTransport
+import httpx
 from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
@@ -230,35 +228,38 @@ async def invoke_actuator(
         ]
 
     try:
-        physical_endpoint = await registry.resolve_urn(name)
+        target_urn = await registry.resolve_urn(name)
     except KeyError:
         raise ValueError(
             f"Geometrical topology fault: Tool {name} not found in active registry."
         )
 
+    nemoclaw_url = os.getenv("NEMOCLAW_URL", "https://nemoclaw:8443").rstrip("/")
+    url = f"{nemoclaw_url}/v1/mcp/{target_urn}/tools/call"
+    payload = {
+        "name": name,
+        "arguments": arguments,
+    }
+
+    cert = None
+    env_cert = os.getenv("NEMOCLAW_CLIENT_CERT")
+    env_key = os.getenv("NEMOCLAW_CLIENT_KEY")
+    if env_cert and env_key:
+        cert = (env_cert, env_key)
+
     try:
-        if physical_endpoint.startswith("http://") or physical_endpoint.startswith(
-            "https://"
-        ):
-            async with sse_client(f"{physical_endpoint}/sse") as (
-                read_stream,
-                write_stream,
-            ):
-                async with ClientSession(read_stream, write_stream) as session:
-                    await session.initialize()
-                    result = await session.call_tool(name, arguments=arguments)
-                    return [types.TextContent(type="text", text=str(result.content))]
-        else:
-            server_params = StdioServerParameters(
-                command="wasmtime", args=["run", physical_endpoint]
-            )
-            async with stdio_client(server_params) as (read_stream, write_stream):
-                async with ClientSession(read_stream, write_stream) as session:
-                    await session.initialize()
-                    result = await session.call_tool(name, arguments=arguments)
-                    return [types.TextContent(type="text", text=str(result.content))]
+        async with httpx.AsyncClient(cert=cert, verify=False) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            return [types.TextContent(type="text", text=str(result.get("content", result)))]
+    except httpx.HTTPStatusError as e:
+        logger.error(f"NemoClaw returned HTTP error: {e.response.status_code} - {e.response.text}")
+        if e.response.status_code == 500:
+            raise RuntimeError(f"NemoClaw internal server error: {e}") from e
+        raise RuntimeError(f"NemoClaw HTTP error: {e}") from e
     except Exception as e:
-        logger.error(f"Failed to proxy MCP request to {physical_endpoint}: {e}")
+        logger.error(f"Failed to proxy MCP request to NemoClaw: {e}")
         raise RuntimeError(f"Cross-plane capability execution failed: {e}")
 
 

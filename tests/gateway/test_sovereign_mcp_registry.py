@@ -25,7 +25,6 @@ def mock_registry_temporal(monkeypatch: pytest.MonkeyPatch) -> None:
     async def mock_update_urn(
         self: Any,
         urn: str,
-        endpoint: str,
         clearance: str,
         epistemic_status: str,
         capability_metadata: dict[str, Any] | None = None,
@@ -33,7 +32,6 @@ def mock_registry_temporal(monkeypatch: pytest.MonkeyPatch) -> None:
         if not hasattr(self, "_mock_state"):
             self._mock_state = {}
         self._mock_state[urn] = {
-            "endpoint": endpoint,
             "clearance": clearance,
             "epistemic_status": epistemic_status,
             "capability_metadata": capability_metadata or {},
@@ -170,7 +168,6 @@ class TestScanActionSpaceModules:
 
         registry = SovereignMCPRegistry()
         registry._mock_state["urn:coreason:actionspace:solver:duplicate:v1"] = {  # type: ignore[attr-defined]
-            "endpoint": "http://existing:8000",
             "clearance": "PUBLIC",
             "epistemic_status": "PUBLISHED",
         }
@@ -179,9 +176,9 @@ class TestScanActionSpaceModules:
         # Original cache entry preserved
         assert (
             registry._mock_state["urn:coreason:actionspace:solver:duplicate:v1"][  # type: ignore[attr-defined]
-                "endpoint"
+                "clearance"
             ]
-            == "http://existing:8000"
+            == "PUBLIC"
         )
 
     @pytest.mark.asyncio
@@ -337,7 +334,6 @@ def _seed_substrate(
 ) -> None:
     """Inject a substrate entry directly into the mock state."""
     registry._mock_state[urn] = {
-        "endpoint": f"http://{urn.split(':')[-2]}:8000",
         "clearance": security,
         "epistemic_status": "PUBLISHED",
         "capability_metadata": {

@@ -35,9 +35,6 @@ from coreason_ecosystem.fleet.pricing_oracle import (
 )
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.fleet.pulumi_actuator import PulumiActuator
-from coreason_ecosystem.fleet.telemetry_topology import (
-    coreason_aggregate_vram_demand_gb,
-)
 from pathlib import Path
 import asyncio
 from typing import Literal
@@ -110,7 +107,7 @@ async def von_neumann_expansion_daemon(
                 SpatialHardwareProfile as HardwareProfile,
             )
 
-            required_vram = coreason_aggregate_vram_demand_gb._value.get()
+            required_vram = 0.0
             actuator = PulumiActuator(Path.cwd() / "infrastructure")
             active_stacks = await actuator.reconcile_state()
             provisioned_vram = sum(

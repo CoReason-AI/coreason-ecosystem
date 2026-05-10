@@ -85,7 +85,6 @@ class RegistryStateWorkflow:
     def update_urn(
         self,
         urn: str,
-        endpoint: str,
         clearance: str,
         epistemic_status: str,
         capability_metadata: dict[str, Any] | None = None,
@@ -93,7 +92,6 @@ class RegistryStateWorkflow:
     ) -> None:  # pragma: no cover
         """Update a specific URN mapping in the state cache."""
         self._cache[urn] = {
-            "endpoint": endpoint,
             "clearance": clearance,
             "epistemic_status": epistemic_status,
             "capability_metadata": capability_metadata or {},
@@ -166,7 +164,6 @@ class SovereignMCPRegistry:
     async def _update_urn(
         self,
         urn: str,
-        endpoint: str,
         clearance: str,
         epistemic_status: str,
         capability_metadata: dict[str, Any] | None = None,
@@ -180,7 +177,6 @@ class SovereignMCPRegistry:
             RegistryStateWorkflow.update_urn,
             args=[
                 urn,
-                endpoint,
                 clearance,
                 epistemic_status,
                 capability_metadata,
@@ -224,10 +220,9 @@ class SovereignMCPRegistry:
         count = 0
         for entry in capabilities:
             urn = entry.get("urn", "")
-            endpoint = entry.get("endpoint", "")
             clearance = entry.get("clearance", "RESTRICTED")
             epistemic_status = entry.get("epistemic_status", "DRAFT")
-            if urn and endpoint:
+            if urn:
                 match urn.split(":"):
                     case ["urn", "coreason", "oracle" | "state", *_]:
                         warnings.warn(
@@ -239,7 +234,7 @@ class SovereignMCPRegistry:
                     case _:
                         pass
 
-                await self._update_urn(urn, endpoint, clearance, epistemic_status)
+                await self._update_urn(urn, clearance, epistemic_status)
                 count += 1
 
         logger.info(f"Hydrated {count} capabilities from {matrix_path.name}")
@@ -314,7 +309,6 @@ class SovereignMCPRegistry:
             # Pass raw metadata through Pydantic schema for strict type-safety
             manifest = FederatedSecurityMacroManifest.model_validate(metadata)
 
-            endpoint = manifest.target_endpoint_uri
             clearance = str(
                 manifest.required_clearance.value
                 if hasattr(manifest.required_clearance, "value")
@@ -348,7 +342,6 @@ class SovereignMCPRegistry:
 
             await self._update_urn(
                 urn,
-                endpoint,
                 clearance,
                 epistemic_status,
                 capability_metadata,
@@ -386,10 +379,9 @@ class SovereignMCPRegistry:
             capabilities: list[dict[str, Any]] = data.get("capabilities", [])
             for entry in capabilities:
                 urn = entry.get("urn", "")
-                endpoint = entry.get("endpoint", "")
                 clearance = entry.get("clearance", "RESTRICTED")
                 epistemic_status = entry.get("epistemic_status", "DRAFT")
-                if urn and endpoint:
+                if urn:
                     match urn.split(":"):
                         case ["urn", "coreason", "oracle" | "state", *_]:
                             warnings.warn(
@@ -400,7 +392,7 @@ class SovereignMCPRegistry:
                             )
                         case _:
                             pass
-                    await self._update_urn(urn, endpoint, clearance, epistemic_status)
+                    await self._update_urn(urn, clearance, epistemic_status)
 
             logger.info(
                 f"Hydrated {len(capabilities)} capabilities from {discovery_url}"
@@ -412,13 +404,13 @@ class SovereignMCPRegistry:
         """Interrogates the routing table to resolve available subsystems.
 
         Returns:
-            A mapping of URN strings to physical network actionSpaceCId URIs.
+            A mapping of URN strings.
         """
         state = await self._get_state()
 
         masked_substrates: dict[str, str] = {}
         for urn, data in state.items():
-            masked_substrates[urn] = data["endpoint"]
+            masked_substrates[urn] = urn
 
         return masked_substrates
 
@@ -429,7 +421,7 @@ class SovereignMCPRegistry:
             target_urn: The URN of the capability to resolve.
 
         Returns:
-            The mapped physical endpoint URI.
+            The URN string.
 
         Raises:
             KeyError: if the target_urn is not in the registry.
@@ -438,7 +430,7 @@ class SovereignMCPRegistry:
         if target_urn not in state:
             raise KeyError(f"Geometrical topology fault: unregistered URN {target_urn}")
 
-        return cast(str, state[target_urn]["endpoint"])
+        return target_urn
 
     async def get_epistemic_status(self, target_urn: str) -> str:  # pragma: no cover
         """Retrieve the SRB governance lifecycle status for a registered URN.
@@ -733,11 +725,9 @@ class SovereignMCPRegistry:
                                     continue
 
                                 # Register the discovered action space.
-                                # Endpoint defaults to the URN itself until
-                                # a runtime deployment resolves the physical URI.
                                 if urn_value not in state:
                                     await self._update_urn(
-                                        urn_value, urn_value, "RESTRICTED", "DRAFT"
+                                        urn_value, "RESTRICTED", "DRAFT"
                                     )
                                     discovered += 1
                                     logger.info(
