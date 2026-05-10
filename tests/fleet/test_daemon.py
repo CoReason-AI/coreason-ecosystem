@@ -10,8 +10,8 @@ from coreason_ecosystem.fleet.daemon import AutonomicFleetManager
 @pytest.fixture
 def fleet_manager() -> Any:
     with (
-        patch("coreason_ecosystem.fleet.daemon.PulumiActuator") as mock_actuator_cls,
-        patch("coreason_ecosystem.fleet.daemon.PricingOracle") as mock_oracle_cls,
+        patch("coreason_ecosystem.fleet.daemon.PulumiActuator"),
+        patch("coreason_ecosystem.fleet.daemon.PricingOracle"),
     ):
         manager = AutonomicFleetManager(
             max_budget_hr=10.0,

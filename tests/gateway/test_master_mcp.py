@@ -197,7 +197,7 @@ async def test_invoke_actuator_builtin_commands(
         ) as mock_up,
         patch(
             "coreason_ecosystem.gateway.master_mcp.CognitiveSwarmDeploymentManifest.model_validate"
-        ) as mock_val1,
+        ),
     ):
         args = {"any": "thing"}
         res = await invoke_actuator("deploy_cognitive_swarm", args)
@@ -213,7 +213,7 @@ async def test_invoke_actuator_builtin_commands(
         ) as mock_sync,
         patch(
             "coreason_ecosystem.gateway.master_mcp.FederatedSecurityMacroManifest.model_validate"
-        ) as mock_val2,
+        ),
     ):
         args_sync = {"any": "thing"}
         res2 = await invoke_actuator("establish_federated_link", args_sync)
@@ -228,7 +228,7 @@ async def test_invoke_actuator_builtin_commands(
         ) as mock_chaos,
         patch(
             "coreason_ecosystem.gateway.master_mcp.ChaosExperimentTask.model_validate"
-        ) as mock_val3,
+        ),
     ):
         args_chaos = {"any": "thing"}
         res3 = await invoke_actuator("inject_chaos_fault", args_chaos)

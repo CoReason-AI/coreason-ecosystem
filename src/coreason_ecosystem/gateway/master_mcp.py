@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import time
-from typing import Any
+from typing import Any, AsyncGenerator
 
 import mcp.server
 import mcp.types as types
@@ -77,8 +77,6 @@ async def _shutdown_registry() -> None:  # pragma: no cover
     """Gracefully shutdown the capability registry and its background worker."""
     await registry.shutdown()
 
-
-from typing import AsyncGenerator
 
 
 @asynccontextmanager
