@@ -78,7 +78,6 @@ async def _shutdown_registry() -> None:  # pragma: no cover
     await registry.shutdown()
 
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await _hydrate_registry()

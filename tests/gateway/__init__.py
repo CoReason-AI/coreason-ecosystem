@@ -1,3 +1,1 @@
-
-
 """Gateway tests."""
