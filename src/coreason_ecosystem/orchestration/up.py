@@ -129,8 +129,7 @@ async def execute_up() -> None:
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            console.print(
-            )
+            console.print()
             raise typer.Exit(1)
         progress.update(
             task_sandbox,
@@ -141,7 +140,9 @@ async def execute_up() -> None:
         task_injection = progress.add_task(
             "[cyan]Injecting Sovereign MCP Gateway...[/cyan]", total=None
         )
-        logger.info("[Gateway] Connecting to NemoClaw via mTLS and registering MCP tools...")
+        logger.info(
+            "[Gateway] Connecting to NemoClaw via mTLS and registering MCP tools..."
+        )
         registry = SovereignMCPRegistry()
         await registry.initialize()
         await registry.scan_action_space_modules()

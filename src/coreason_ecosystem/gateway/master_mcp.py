@@ -118,6 +118,7 @@ async def extract_and_verify_identity(request: Request) -> None:
     """Verify cryptographic semantic clearances binding identity envelopes bounds."""
     current_clearance.set("PUBLIC")
 
+
 sse_transport = SseServerTransport("/messages")
 
 
