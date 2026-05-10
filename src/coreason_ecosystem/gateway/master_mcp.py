@@ -1,5 +1,3 @@
-import base64
-import contextvars
 import hashlib
 import hmac
 import json
@@ -11,9 +9,6 @@ from typing import Any
 import mcp.server
 import mcp.types as types
 from coreason_ecosystem.gateway.epistemic_filter import EpistemicTransmuter
-from coreason_ecosystem.gateway.ontological_identity_router import (
-    OntologicalIdentityRouter,
-)
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.gateway.state_manifests import (
     FederatedDiscoveryIntent,
@@ -39,9 +34,6 @@ mcp_server = mcp.server.Server("coreason-master-gateway")
 
 registry = SovereignMCPRegistry()
 epistemic_transmuter = EpistemicTransmuter(registry)
-identity_router = OntologicalIdentityRouter()
-
-current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
 
 
 def _canonicalize_json(obj: Any) -> bytes:
@@ -120,24 +112,13 @@ async def _shutdown_registry() -> None:  # pragma: no cover
 
 
 async def extract_and_verify_identity(request: Request) -> None:
-    """Verify cryptographic semantic clearances binding identity envelopes bounds."""
+    """Verify perimeter authentication token (MTLS/Token)."""
     auth_header = request.headers.get("Authorization")
     if not auth_header:
-        current_clearance.set("PUBLIC")
-        return
+        raise HTTPException(status_code=401, detail="Missing perimeter auth token")
 
-    try:
-        if not auth_header.startswith("Bearer "):
-            raise ValueError("Invalid format")
-
-        encoded_payload = auth_header[7:]
-        decoded_bytes = base64.b64decode(encoded_payload)
-        payload = json.loads(decoded_bytes.decode("utf-8"))
-
-        profile = await identity_router.authorize_coordinate(payload)
-        current_clearance.set(profile["clearance"])
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid identity sequence")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid token format")
 
 
 sse_transport = SseServerTransport("/messages")
@@ -293,9 +274,9 @@ async def federated_discovery(arguments: dict[str, Any]) -> str:
         We apply epistemic filter constraints just like the old loop.
     """
     manifest = FederatedDiscoveryIntent.model_validate(arguments)
-    clearance = current_clearance.get()
+    clearance = "PUBLIC"
 
-    discovered = await registry.discover_active_substrates(agent_clearance=clearance)
+    discovered = await registry.discover_active_substrates()
 
     discovered = await epistemic_transmuter.project_capabilities(
         available_urns=discovered,

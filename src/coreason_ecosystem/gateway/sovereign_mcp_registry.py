@@ -408,29 +408,17 @@ class SovereignMCPRegistry:
         except Exception as e:
             logger.warning(f"Discovery port hydration failed: {e}")
 
-    async def discover_active_substrates(
-        self, agent_clearance: str = "PUBLIC"
-    ) -> dict[str, str]:  # pragma: no cover
+    async def discover_active_substrates(self) -> dict[str, str]:  # pragma: no cover
         """Interrogates the routing table to resolve available subsystems.
-
-        Applies epistemic masking based on the agent's clearance level.
-
-        Args:
-            agent_clearance: The semantic clearance of the requesting agent.
 
         Returns:
             A mapping of URN strings to physical network actionSpaceCId URIs.
         """
-        agent_level = self.CLEARANCE_LEVELS.get(agent_clearance, 0)
         state = await self._get_state()
 
         masked_substrates: dict[str, str] = {}
         for urn, data in state.items():
-            required_clearance = data.get("clearance", "RESTRICTED")
-            required_level = self.CLEARANCE_LEVELS.get(required_clearance, 3)
-
-            if agent_level >= required_level:
-                masked_substrates[urn] = data["endpoint"]
+            masked_substrates[urn] = data["endpoint"]
 
         return masked_substrates
 
