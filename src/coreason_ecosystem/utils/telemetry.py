@@ -135,8 +135,8 @@ def otlp_log_sink(message: "Message") -> None:
     if _otlp_queue is not None:
         try:
             _otlp_queue.put_nowait(dict(message.record))
-        except Exception as e:  # nosec B110 - pragma: no cover
-            logger.warning(f"Failed to queue log for OTLP: {e}")
+        except Exception:  # nosec B110 - pragma: no cover
+            pass
 
 
 def start_otlp_background_worker() -> None:

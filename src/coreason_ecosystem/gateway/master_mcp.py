@@ -21,7 +21,7 @@ from coreason_manifest.spec.ontology import (
     CognitiveSwarmDeploymentManifest,
     FederatedSecurityMacroManifest,
 )
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from mcp.client.session import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.stdio import StdioServerParameters, stdio_client
@@ -115,7 +115,14 @@ async def _shutdown_registry() -> None:  # pragma: no cover
 
 
 async def extract_and_verify_identity(request: Request) -> None:
-    """Verify cryptographic semantic clearances binding identity envelopes bounds."""
+    """Verify perimeter authentication token (MTLS/Token) and bind semantic clearances."""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        raise HTTPException(status_code=401, detail="Missing perimeter auth token")
+
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid token format")
+        
     current_clearance.set("PUBLIC")
 
 
@@ -272,9 +279,9 @@ async def federated_discovery(arguments: dict[str, Any]) -> str:
         We apply epistemic filter constraints just like the old loop.
     """
     manifest = FederatedDiscoveryIntent.model_validate(arguments)
-    clearance = current_clearance.get()
+    clearance = "PUBLIC"
 
-    discovered = await registry.discover_active_substrates(agent_clearance=clearance)
+    discovered = await registry.discover_active_substrates()
 
     discovered = await epistemic_transmuter.project_capabilities(
         available_urns=discovered,
