@@ -78,7 +78,9 @@ dev = [
 packages = ["src/coreason_ecosystem"]
 
 [tool.deptry]
-per_rule_ignores = {"DEP002" = ["click", "pulumi-aws", "pulumi-command"], "DEP003" = ["starlette"]}
+exclude = ["venv", "\\.venv", "tests", "infrastructure"]
+known_first_party = ["coreason_ecosystem"]
+per_rule_ignores = {"DEP002" = ["click", "pulumi-aws", "pulumi-command"], "DEP003" = ["starlette", "coreason_ecosystem"]}
 
 
 [project.urls]
@@ -99,6 +101,7 @@ ignore = ["S101", "TC001", "TC002", "TC003", "UP037", "ARG002"]
 
 [tool.mypy]
 python_version = "3.14"
+exclude = ["^infrastructure/"]
 strict = true
 warn_return_any = true
 warn_unused_configs = true
