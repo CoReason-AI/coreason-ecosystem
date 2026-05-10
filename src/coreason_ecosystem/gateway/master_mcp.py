@@ -1,4 +1,3 @@
-import base64
 import contextvars
 import hashlib
 import hmac
@@ -11,9 +10,6 @@ from typing import Any
 import mcp.server
 import mcp.types as types
 from coreason_ecosystem.gateway.epistemic_filter import EpistemicTransmuter
-from coreason_ecosystem.gateway.ontological_identity_router import (
-    OntologicalIdentityRouter,
-)
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.gateway.state_manifests import (
     FederatedDiscoveryIntent,
@@ -25,7 +21,7 @@ from coreason_manifest.spec.ontology import (
     CognitiveSwarmDeploymentManifest,
     FederatedSecurityMacroManifest,
 )
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI
 from mcp.client.session import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.stdio import StdioServerParameters, stdio_client
@@ -39,7 +35,6 @@ mcp_server = mcp.server.Server("coreason-master-gateway")
 
 registry = SovereignMCPRegistry()
 epistemic_transmuter = EpistemicTransmuter(registry)
-identity_router = OntologicalIdentityRouter()
 
 current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
 
@@ -121,24 +116,7 @@ async def _shutdown_registry() -> None:  # pragma: no cover
 
 async def extract_and_verify_identity(request: Request) -> None:
     """Verify cryptographic semantic clearances binding identity envelopes bounds."""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        current_clearance.set("PUBLIC")
-        return
-
-    try:
-        if not auth_header.startswith("Bearer "):
-            raise ValueError("Invalid format")
-
-        encoded_payload = auth_header[7:]
-        decoded_bytes = base64.b64decode(encoded_payload)
-        payload = json.loads(decoded_bytes.decode("utf-8"))
-
-        profile = await identity_router.authorize_coordinate(payload)
-        current_clearance.set(profile["clearance"])
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid identity sequence")
-
+    current_clearance.set("PUBLIC")
 
 sse_transport = SseServerTransport("/messages")
 

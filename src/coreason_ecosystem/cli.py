@@ -72,9 +72,7 @@ def cli_callback(
 # but to avoid circular dependencies where submodules import 'console'
 # from cli.py, 'console' is defined above first.
 from pathlib import Path  # noqa: E402
-from coreason_ecosystem.orchestration.build import execute_build  # noqa: E402
 from coreason_ecosystem.orchestration.isomorphism_probe import execute_oracle_diagnostic  # noqa: E402
-from coreason_ecosystem.orchestration.init import execute_init  # noqa: E402
 from coreason_ecosystem.orchestration.sync import execute_sync  # noqa: E402
 from coreason_ecosystem.orchestration.up import execute_up  # noqa: E402
 from coreason_ecosystem.fleet.daemon import AutonomicFleetManager  # noqa: E402
@@ -105,61 +103,6 @@ def fleet_start(
         temporal_mesh_ip=temporal_mesh_ip,
     )
     asyncio.run(manager.start())
-
-
-@app.command(
-    name="init",
-    help="Autonomically generate a mathematically verified Swarm workspace.",
-)
-def init(
-    project_name: str = typer.Argument(...),
-    topology: str = typer.Option(
-        "base", help="Topological routing pattern (base, medallion, rag)."
-    ),
-    lang: str = typer.Option("python", help="Language scaffolding (python, rust, go)."),
-) -> None:
-    """Autonomically generate a mathematically verified Swarm workspace."""
-    from coreason_ecosystem.utils.telemetry import (
-        start_otlp_background_worker,
-        stop_otlp_background_worker,
-    )
-
-    async def _run() -> None:
-        start_otlp_background_worker()
-        try:
-            await execute_init(project_name, topology, lang)
-        finally:
-            await stop_otlp_background_worker()
-
-    with console.status("[bold green]Synthesizing Ontological Boundaries...") as status:
-        asyncio.run(_run())
-        status.update("[bold green]Wiring Sensory Cortex...")
-        status.update("[bold green]Initializing Immunological Hooks...")
-    console.print(
-        f"[bold blue]Workspace '{project_name}' mathematically sealed and ready.[/bold blue]"
-    )
-
-
-@app.command(name="build")
-def build(
-    target_path: str = typer.Argument(
-        ..., help="Path to the capability script to compile."
-    ),
-) -> None:
-    """Compile human-readable Python capabilities into WASM boundaries and calculate their Epistemic Seals."""
-    from coreason_ecosystem.utils.telemetry import (
-        start_otlp_background_worker,
-        stop_otlp_background_worker,
-    )
-
-    async def _run() -> None:
-        start_otlp_background_worker()
-        try:
-            await execute_build(target_path)
-        finally:
-            await stop_otlp_background_worker()
-
-    asyncio.run(_run())
 
 
 @app.command(name="up")
