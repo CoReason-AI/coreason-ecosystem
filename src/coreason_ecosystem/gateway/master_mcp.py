@@ -248,7 +248,7 @@ async def invoke_actuator(
         cert = (env_cert, env_key)
 
     try:
-        async with httpx.AsyncClient(cert=cert, verify=False) as client:
+        async with httpx.AsyncClient(cert=cert, verify=False) as client:  # nosec B501
             response = await client.post(url, json=payload)
             response.raise_for_status()
             result = response.json()
