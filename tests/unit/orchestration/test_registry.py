@@ -1,4 +1,3 @@
-from typing import Any
 import hashlib
 import json
 from pathlib import Path
@@ -39,7 +38,9 @@ async def test_calculate_epistemic_root_all_files_exist(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_calculate_epistemic_root_missing_files_package_error(tmp_path: Path) -> None:
+async def test_calculate_epistemic_root_missing_files_package_error(
+    tmp_path: Path,
+) -> None:
     from importlib.metadata import PackageNotFoundError
 
     with patch("importlib.metadata.version", side_effect=PackageNotFoundError):

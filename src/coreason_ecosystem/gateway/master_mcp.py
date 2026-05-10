@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 registry = SovereignMCPRegistry()
 epistemic_transmuter = EpistemicTransmuter(registry)
 
+
 async def _hydrate_registry() -> None:
     """Hydrate the capability registry utilizing Hierarchical Path Resolution.
 
@@ -71,16 +72,21 @@ async def _hydrate_registry() -> None:
 
     await registry.scan_action_space_modules()
 
+
 async def _shutdown_registry() -> None:  # pragma: no cover
     """Gracefully shutdown the capability registry and its background worker."""
     await registry.shutdown()
 
+
 from typing import AsyncGenerator
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await _hydrate_registry()
     yield
     await _shutdown_registry()
+
 
 app = FastAPI(title="coreason-master-gateway", lifespan=lifespan)
 mcp_server = mcp.server.Server("coreason-master-gateway")
@@ -114,7 +120,6 @@ def compute_schema_seal(schema: dict[str, Any]) -> str:
     """
     canonical = _canonicalize_json(schema)
     return hashlib.sha256(canonical).hexdigest()
-
 
 
 async def extract_and_verify_identity(request: Request) -> None:

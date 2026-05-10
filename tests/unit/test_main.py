@@ -1,4 +1,3 @@
-from typing import Any
 import runpy
 import sys
 from unittest.mock import patch

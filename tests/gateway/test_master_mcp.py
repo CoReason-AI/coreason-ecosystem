@@ -1,4 +1,3 @@
-from typing import Any
 import typing
 from unittest.mock import AsyncMock, patch
 
@@ -16,13 +15,7 @@ from coreason_ecosystem.gateway.master_mcp import (
 )
 import respx
 import httpx
-from unittest.mock import MagicMock
 from hypothesis import given, settings, strategies as st
-from coreason_manifest.spec.ontology import (
-    ChaosExperimentTask,
-    CognitiveSwarmDeploymentManifest,
-    FederatedSecurityMacroManifest,
-)
 
 
 def _seed_registry() -> None:
@@ -191,11 +184,21 @@ async def test_extract_and_verify_identity_valid_token() -> None:
     )
     await extract_and_verify_identity(request)
 
+
 @pytest.mark.asyncio
-async def test_invoke_actuator_builtin_commands(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_invoke_actuator_builtin_commands(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     # deploy_cognitive_swarm
-    with patch("coreason_ecosystem.orchestration.up.provision_swarm_topology", new_callable=AsyncMock) as mock_up, \
-         patch("coreason_ecosystem.gateway.master_mcp.CognitiveSwarmDeploymentManifest.model_validate") as mock_val1:
+    with (
+        patch(
+            "coreason_ecosystem.orchestration.up.provision_swarm_topology",
+            new_callable=AsyncMock,
+        ) as mock_up,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.CognitiveSwarmDeploymentManifest.model_validate"
+        ) as mock_val1,
+    ):
         args = {"any": "thing"}
         res = await invoke_actuator("deploy_cognitive_swarm", args)
         assert len(res) == 1
@@ -203,103 +206,193 @@ async def test_invoke_actuator_builtin_commands(monkeypatch: pytest.MonkeyPatch)
         mock_up.assert_called_once()
 
     # establish_federated_link
-    with patch("coreason_ecosystem.orchestration.sync.establish_federated_link", new_callable=AsyncMock) as mock_sync, \
-         patch("coreason_ecosystem.gateway.master_mcp.FederatedSecurityMacroManifest.model_validate") as mock_val2:
+    with (
+        patch(
+            "coreason_ecosystem.orchestration.sync.establish_federated_link",
+            new_callable=AsyncMock,
+        ) as mock_sync,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.FederatedSecurityMacroManifest.model_validate"
+        ) as mock_val2,
+    ):
         args_sync = {"any": "thing"}
         res2 = await invoke_actuator("establish_federated_link", args_sync)
         assert "executed successfully" in res2[0].text
         mock_sync.assert_called_once()
 
     # inject_chaos_fault
-    with patch("coreason_ecosystem.fleet.pulumi_actuator.inject_chaos_fault", new_callable=AsyncMock) as mock_chaos, \
-         patch("coreason_ecosystem.gateway.master_mcp.ChaosExperimentTask.model_validate") as mock_val3:
+    with (
+        patch(
+            "coreason_ecosystem.fleet.pulumi_actuator.inject_chaos_fault",
+            new_callable=AsyncMock,
+        ) as mock_chaos,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.ChaosExperimentTask.model_validate"
+        ) as mock_val3,
+    ):
         args_chaos = {"any": "thing"}
         res3 = await invoke_actuator("inject_chaos_fault", args_chaos)
         assert "executed successfully" in res3[0].text
         mock_chaos.assert_called_once()
 
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_invoke_actuator_nemoclaw_routing() -> None:
-    with patch("coreason_ecosystem.gateway.master_mcp.registry.resolve_urn", new_callable=AsyncMock) as mock_res:
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.registry.resolve_urn",
+        new_callable=AsyncMock,
+    ) as mock_res:
         mock_res.return_value = "urn:coreason:oracle:clinical_extractor"
         # It routes through NemoClaw
-        respx.post("https://nemoclaw:8443/v1/mcp/urn:coreason:oracle:clinical_extractor/tools/call").mock(
-            return_value=httpx.Response(200, json={"content": "nemoclaw_success"})
+        respx.post(
+            "https://nemoclaw:8443/v1/mcp/urn:coreason:oracle:clinical_extractor/tools/call"
+        ).mock(return_value=httpx.Response(200, json={"content": "nemoclaw_success"}))
+        res = await invoke_actuator(
+            "urn:coreason:oracle:clinical_extractor", {"arg": "val"}
         )
-        res = await invoke_actuator("urn:coreason:oracle:clinical_extractor", {"arg": "val"})
         assert res[0].text == "nemoclaw_success"
+
 
 @respx.mock
 @pytest.mark.asyncio
 async def test_invoke_actuator_nemoclaw_exceptions() -> None:
 
-    with patch("coreason_ecosystem.gateway.master_mcp.registry.resolve_urn", new_callable=AsyncMock) as mock_res:
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.registry.resolve_urn",
+        new_callable=AsyncMock,
+    ) as mock_res:
         mock_res.side_effect = lambda urn: urn
-        respx.post("https://nemoclaw:8443/v1/mcp/urn:coreason:oracle:clinical_extractor/tools/call").mock(
-            return_value=httpx.Response(500, json={"error": "internal"})
-        )
+        respx.post(
+            "https://nemoclaw:8443/v1/mcp/urn:coreason:oracle:clinical_extractor/tools/call"
+        ).mock(return_value=httpx.Response(500, json={"error": "internal"}))
         with pytest.raises(RuntimeError, match="NemoClaw internal server error"):
-            await invoke_actuator("urn:coreason:oracle:clinical_extractor", {"arg": "val"})
+            await invoke_actuator(
+                "urn:coreason:oracle:clinical_extractor", {"arg": "val"}
+            )
 
-        respx.post("https://nemoclaw:8443/v1/mcp/urn:coreason:oracle:mathematics/tools/call").mock(
-            return_value=httpx.Response(400, json={"error": "bad"})
-        )
+        respx.post(
+            "https://nemoclaw:8443/v1/mcp/urn:coreason:oracle:mathematics/tools/call"
+        ).mock(return_value=httpx.Response(400, json={"error": "bad"}))
         with pytest.raises(RuntimeError, match="NemoClaw HTTP error"):
             await invoke_actuator("urn:coreason:oracle:mathematics", {"arg": "val"})
 
-        respx.post("https://nemoclaw:8443/v1/mcp/urn:coreason:oracle:milvus/tools/call").mock(
-            side_effect=httpx.ConnectError("Network")
-        )
-        with pytest.raises(RuntimeError, match="Cross-plane capability execution failed"):
+        respx.post(
+            "https://nemoclaw:8443/v1/mcp/urn:coreason:oracle:milvus/tools/call"
+        ).mock(side_effect=httpx.ConnectError("Network"))
+        with pytest.raises(
+            RuntimeError, match="Cross-plane capability execution failed"
+        ):
             await invoke_actuator("urn:coreason:oracle:milvus", {"arg": "val"})
 
+
 @pytest.mark.asyncio
-async def test_invoke_actuator_nemoclaw_cert_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_invoke_actuator_nemoclaw_cert_parsing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("NEMOCLAW_CLIENT_CERT", "fake_cert.pem")
     monkeypatch.setenv("NEMOCLAW_CLIENT_KEY", "fake_key.pem")
 
-    with patch("coreason_ecosystem.gateway.master_mcp.registry.resolve_urn", new_callable=AsyncMock) as mock_res:
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.registry.resolve_urn",
+        new_callable=AsyncMock,
+    ) as mock_res:
         mock_res.return_value = "urn:test"
-        with patch("coreason_ecosystem.gateway.master_mcp.httpx.AsyncClient") as mock_client:
+        with patch(
+            "coreason_ecosystem.gateway.master_mcp.httpx.AsyncClient"
+        ) as mock_client:
             mock_client.return_value.__aenter__.return_value.post = AsyncMock(
-                return_value=httpx.Response(200, json={"content": "success"}, request=httpx.Request("POST", "http://test"))
+                return_value=httpx.Response(
+                    200,
+                    json={"content": "success"},
+                    request=httpx.Request("POST", "http://test"),
+                )
             )
             res = await invoke_actuator("urn:test", {})
             assert res[0].text == "success"
-            mock_client.assert_called_once_with(cert=("fake_cert.pem", "fake_key.pem"), verify=False)
+            mock_client.assert_called_once_with(
+                cert=("fake_cert.pem", "fake_key.pem"), verify=False
+            )
+
 
 @pytest.mark.asyncio
 async def test_federated_discovery_builtin() -> None:
-    with patch("coreason_ecosystem.gateway.master_mcp.FederatedDiscoveryIntent.model_validate"), \
-         patch("coreason_ecosystem.gateway.master_mcp.registry.discover_active_substrates", new_callable=AsyncMock) as mock_disc, \
-         patch("coreason_ecosystem.gateway.master_mcp.epistemic_transmuter.project_capabilities", new_callable=AsyncMock) as mock_proj, \
-         patch("coreason_ecosystem.gateway.master_mcp.registry.get_epistemic_status", new_callable=AsyncMock) as mock_stat:
-        
-        mock_disc.return_value = {"urn:coreason:oracle:clinical_extractor": "http://foo"}
-        mock_proj.return_value = {"urn:coreason:oracle:clinical_extractor": "http://foo"}
+    with (
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.FederatedDiscoveryIntent.model_validate"
+        ),
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.discover_active_substrates",
+            new_callable=AsyncMock,
+        ) as mock_disc,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.epistemic_transmuter.project_capabilities",
+            new_callable=AsyncMock,
+        ) as mock_proj,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.get_epistemic_status",
+            new_callable=AsyncMock,
+        ) as mock_stat,
+    ):
+        mock_disc.return_value = {
+            "urn:coreason:oracle:clinical_extractor": "http://foo"
+        }
+        mock_proj.return_value = {
+            "urn:coreason:oracle:clinical_extractor": "http://foo"
+        }
         mock_stat.return_value = "DRAFT"
 
-        res = await invoke_actuator("federated_discovery", {"domain_filter": ["clinical_extractor"], "minimum_epistemic_status": "DRAFT"})
+        res = await invoke_actuator(
+            "federated_discovery",
+            {
+                "domain_filter": ["clinical_extractor"],
+                "minimum_epistemic_status": "DRAFT",
+            },
+        )
         assert "capabilities" in res[0].text
         assert "clinical_extractor" in res[0].text
-    
+
+
 @pytest.mark.asyncio
 async def test_federated_discovery_filtering() -> None:
     # Test rank filtering and domain filtering directly
-    with patch("coreason_ecosystem.gateway.master_mcp.registry.get_epistemic_status", new_callable=AsyncMock) as mock_status, \
-         patch("coreason_ecosystem.gateway.master_mcp.registry.discover_active_substrates", new_callable=AsyncMock) as mock_disc, \
-         patch("coreason_ecosystem.gateway.master_mcp.epistemic_transmuter.project_capabilities", new_callable=AsyncMock) as mock_proj, \
-         patch("coreason_ecosystem.gateway.master_mcp.FederatedDiscoveryIntent.model_validate") as mock_val:
-        mock_disc.return_value = {"urn:coreason:oracle:mathematics": "http://foo", "urn:coreason:oracle:physics": "http://bar"}
-        mock_proj.return_value = {"urn:coreason:oracle:mathematics": "http://foo", "urn:coreason:oracle:physics": "http://bar"}
+    with (
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.get_epistemic_status",
+            new_callable=AsyncMock,
+        ) as mock_status,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.discover_active_substrates",
+            new_callable=AsyncMock,
+        ) as mock_disc,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.epistemic_transmuter.project_capabilities",
+            new_callable=AsyncMock,
+        ) as mock_proj,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.FederatedDiscoveryIntent.model_validate"
+        ) as mock_val,
+    ):
+        mock_disc.return_value = {
+            "urn:coreason:oracle:mathematics": "http://foo",
+            "urn:coreason:oracle:physics": "http://bar",
+        }
+        mock_proj.return_value = {
+            "urn:coreason:oracle:mathematics": "http://foo",
+            "urn:coreason:oracle:physics": "http://bar",
+        }
         # physics will be filtered out due to min_rank
-        mock_status.side_effect = lambda urn: "PUBLISHED" if "mathematics" in urn else "DRAFT"
+        mock_status.side_effect = lambda urn: (
+            "PUBLISHED" if "mathematics" in urn else "DRAFT"
+        )
         mock_val.return_value.domain_filter = ["mathematics"]
         mock_val.return_value.minimum_epistemic_status = "PUBLISHED"
-        
-        res = await federated_discovery({"domain_filter": ["mathematics"], "minimum_epistemic_status": "PUBLISHED"})
+
+        res = await federated_discovery(
+            {"domain_filter": ["mathematics"], "minimum_epistemic_status": "PUBLISHED"}
+        )
         import json
+
         data = json.loads(res)
         assert len(data["capabilities"]) == 1
         assert "mathematics" in data["capabilities"][0]["urn"]
@@ -307,17 +400,30 @@ async def test_federated_discovery_filtering() -> None:
         # Test domain mismatch filter (line 314)
         mock_val.return_value.domain_filter = ["biology"]
         mock_val.return_value.minimum_epistemic_status = "DRAFT"
-        res2 = await federated_discovery({"domain_filter": ["biology"], "minimum_epistemic_status": "DRAFT"})
+        res2 = await federated_discovery(
+            {"domain_filter": ["biology"], "minimum_epistemic_status": "DRAFT"}
+        )
         data2 = json.loads(res2)
         assert len(data2["capabilities"]) == 0
 
+
 @pytest.mark.asyncio
 async def test_hydrate_registry() -> None:
-    with patch("pathlib.Path.exists") as mock_exists, \
-         patch("coreason_ecosystem.gateway.master_mcp.registry.initialize", new_callable=AsyncMock), \
-         patch("coreason_ecosystem.gateway.master_mcp.registry.hydrate_from_matrix", new_callable=AsyncMock) as mock_hydrate_yaml, \
-         patch("coreason_ecosystem.gateway.master_mcp.registry.scan_action_space_modules", new_callable=AsyncMock):
-
+    with (
+        patch("pathlib.Path.exists") as mock_exists,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.initialize",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.hydrate_from_matrix",
+            new_callable=AsyncMock,
+        ) as mock_hydrate_yaml,
+        patch(
+            "coreason_ecosystem.gateway.master_mcp.registry.scan_action_space_modules",
+            new_callable=AsyncMock,
+        ),
+    ):
         # Scenario 1: Fallback exists (primary=False, fallback=True)
         # exists() is called twice if primary is False
         mock_exists.side_effect = [False, True]
@@ -331,18 +437,22 @@ async def test_hydrate_registry() -> None:
         with pytest.raises(RuntimeError, match="Epistemic routing table missing."):
             await _hydrate_registry()
 
+
 @settings(max_examples=10)
-@given(
-    domain=st.from_regex(r"^[a-zA-Z0-9_-]+$", fullmatch=True)
-)
+@given(domain=st.from_regex(r"^[a-zA-Z0-9_-]+$", fullmatch=True))
 @pytest.mark.asyncio
 async def test_federated_discovery_hypothesis(domain: str) -> None:
-    with patch("coreason_ecosystem.gateway.master_mcp.FederatedDiscoveryIntent.model_validate") as mock_val:
+    with patch(
+        "coreason_ecosystem.gateway.master_mcp.FederatedDiscoveryIntent.model_validate"
+    ) as mock_val:
         mock_val.return_value.domain_filter = [domain]
         mock_val.return_value.minimum_epistemic_status = "DRAFT"
         # A generic test verifying hypothesis fuzzing of domains
-        res = await federated_discovery({"domain_filter": [domain], "minimum_epistemic_status": "DRAFT"})
+        res = await federated_discovery(
+            {"domain_filter": [domain], "minimum_epistemic_status": "DRAFT"}
+        )
         import json
+
         data = json.loads(res)
         # The seeded registry has specific domains, so most fuzzed domains will return 0 capabilities unless matched
         assert isinstance(data["capabilities"], list)

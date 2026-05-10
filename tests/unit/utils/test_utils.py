@@ -1,4 +1,3 @@
-from typing import Any
 # Copyright (c) 2026 CoReason, Inc
 #
 # This software is proprietary and dual-licensed

@@ -42,7 +42,15 @@ from coreason_ecosystem.orchestration.chaos import execute_infrastructure_chaos
 )
 @patch("coreason_ecosystem.orchestration.chaos.random.choice")
 @patch("asyncio.sleep", new_callable=AsyncMock)
-async def test_chaos_execution(mock_sleep: AsyncMock, mock_choice: Any, profile: dict[str, Any], mock_success: bool, expected_vector: str, expected_node: str, expected_success: bool) -> None:
+async def test_chaos_execution(
+    mock_sleep: AsyncMock,
+    mock_choice: Any,
+    profile: dict[str, Any],
+    mock_success: bool,
+    expected_vector: str,
+    expected_node: str,
+    expected_success: bool,
+) -> None:
     """Test chaos execution permutations parameterized for easier AI maintainability."""
     mock_choice.return_value = mock_success
 
