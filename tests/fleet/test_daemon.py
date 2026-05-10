@@ -7,7 +7,7 @@ from pathlib import Path
 from coreason_ecosystem.fleet.daemon import AutonomicFleetManager
 
 @pytest.fixture
-def fleet_manager():
+def fleet_manager() -> Any:
     with patch("coreason_ecosystem.fleet.daemon.PulumiActuator") as mock_actuator_cls, \
          patch("coreason_ecosystem.fleet.daemon.PricingOracle") as mock_oracle_cls:
         

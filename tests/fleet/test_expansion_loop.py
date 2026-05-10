@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from coreason_ecosystem.fleet.expansion_loop import von_neumann_expansion_daemon, TREASURY_URN
 
 @pytest.fixture
-def mock_registry():
+def mock_registry() -> Any:
     registry = MagicMock()
     registry.resolve_urn = AsyncMock(return_value="http://treasury")
     return registry
 
 @pytest.fixture
-def mock_oracle():
+def mock_oracle() -> Any:
     oracle = MagicMock()
     oracle.calculate_optimal_bid = AsyncMock(return_value=None)
     return oracle
