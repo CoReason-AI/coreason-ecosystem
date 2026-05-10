@@ -1,3 +1,4 @@
+from typing import Any
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, patch, MagicMock
@@ -30,7 +31,7 @@ def fleet_manager():
 
 @pytest.mark.asyncio
 @patch("asyncio.sleep", new_callable=AsyncMock)
-async def test_autonomic_fleet_manager_scale_zero(mock_sleep, fleet_manager):
+async def test_autonomic_fleet_manager_scale_zero(mock_sleep: Any, fleet_manager: Any) -> None:
     # delta <= 0, active_stacks > 0
     fleet_manager.driver.reconcile_state.return_value = [{"stack_name": "stack1", "provider": "aws"}]
     
@@ -43,7 +44,7 @@ async def test_autonomic_fleet_manager_scale_zero(mock_sleep, fleet_manager):
 
 @pytest.mark.asyncio
 @patch("asyncio.sleep", new_callable=AsyncMock)
-async def test_autonomic_fleet_manager_scale_up_success(mock_sleep, fleet_manager):
+async def test_autonomic_fleet_manager_scale_up_success(mock_sleep: Any, fleet_manager: Any) -> None:
     # Setup delta > 0. Since required_vram = 0, delta is required - provisioned. 
     # But wait, in the code required_vram = 0.0, so delta = 0.0 - provisioned.
     # To get delta > 0, provisioned must be negative.
@@ -63,7 +64,7 @@ async def test_autonomic_fleet_manager_scale_up_success(mock_sleep, fleet_manage
 
 @pytest.mark.asyncio
 @patch("asyncio.sleep", new_callable=AsyncMock)
-async def test_autonomic_fleet_manager_scale_up_no_bid(mock_sleep, fleet_manager):
+async def test_autonomic_fleet_manager_scale_up_no_bid(mock_sleep: Any, fleet_manager: Any) -> None:
     fleet_manager.driver.reconcile_state.return_value = [{"vram_capacity": -10.0}]
     fleet_manager.oracle.calculate_optimal_bid.return_value = None
     
@@ -75,7 +76,7 @@ async def test_autonomic_fleet_manager_scale_up_no_bid(mock_sleep, fleet_manager
 
 @pytest.mark.asyncio
 @patch("asyncio.sleep", new_callable=AsyncMock)
-async def test_autonomic_fleet_manager_scale_up_failure(mock_sleep, fleet_manager):
+async def test_autonomic_fleet_manager_scale_up_failure(mock_sleep: Any, fleet_manager: Any) -> None:
     fleet_manager.driver.reconcile_state.return_value = [{"vram_capacity": -10.0}]
     bid = MagicMock()
     bid.provider = "aws"
@@ -90,7 +91,7 @@ async def test_autonomic_fleet_manager_scale_up_failure(mock_sleep, fleet_manage
     assert fleet_manager.pending_provisions == 0
 
 @pytest.mark.asyncio
-async def test_autonomic_fleet_manager_cancelled_during_reconcile(fleet_manager):
+async def test_autonomic_fleet_manager_cancelled_during_reconcile(fleet_manager: Any) -> None:
     fleet_manager.driver.reconcile_state.side_effect = asyncio.CancelledError()
     
     await fleet_manager.start()
@@ -99,7 +100,7 @@ async def test_autonomic_fleet_manager_cancelled_during_reconcile(fleet_manager)
 
 @pytest.mark.asyncio
 @patch("asyncio.sleep", new_callable=AsyncMock)
-async def test_autonomic_fleet_manager_exception_caught(mock_sleep, fleet_manager):
+async def test_autonomic_fleet_manager_exception_caught(mock_sleep: Any, fleet_manager: Any) -> None:
     fleet_manager.driver.reconcile_state.side_effect = Exception("Random error")
     mock_sleep.side_effect = asyncio.CancelledError()
     

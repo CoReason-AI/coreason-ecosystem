@@ -103,21 +103,13 @@ class TestEpistemicTransmuterDRAFT:
     """DRAFT is the floor — no filtering should occur."""
 
     @pytest.mark.asyncio
-    async def test_draft_returns_all(
-        self,
-        epistemic_filter: EpistemicTransmuter,
-        populated_registry: SovereignMCPRegistry,
-    ) -> None:
+    async def test_draft_returns_all(self, epistemic_filter: EpistemicTransmuter, populated_registry: SovereignMCPRegistry) -> None:
         available = _all_urns(populated_registry)
         result = await epistemic_filter.project_capabilities(available, "DRAFT")
         assert result == available
 
     @pytest.mark.asyncio
-    async def test_draft_default_returns_all(
-        self,
-        epistemic_filter: EpistemicTransmuter,
-        populated_registry: SovereignMCPRegistry,
-    ) -> None:
+    async def test_draft_default_returns_all(self, epistemic_filter: EpistemicTransmuter, populated_registry: SovereignMCPRegistry) -> None:
         available = _all_urns(populated_registry)
         result = await epistemic_filter.project_capabilities(available)
         assert result == available
@@ -127,11 +119,7 @@ class TestEpistemicTransmuterSRBApproved:
     """SRB_APPROVED should strip DRAFT entries."""
 
     @pytest.mark.asyncio
-    async def test_strips_draft(
-        self,
-        epistemic_filter: EpistemicTransmuter,
-        populated_registry: SovereignMCPRegistry,
-    ) -> None:
+    async def test_strips_draft(self, epistemic_filter: EpistemicTransmuter, populated_registry: SovereignMCPRegistry) -> None:
         available = _all_urns(populated_registry)
         result = await epistemic_filter.project_capabilities(available, "SRB_APPROVED")
         assert "urn:coreason:oracle:staging_tool" not in result
@@ -142,11 +130,7 @@ class TestEpistemicTransmuterClientApproved:
     """CLIENT_APPROVED should strip DRAFT and SRB_APPROVED entries."""
 
     @pytest.mark.asyncio
-    async def test_strips_draft_and_srb(
-        self,
-        epistemic_filter: EpistemicTransmuter,
-        populated_registry: SovereignMCPRegistry,
-    ) -> None:
+    async def test_strips_draft_and_srb(self, epistemic_filter: EpistemicTransmuter, populated_registry: SovereignMCPRegistry) -> None:
         available = _all_urns(populated_registry)
         result = await epistemic_filter.project_capabilities(
             available, "CLIENT_APPROVED"
@@ -162,11 +146,7 @@ class TestEpistemicTransmuterPublished:
     """PUBLISHED should strip everything except PUBLISHED entries."""
 
     @pytest.mark.asyncio
-    async def test_only_published(
-        self,
-        epistemic_filter: EpistemicTransmuter,
-        populated_registry: SovereignMCPRegistry,
-    ) -> None:
+    async def test_only_published(self, epistemic_filter: EpistemicTransmuter, populated_registry: SovereignMCPRegistry) -> None:
         available = _all_urns(populated_registry)
         result = await epistemic_filter.project_capabilities(available, "PUBLISHED")
         assert result == {"urn:coreason:oracle:medical_kg": "http://neo4j-mcp:8000"}
@@ -215,9 +195,7 @@ class TestSovereignMCPRegistryEpistemicStatus:
         )
 
     @pytest.mark.asyncio
-    async def test_unknown_urn_defaults_draft(
-        self, populated_registry: SovereignMCPRegistry
-    ) -> None:
+    async def test_unknown_urn_defaults_draft(self, populated_registry: SovereignMCPRegistry) -> None:
         assert (
             await populated_registry.get_epistemic_status(
                 "urn:coreason:oracle:nonexistent"
@@ -230,11 +208,7 @@ class TestSLABasedFiltering:
     """FederatedBilateralSLA classification ceiling enforcement."""
 
     @pytest.mark.asyncio
-    async def test_sla_strips_restricted_urns(
-        self,
-        epistemic_filter: EpistemicTransmuter,
-        populated_registry: SovereignMCPRegistry,
-    ) -> None:
+    async def test_sla_strips_restricted_urns(self, epistemic_filter: EpistemicTransmuter, populated_registry: SovereignMCPRegistry) -> None:
         """SLA with 'public' ceiling strips CONFIDENTIAL and RESTRICTED URNs."""
         sla = FederatedBilateralSLA(
             receiving_tenant_cid="tenant-001",
@@ -253,11 +227,7 @@ class TestSLABasedFiltering:
         assert "urn:coreason:oracle:experimental_prover" not in result
 
     @pytest.mark.asyncio
-    async def test_sla_confidential_allows_public_and_confidential(
-        self,
-        epistemic_filter: EpistemicTransmuter,
-        populated_registry: SovereignMCPRegistry,
-    ) -> None:
+    async def test_sla_confidential_allows_public_and_confidential(self, epistemic_filter: EpistemicTransmuter, populated_registry: SovereignMCPRegistry) -> None:
         """SLA with 'confidential' ceiling allows PUBLIC + CONFIDENTIAL."""
         sla = FederatedBilateralSLA(
             receiving_tenant_cid="tenant-002",
@@ -274,11 +244,7 @@ class TestSLABasedFiltering:
         assert "urn:coreason:oracle:experimental_prover" not in result
 
     @pytest.mark.asyncio
-    async def test_no_sla_returns_all_at_draft(
-        self,
-        epistemic_filter: EpistemicTransmuter,
-        populated_registry: SovereignMCPRegistry,
-    ) -> None:
+    async def test_no_sla_returns_all_at_draft(self, epistemic_filter: EpistemicTransmuter, populated_registry: SovereignMCPRegistry) -> None:
         """Without SLA, DRAFT returns everything (existing behavior preserved)."""
         available = _all_urns(populated_registry)
         result = await epistemic_filter.project_capabilities(available, "DRAFT")
@@ -301,9 +267,7 @@ class TestEpistemicTransmuterCanonicalPayload:
         # Should not raise
         epistemic_filter.transmute_canonical_payload(payload, canonical_hash)
 
-    def test_canonical_hash_mismatch(
-        self, epistemic_filter: EpistemicTransmuter
-    ) -> None:
+    def test_canonical_hash_mismatch(self, epistemic_filter: EpistemicTransmuter) -> None:
         from fastapi import HTTPException
 
         payload = {"b": 2, "a": 1}

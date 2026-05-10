@@ -215,9 +215,7 @@ class TestLegacyURNDeprecationWarnings:
     """Legacy URN prefixes emit DeprecationWarning."""
 
     @pytest.mark.asyncio
-    async def test_hydrate_from_matrix_warns_on_legacy_oracle(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_hydrate_from_matrix_warns_on_legacy_oracle(self, tmp_path: Path) -> None:
         matrix_file = tmp_path / "capabilities.matrix.yaml"
         matrix_data = {
             "capabilities": [
@@ -241,9 +239,7 @@ class TestLegacyURNDeprecationWarnings:
             assert "Legacy URN prefix detected" in str(deprecation_warnings[0].message)
 
     @pytest.mark.asyncio
-    async def test_hydrate_from_matrix_warns_on_legacy_state(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_hydrate_from_matrix_warns_on_legacy_state(self, tmp_path: Path) -> None:
         matrix_file = tmp_path / "capabilities.matrix.yaml"
         matrix_data = {
             "capabilities": [

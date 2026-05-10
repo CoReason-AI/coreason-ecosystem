@@ -1,3 +1,4 @@
+from typing import Any
 from coreason_ecosystem.mesh import KademliaDHTMock, MeshGateway, ZeroCopyStreamingMock
 from coreason_manifest.spec.ontology import (
     FederatedDiscoveryIntent,

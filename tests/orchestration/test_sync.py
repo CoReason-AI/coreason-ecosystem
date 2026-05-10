@@ -1,3 +1,4 @@
+from typing import Any
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, patch, MagicMock
@@ -12,7 +13,7 @@ from coreason_ecosystem.orchestration.sync import (
 
 @pytest.mark.asyncio
 @patch("asyncio.create_subprocess_exec")
-async def test_detect_and_heal_drift(mock_exec):
+async def test_detect_and_heal_drift(mock_exec: Any) -> None:
     proc = MagicMock()
     # first proc for prune
     # second proc for ls (returns b"coreason-test\ncoreason-default\nother")
@@ -33,7 +34,7 @@ async def test_detect_and_heal_drift(mock_exec):
 @patch("coreason_ecosystem.orchestration.sync.write_registry_lock")
 @patch("coreason_ecosystem.orchestration.sync.detect_and_heal_drift", new_callable=AsyncMock)
 @patch("asyncio.create_subprocess_exec")
-async def test_execute_sync_success(mock_exec, mock_drift, mock_lock, mock_root, mock_cwd, tmp_path):
+async def test_execute_sync_success(mock_exec: Any, mock_drift: Any, mock_lock: Any, mock_root: Any, mock_cwd: Any, tmp_path: Any) -> None:
     # Setup mock cwd to tmp_path
     mock_cwd.return_value = tmp_path
     mock_root.return_value = "hash"
@@ -60,7 +61,7 @@ async def test_execute_sync_success(mock_exec, mock_drift, mock_lock, mock_root,
 @patch("coreason_ecosystem.orchestration.sync.write_registry_lock")
 @patch("coreason_ecosystem.orchestration.sync.detect_and_heal_drift", new_callable=AsyncMock)
 @patch("asyncio.create_subprocess_exec")
-async def test_execute_sync_no_compose(mock_exec, mock_drift, mock_lock, mock_root, mock_cwd, tmp_path):
+async def test_execute_sync_no_compose(mock_exec: Any, mock_drift: Any, mock_lock: Any, mock_root: Any, mock_cwd: Any, tmp_path: Any) -> None:
     mock_cwd.return_value = tmp_path
     # compose.yaml does not exist
     
@@ -76,7 +77,7 @@ async def test_execute_sync_no_compose(mock_exec, mock_drift, mock_lock, mock_ro
 @patch("coreason_ecosystem.orchestration.sync.write_registry_lock")
 @patch("coreason_ecosystem.orchestration.sync.detect_and_heal_drift", new_callable=AsyncMock)
 @patch("asyncio.create_subprocess_exec")
-async def test_execute_sync_docker_compose_fails(mock_exec, mock_drift, mock_lock, mock_root, mock_cwd, tmp_path):
+async def test_execute_sync_docker_compose_fails(mock_exec: Any, mock_drift: Any, mock_lock: Any, mock_root: Any, mock_cwd: Any, tmp_path: Any) -> None:
     mock_cwd.return_value = tmp_path
     compose_path = tmp_path / "infrastructure" / "local"
     compose_path.mkdir(parents=True)
@@ -94,7 +95,7 @@ async def test_execute_sync_docker_compose_fails(mock_exec, mock_drift, mock_loc
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.orchestration.sync.execute_sync", new_callable=AsyncMock)
-async def test_establish_federated_link(mock_execute_sync):
+async def test_establish_federated_link(mock_execute_sync: Any) -> None:
     manifest = MagicMock()
     manifest.target_endpoint_uri = "http://target"
     await establish_federated_link(manifest)

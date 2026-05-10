@@ -1,3 +1,4 @@
+from typing import Any
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, patch, MagicMock
@@ -12,7 +13,7 @@ import typer
 
 @pytest.mark.asyncio
 @patch("asyncio.create_subprocess_exec")
-async def test_wait_for_postgres_success(mock_exec):
+async def test_wait_for_postgres_success(mock_exec: Any) -> None:
     proc = MagicMock()
     proc.communicate = AsyncMock()
     proc.returncode = 0
@@ -23,7 +24,7 @@ async def test_wait_for_postgres_success(mock_exec):
 @pytest.mark.asyncio
 @patch("asyncio.create_subprocess_exec")
 @patch("asyncio.sleep", new_callable=AsyncMock)
-async def test_wait_for_postgres_timeout(mock_sleep, mock_exec):
+async def test_wait_for_postgres_timeout(mock_sleep: Any, mock_exec: Any) -> None:
     proc = MagicMock()
     proc.communicate = AsyncMock()
     proc.returncode = 1
@@ -34,7 +35,7 @@ async def test_wait_for_postgres_timeout(mock_sleep, mock_exec):
 
 @pytest.mark.asyncio
 @patch("asyncio.sleep", new_callable=AsyncMock)
-async def test_wait_for_temporal_success(mock_sleep):
+async def test_wait_for_temporal_success(mock_sleep: Any) -> None:
     # We can mock Client.connect if we can patch it, but we can also mock asyncio.wait_for directly
     # However, wait_for_temporal uses temporalio.client.Client.connect.
     # We can patch temporalio.client.Client.connect directly or handle import
@@ -45,14 +46,14 @@ async def test_wait_for_temporal_success(mock_sleep):
 
 @pytest.mark.asyncio
 @patch("asyncio.sleep", new_callable=AsyncMock)
-async def test_wait_for_temporal_timeout(mock_sleep):
+async def test_wait_for_temporal_timeout(mock_sleep: Any) -> None:
     with patch("coreason_ecosystem.orchestration.up.asyncio.wait_for", side_effect=Exception("Failed")):
         with pytest.raises(TimeoutError, match="Temporal failed to achieve application-layer readiness."):
             await wait_for_temporal(timeout=2.0)
 
 @pytest.mark.asyncio
 @patch("asyncio.open_connection")
-async def test_wait_for_port_success(mock_open_connection):
+async def test_wait_for_port_success(mock_open_connection: Any) -> None:
     reader = MagicMock()
     writer = MagicMock()
     writer.wait_closed = AsyncMock()
@@ -64,7 +65,7 @@ async def test_wait_for_port_success(mock_open_connection):
 @pytest.mark.asyncio
 @patch("asyncio.open_connection", side_effect=Exception("Connection refused"))
 @patch("asyncio.sleep", new_callable=AsyncMock)
-async def test_wait_for_port_timeout(mock_sleep, mock_open_connection):
+async def test_wait_for_port_timeout(mock_sleep: Any, mock_open_connection: Any) -> None:
     with pytest.raises(TimeoutError, match="Fallback check failed. Port 8080 never bound."):
         await wait_for_port(8080, timeout=2.0)
 
@@ -73,7 +74,7 @@ async def test_wait_for_port_timeout(mock_sleep, mock_open_connection):
 @patch("coreason_ecosystem.orchestration.up.write_registry_lock")
 @patch("asyncio.create_subprocess_exec")
 @patch("coreason_ecosystem.orchestration.up.SovereignMCPRegistry")
-async def test_execute_up_success(mock_registry_cls, mock_exec, mock_write_lock, mock_calc_root):
+async def test_execute_up_success(mock_registry_cls: Any, mock_exec: Any, mock_write_lock: Any, mock_calc_root: Any) -> None:
     mock_calc_root.return_value = "hash"
     
     proc = MagicMock()
@@ -99,7 +100,7 @@ async def test_execute_up_success(mock_registry_cls, mock_exec, mock_write_lock,
 @patch("coreason_ecosystem.orchestration.up.calculate_epistemic_root", new_callable=AsyncMock)
 @patch("coreason_ecosystem.orchestration.up.write_registry_lock")
 @patch("asyncio.create_subprocess_exec")
-async def test_execute_up_failure(mock_exec, mock_write_lock, mock_calc_root):
+async def test_execute_up_failure(mock_exec: Any, mock_write_lock: Any, mock_calc_root: Any) -> None:
     mock_calc_root.return_value = "hash"
     
     proc = MagicMock()
@@ -114,7 +115,7 @@ async def test_execute_up_failure(mock_exec, mock_write_lock, mock_calc_root):
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.orchestration.up.execute_up", new_callable=AsyncMock)
-async def test_provision_swarm_topology(mock_execute_up):
+async def test_provision_swarm_topology(mock_execute_up: Any) -> None:
     from coreason_manifest.spec.ontology import CognitiveSwarmDeploymentManifest
     
     manifest = MagicMock()

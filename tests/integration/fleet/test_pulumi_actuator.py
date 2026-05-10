@@ -68,9 +68,7 @@ async def test_provision_node_aws(mock_auto: MagicMock, driver: PulumiActuator) 
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.fleet.pulumi_actuator.auto")
-async def test_provision_node_vast(
-    mock_auto: MagicMock, driver: PulumiActuator
-) -> None:
+async def test_provision_node_vast(mock_auto: MagicMock, driver: PulumiActuator) -> None:
     target = ComputeNodeTarget(
         provider="vast",
         instance_id="12345",
@@ -143,9 +141,7 @@ async def test_reconcile_state(driver: PulumiActuator, tmp_templates_dir: Path) 
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.fleet.pulumi_actuator.auto")
-async def test_reconcile_state_exception(
-    mock_auto: MagicMock, driver: PulumiActuator
-) -> None:
+async def test_reconcile_state_exception(mock_auto: MagicMock, driver: PulumiActuator) -> None:
     # Trigger exception reading workspace
     mock_auto.LocalWorkspace.side_effect = Exception("Workspace fail")
 
@@ -154,9 +150,7 @@ async def test_reconcile_state_exception(
 
 
 @pytest.mark.asyncio
-async def test_provision_node_rejects_missing_escrow(
-    driver: PulumiActuator,
-) -> None:
+async def test_provision_node_rejects_missing_escrow(driver: PulumiActuator) -> None:
     """Hardware Guillotine: no EscrowPolicy → provisioning rejected."""
     target = ComputeNodeTarget(
         provider="aws", instance_id="t3.micro", hourly_cost=0.01, vram_gb=0.0
@@ -166,9 +160,7 @@ async def test_provision_node_rejects_missing_escrow(
 
 
 @pytest.mark.asyncio
-async def test_provision_node_rejects_exceeded_budget(
-    driver: PulumiActuator,
-) -> None:
+async def test_provision_node_rejects_exceeded_budget(driver: PulumiActuator) -> None:
     """Hardware Guillotine: hourly_cost > escrow_locked_magnitude → rejected."""
     target = ComputeNodeTarget(
         provider="aws",
@@ -187,9 +179,7 @@ async def test_provision_node_rejects_exceeded_budget(
 
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.fleet.pulumi_actuator.auto")
-async def test_provision_node_vast_with_payload(
-    mock_auto: MagicMock, driver: PulumiActuator
-) -> None:
+async def test_provision_node_vast_with_payload(mock_auto: MagicMock, driver: PulumiActuator) -> None:
     """Cover the boot-payload + market_type config paths for vast provider."""
     from coreason_manifest.spec.ontology import (
         SpatialHardwareProfile,
@@ -242,9 +232,7 @@ async def test_reconcile_state_uses_cache(driver: PulumiActuator) -> None:
 
 
 @pytest.mark.asyncio
-async def test_execute_thermodynamic_guillotine_no_breach(
-    driver: PulumiActuator,
-) -> None:
+async def test_execute_thermodynamic_guillotine_no_breach(driver: PulumiActuator) -> None:
     from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
 
     assessment = ThermodynamicAssessment(
@@ -262,9 +250,7 @@ async def test_execute_thermodynamic_guillotine_no_breach(
 
 
 @pytest.mark.asyncio
-async def test_execute_thermodynamic_guillotine_no_stacks(
-    driver: PulumiActuator,
-) -> None:
+async def test_execute_thermodynamic_guillotine_no_stacks(driver: PulumiActuator) -> None:
     """Cover the early-return when coroutines list is empty."""
     from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
 
@@ -283,9 +269,7 @@ async def test_execute_thermodynamic_guillotine_no_stacks(
 
 
 @pytest.mark.asyncio
-async def test_execute_thermodynamic_guillotine_destroy_exception(
-    driver: PulumiActuator,
-) -> None:
+async def test_execute_thermodynamic_guillotine_destroy_exception(driver: PulumiActuator) -> None:
     from unittest.mock import AsyncMock
     from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment
 
@@ -318,9 +302,7 @@ async def test_execute_thermodynamic_guillotine_destroy_exception(
 
 
 @pytest.mark.asyncio
-async def test_execute_thermodynamic_guillotine_timeout(
-    driver: PulumiActuator,
-) -> None:
+async def test_execute_thermodynamic_guillotine_timeout(driver: PulumiActuator) -> None:
     import asyncio
     from unittest.mock import AsyncMock
     from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment

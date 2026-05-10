@@ -75,8 +75,9 @@ async def _shutdown_registry() -> None:  # pragma: no cover
     """Gracefully shutdown the capability registry and its background worker."""
     await registry.shutdown()
 
+from typing import AsyncGenerator
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await _hydrate_registry()
     yield
     await _shutdown_registry()

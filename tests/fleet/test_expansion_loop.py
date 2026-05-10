@@ -1,3 +1,4 @@
+from typing import Any
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, patch, MagicMock
@@ -16,7 +17,7 @@ def mock_oracle():
     return oracle
 
 @pytest.mark.asyncio
-async def test_von_neumann_treasury_urn_missing(mock_registry, mock_oracle):
+async def test_von_neumann_treasury_urn_missing(mock_registry: Any, mock_oracle: Any) -> None:
     mock_registry.resolve_urn.side_effect = KeyError("urn missing")
     
     # Should return immediately without looping
@@ -26,7 +27,7 @@ async def test_von_neumann_treasury_urn_missing(mock_registry, mock_oracle):
 @pytest.mark.asyncio
 @patch("coreason_ecosystem.fleet.expansion_loop.assess_thermodynamic_expenditure")
 @patch("coreason_ecosystem.fleet.expansion_loop.PulumiActuator")
-async def test_von_neumann_economic_guillotine(mock_actuator_cls, mock_assess, mock_registry, mock_oracle):
+async def test_von_neumann_economic_guillotine(mock_actuator_cls: Any, mock_assess: Any, mock_registry: Any, mock_oracle: Any) -> None:
     mock_assess.return_value = MagicMock(threshold_breached=True, expenditure_gwei=10)
     mock_actuator = MagicMock()
     mock_actuator.reconcile_state = AsyncMock(return_value=[])
@@ -42,7 +43,7 @@ async def test_von_neumann_economic_guillotine(mock_actuator_cls, mock_assess, m
 @patch("coreason_ecosystem.fleet.expansion_loop.assess_thermodynamic_expenditure")
 @patch("coreason_ecosystem.fleet.expansion_loop.PulumiActuator")
 @patch("asyncio.sleep")
-async def test_von_neumann_no_bids(mock_sleep, mock_actuator_cls, mock_assess, mock_registry, mock_oracle):
+async def test_von_neumann_no_bids(mock_sleep: Any, mock_actuator_cls: Any, mock_assess: Any, mock_registry: Any, mock_oracle: Any) -> None:
     mock_assess.return_value = MagicMock(threshold_breached=False, expenditure_gwei=10)
     mock_actuator = MagicMock()
     mock_actuator.reconcile_state = AsyncMock(return_value=[])
@@ -58,7 +59,7 @@ async def test_von_neumann_no_bids(mock_sleep, mock_actuator_cls, mock_assess, m
 @patch("coreason_ecosystem.fleet.expansion_loop.assess_thermodynamic_expenditure")
 @patch("coreason_ecosystem.fleet.expansion_loop.PulumiActuator")
 @patch("asyncio.sleep")
-async def test_von_neumann_provision_bid(mock_sleep, mock_actuator_cls, mock_assess, mock_registry, mock_oracle):
+async def test_von_neumann_provision_bid(mock_sleep: Any, mock_actuator_cls: Any, mock_assess: Any, mock_registry: Any, mock_oracle: Any) -> None:
     mock_assess.return_value = MagicMock(threshold_breached=False, expenditure_gwei=10)
     mock_actuator = MagicMock()
     # active stacks with one on-demand and two spot
@@ -83,7 +84,7 @@ async def test_von_neumann_provision_bid(mock_sleep, mock_actuator_cls, mock_ass
 @patch("coreason_ecosystem.fleet.expansion_loop.assess_thermodynamic_expenditure")
 @patch("coreason_ecosystem.fleet.expansion_loop.PulumiActuator")
 @patch("asyncio.sleep")
-async def test_von_neumann_provision_bid_on_demand(mock_sleep, mock_actuator_cls, mock_assess, mock_registry, mock_oracle):
+async def test_von_neumann_provision_bid_on_demand(mock_sleep: Any, mock_actuator_cls: Any, mock_assess: Any, mock_registry: Any, mock_oracle: Any) -> None:
     mock_assess.return_value = MagicMock(threshold_breached=False, expenditure_gwei=10)
     mock_actuator = MagicMock()
     # active stacks with 0 on-demand, total_active = 1
@@ -107,7 +108,7 @@ async def test_von_neumann_provision_bid_on_demand(mock_sleep, mock_actuator_cls
 @patch("coreason_ecosystem.fleet.expansion_loop.assess_thermodynamic_expenditure")
 @patch("coreason_ecosystem.fleet.expansion_loop.PulumiActuator")
 @patch("asyncio.sleep")
-async def test_von_neumann_runtime_exception(mock_sleep, mock_actuator_cls, mock_assess, mock_registry, mock_oracle):
+async def test_von_neumann_runtime_exception(mock_sleep: Any, mock_actuator_cls: Any, mock_assess: Any, mock_registry: Any, mock_oracle: Any) -> None:
     mock_actuator_cls.side_effect = Exception("Actuator initialization failed")
     
     mock_sleep.side_effect = asyncio.CancelledError()
