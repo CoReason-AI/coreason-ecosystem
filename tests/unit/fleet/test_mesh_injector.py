@@ -97,7 +97,7 @@ def test_inject_ocap_middleware() -> None:
     with pytest.raises(ValueError, match="Invalid JWT token format"):
         injector.inject_ocap_middleware("", {})
 
-    token = "header.payload.signature"
+    token = "header.payload.signature"  # nosec  # nosec
     assert injector.inject_ocap_middleware(token, {"test": 123}) == {"test": 123}
 
     complex_payload = {"a": {"b": [1, 2, 3]}, "c": 4}

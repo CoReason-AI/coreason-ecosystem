@@ -180,6 +180,7 @@ async def test_calculate_optimal_bid_aws_exception(
 @pytest.mark.asyncio
 async def test_calculate_optimal_bid_vast_success(oracle: PricingOracle) -> None:
     from unittest.mock import patch
+    from typing import Any
 
     profile = HardwareProfile(min_vram_gb=10.0, provider_whitelist=["vast"])
 
@@ -187,7 +188,7 @@ async def test_calculate_optimal_bid_vast_success(oracle: PricingOracle) -> None
         def raise_for_status(self) -> None:
             pass
 
-        def json(self) -> dict:
+        def json(self) -> dict[str, Any]:
             return {
                 "offers": [
                     {"gpu_ram": 16384, "dph_base": 0.5, "machine_id": "1234"},
@@ -196,13 +197,13 @@ async def test_calculate_optimal_bid_vast_success(oracle: PricingOracle) -> None
             }
 
     class MockAsyncClient:
-        async def __aenter__(self):
+        async def __aenter__(self) -> "MockAsyncClient":
             return self
 
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
+        async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
             pass
 
-        async def get(self, *args, **kwargs):
+        async def get(self, *args: Any, **kwargs: Any) -> MockResponse:
             return MockResponse()
 
     with patch("httpx.AsyncClient", return_value=MockAsyncClient()):
@@ -217,17 +218,18 @@ async def test_calculate_optimal_bid_vast_success(oracle: PricingOracle) -> None
 @pytest.mark.asyncio
 async def test_calculate_optimal_bid_vast_exception(oracle: PricingOracle) -> None:
     from unittest.mock import patch
+    from typing import Any
 
     profile = HardwareProfile(min_vram_gb=10.0, provider_whitelist=["vast"])
 
     class MockAsyncClient:
-        async def __aenter__(self):
+        async def __aenter__(self) -> "MockAsyncClient":
             return self
 
-        async def __aexit__(self, exc_type, exc_val, exc_tb):
+        async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
             pass
 
-        async def get(self, *args, **kwargs):
+        async def get(self, *args: Any, **kwargs: Any) -> Any:
             raise Exception("API Error")
 
     with patch("httpx.AsyncClient", return_value=MockAsyncClient()):
