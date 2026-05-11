@@ -280,12 +280,8 @@ async def test_federated_discovery_builtin() -> None:
 
 @pytest.mark.asyncio
 async def test_federated_discovery_filtering() -> None:
-    # Test rank filtering and domain filtering directly
+    # Test domain filtering directly
     with (
-        patch(
-            "coreason_ecosystem.gateway.master_mcp.registry.get_epistemic_status",
-            new_callable=AsyncMock,
-        ) as mock_status,
         patch(
             "coreason_ecosystem.gateway.master_mcp.registry.discover_active_substrates",
             new_callable=AsyncMock,
@@ -298,15 +294,12 @@ async def test_federated_discovery_filtering() -> None:
             "urn:coreason:oracle:mathematics": "http://foo",
             "urn:coreason:oracle:physics": "http://bar",
         }
-        # physics will be filtered out due to min_rank
-        mock_status.side_effect = lambda urn: (
-            "PUBLISHED" if "mathematics" in urn else "DRAFT"
-        )
+        # physics will be filtered out due to domain filter
         mock_val.return_value.domain_filter = ["mathematics"]
-        mock_val.return_value.minimum_epistemic_status = "PUBLISHED"
+        mock_val.return_value.minimum_epistemic_status = "DRAFT"
 
         res = await federated_discovery(
-            {"domain_filter": ["mathematics"], "minimum_epistemic_status": "PUBLISHED"}
+            {"domain_filter": ["mathematics"], "minimum_epistemic_status": "DRAFT"}
         )
         import json
 

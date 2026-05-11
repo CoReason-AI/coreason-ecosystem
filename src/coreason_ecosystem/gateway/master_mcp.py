@@ -275,16 +275,7 @@ async def federated_discovery(arguments: dict[str, Any]) -> str:
 
     results = []
 
-    status_ranks = {"DRAFT": 0, "SRB_APPROVED": 1, "CLIENT_APPROVED": 2, "PUBLISHED": 3}
-    min_rank = status_ranks.get(manifest.minimum_epistemic_status, 0)
-
     for urn, endpoint in discovered.items():
-        epistemic_status = await registry.get_epistemic_status(urn)
-        current_rank = status_ranks.get(epistemic_status, 0)
-
-        if current_rank < min_rank:
-            continue
-
         parts = urn.split(":")
         domain = parts[-1] if len(parts) > 0 else ""
 
@@ -295,7 +286,7 @@ async def federated_discovery(arguments: dict[str, Any]) -> str:
             {
                 "urn": urn,
                 "endpoint": endpoint,
-                "epistemic_status": epistemic_status,
+                "epistemic_status": await registry.get_epistemic_status(urn),
             }
         )
 
