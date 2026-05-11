@@ -15,20 +15,9 @@ This boundary governs federated capability discovery and routes the JSON-RPC
 requests to sub-MCP backends based on Epistemic Intents.
 """
 
-from .master_mcp import MasterMCP, MasterMCPRouter
-from .sovereign_mcp_registry import SovereignMCPRegistry
-from .state_manifests import (
-    EndpointRegistrationRequest,
-    RouteCapabilityRequest,
-)
 from .semantic_router import SemanticRouter, IntentWeighting
 
 __all__ = [
-    "SovereignMCPRegistry",
-    "MasterMCP",
-    "MasterMCPRouter",
-    "EndpointRegistrationRequest",
-    "RouteCapabilityRequest",
     "SemanticRouter",
     "IntentWeighting",
 ]
