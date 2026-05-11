@@ -1,10 +1,8 @@
 import contextvars
 import hashlib
-import hmac
 import json
 import logging
 import os
-import time
 from typing import Any, AsyncGenerator
 
 import mcp.server
@@ -20,7 +18,7 @@ from coreason_manifest.spec.ontology import (
     CognitiveSwarmDeploymentManifest,
     FederatedSecurityMacroManifest,
 )
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from mcp.server.sse import SseServerTransport
 import httpx
@@ -117,22 +115,10 @@ def compute_schema_seal(schema: dict[str, Any]) -> str:
     return hashlib.sha256(canonical).hexdigest()
 
 
-async def extract_and_verify_identity(request: Request) -> None:
-    """Verify perimeter authentication token (MTLS/Token) and bind semantic clearances."""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        raise HTTPException(status_code=401, detail="Missing perimeter auth token")
-
-    if not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid token format")
-
-    current_clearance.set("PUBLIC")
-
-
 sse_transport = SseServerTransport("/messages")
 
 
-@app.get("/sse", dependencies=[Depends(extract_and_verify_identity)])
+@app.get("/sse")
 async def handle_sse(request: Request) -> None:
     """Bootstrap proxy tunneling SSE execution projection capabilities bounds."""
     async with sse_transport.connect_sse(
@@ -146,7 +132,7 @@ async def handle_sse(request: Request) -> None:
             logger.debug("SSE client disconnected")
 
 
-@app.post("/messages", dependencies=[Depends(extract_and_verify_identity)])
+@app.post("/messages")
 async def handle_messages(request: Request) -> None:
     """Route asynchronous inbound message payload boundaries mapping."""
     await sse_transport.handle_post_message(
@@ -246,14 +232,8 @@ async def invoke_actuator(
         "arguments": arguments,
     }
 
-    cert = None
-    env_cert = os.getenv("NEMOCLAW_CLIENT_CERT")
-    env_key = os.getenv("NEMOCLAW_CLIENT_KEY")
-    if env_cert and env_key:
-        cert = (env_cert, env_key)
-
     try:
-        async with httpx.AsyncClient(cert=cert, verify=False) as client:  # nosec B501
+        async with httpx.AsyncClient() as client:
             response = await client.post(url, json=payload)
             response.raise_for_status()
             result = response.json()
@@ -289,14 +269,11 @@ async def federated_discovery(arguments: dict[str, Any]) -> str:
         We apply epistemic filter constraints just like the old loop.
     """
     manifest = FederatedDiscoveryIntent.model_validate(arguments)
-    clearance = "PUBLIC"
-
     discovered = await registry.discover_active_substrates()
 
     allowed_domains = set(manifest.domain_filter)
 
     results = []
-    secret = os.environ.get("MESH_SECRET", "coreason_mesh_secret").encode("utf-8")
 
     status_ranks = {"DRAFT": 0, "SRB_APPROVED": 1, "CLIENT_APPROVED": 2, "PUBLISHED": 3}
     min_rank = status_ranks.get(manifest.minimum_epistemic_status, 0)
@@ -314,17 +291,10 @@ async def federated_discovery(arguments: dict[str, Any]) -> str:
         if allowed_domains and domain not in allowed_domains:
             continue
 
-        payload = f"{urn}:{endpoint}:{clearance}:{int(time.time())}"
-        signature = hmac.new(
-            secret, payload.encode("utf-8"), hashlib.sha256
-        ).hexdigest()
-        seal = f"{payload}:{signature}"
-
         results.append(
             {
                 "urn": urn,
                 "endpoint": endpoint,
-                "token": seal,
                 "epistemic_status": epistemic_status,
             }
         )

@@ -148,44 +148,6 @@ async def test_the_guillotine() -> None:
 
 
 @pytest.mark.asyncio
-async def test_extract_and_verify_identity_missing_header() -> None:
-    from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
-    from fastapi import HTTPException
-
-    from fastapi import Request
-
-    request = Request({"type": "http", "headers": []})
-    with pytest.raises(HTTPException) as exc:
-        await extract_and_verify_identity(request)
-    assert exc.value.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_extract_and_verify_identity_invalid_format() -> None:
-    from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
-    from fastapi import HTTPException
-
-    from fastapi import Request
-
-    request = Request({"type": "http", "headers": [(b"authorization", b"Basic 1234")]})
-    with pytest.raises(HTTPException) as exc:
-        await extract_and_verify_identity(request)
-    assert exc.value.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_extract_and_verify_identity_valid_token() -> None:
-    from coreason_ecosystem.gateway.master_mcp import extract_and_verify_identity
-
-    from fastapi import Request
-
-    request = Request(
-        {"type": "http", "headers": [(b"authorization", b"Bearer whatever_token")]}
-    )
-    await extract_and_verify_identity(request)
-
-
-@pytest.mark.asyncio
 async def test_invoke_actuator_builtin_commands(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -283,35 +245,6 @@ async def test_invoke_actuator_nemoclaw_exceptions() -> None:
             RuntimeError, match="Cross-plane capability execution failed"
         ):
             await invoke_actuator("urn:coreason:oracle:milvus", {"arg": "val"})
-
-
-@pytest.mark.asyncio
-async def test_invoke_actuator_nemoclaw_cert_parsing(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("NEMOCLAW_CLIENT_CERT", "fake_cert.pem")
-    monkeypatch.setenv("NEMOCLAW_CLIENT_KEY", "fake_key.pem")
-
-    with patch(
-        "coreason_ecosystem.gateway.master_mcp.registry.resolve_urn",
-        new_callable=AsyncMock,
-    ) as mock_res:
-        mock_res.return_value = "urn:test"
-        with patch(
-            "coreason_ecosystem.gateway.master_mcp.httpx.AsyncClient"
-        ) as mock_client:
-            mock_client.return_value.__aenter__.return_value.post = AsyncMock(
-                return_value=httpx.Response(
-                    200,
-                    json={"content": "success"},
-                    request=httpx.Request("POST", "http://test"),
-                )
-            )
-            res = await invoke_actuator("urn:test", {})
-            assert res[0].text == "success"
-            mock_client.assert_called_once_with(
-                cert=("fake_cert.pem", "fake_key.pem"), verify=False
-            )
 
 
 @pytest.mark.asyncio
