@@ -1,8 +1,6 @@
 # Copyright (c) 2026 CoReason, Inc.
 import pytest
-import numpy as np
 import pyarrow as pa
-import pyarrow.ipc as ipc
 from pathlib import Path
 
 from coreason_ecosystem.gateway.semantic_router import SemanticRouter, IntentWeighting
@@ -46,12 +44,12 @@ def dummy_arrow_matrix(tmp_path: Path) -> Path:
             
     return arrow_path
 
-def test_semantic_router_loads_arrow(dummy_arrow_matrix: Path):
+def test_semantic_router_loads_arrow(dummy_arrow_matrix: Path) -> None:
     router = SemanticRouter(dummy_arrow_matrix)
     assert len(router.registry) == 3
     assert router.registry[0]["urn"] == "urn:coreason:actionspace:solver:data_extract:v1"
 
-def test_semantic_router_routing(dummy_arrow_matrix: Path):
+def test_semantic_router_routing(dummy_arrow_matrix: Path) -> None:
     router = SemanticRouter(dummy_arrow_matrix)
     
     intent = {
@@ -73,7 +71,7 @@ def test_semantic_router_routing(dummy_arrow_matrix: Path):
     assert results[0] == "urn:coreason:actionspace:solver:data_extract:v1"
     assert "urn:coreason:actionspace:oracle:bad_tool:v1" not in results
 
-def test_semantic_router_onnx_init():
+def test_semantic_router_onnx_init() -> None:
     # Just testing initialization gracefully without model
     router = SemanticRouter(Path("nonexistent.arrow"))
     router._init_onnx("fake_path.onnx")

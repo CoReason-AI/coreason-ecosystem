@@ -35,6 +35,7 @@ dependencies = [
     "onnxruntime>=1.26.0",
     "pyarrow>=24.0.0",
     "transformers>=5.8.0",
+    "numpy>=2.4.4",
 ]
 
 license = { file = "LICENSE" }

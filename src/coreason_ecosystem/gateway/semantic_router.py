@@ -21,7 +21,7 @@ import pyarrow as pa
 import pyarrow.ipc as ipc
 from pathlib import Path
 from loguru import logger
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 
 class IntentWeighting:
@@ -41,9 +41,9 @@ class IntentWeighting:
 class SemanticRouter:
     def __init__(self, compiled_matrix_arrow_path: Path):
         self.matrix_path = compiled_matrix_arrow_path
-        self.registry: List[Dict] = []
-        self._onnx_session = None
-        self._tokenizer = None
+        self.registry: List[Dict[str, Any]] = []
+        self._onnx_session: Any = None
+        self._tokenizer: Any = None
         self._load_registry()
 
     def _load_registry(self) -> None:
@@ -56,7 +56,7 @@ class SemanticRouter:
 
         try:
             with pa.OSFile(str(self.matrix_path), "rb") as source:
-                with ipc.RecordBatchFileReader(source) as reader:
+                with ipc.RecordBatchFileReader(source) as reader:  # type: ignore
                     table = reader.read_all()
                     self.registry = table.to_pylist()
             logger.info(
@@ -71,12 +71,12 @@ class SemanticRouter:
             return
 
         try:
-            import onnxruntime as ort
+            import onnxruntime as ort  # type: ignore
             from transformers import AutoTokenizer
 
             # Using sentence-transformers/all-MiniLM-L6-v2 tokenizer
             self._tokenizer = AutoTokenizer.from_pretrained(
-                "sentence-transformers/all-MiniLM-L6-v2"
+                "sentence-transformers/all-MiniLM-L6-v2"  # nosec B615
             )
 
             if Path(model_path).exists():
@@ -128,7 +128,7 @@ class SemanticRouter:
         norm = np.linalg.norm(embeddings, axis=1, keepdims=True)
         embeddings = embeddings / np.clip(norm, a_min=1e-12, a_max=None)
 
-        return embeddings[0].tolist()
+        return list(embeddings[0].tolist())
 
     def _cosine_similarity(self, v1: List[float], v2: List[float]) -> float:
         n1, n2 = np.linalg.norm(v1), np.linalg.norm(v2)
