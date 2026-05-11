@@ -99,7 +99,9 @@ def test_semantic_router_zero_cosine() -> None:
     assert router._cosine_similarity(v1, v2) == 0.0
 
 
-def test_semantic_router_onnx_execution_mock(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_semantic_router_onnx_execution_mock(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     from unittest.mock import MagicMock
     import sys
     import numpy as np
@@ -114,7 +116,7 @@ def test_semantic_router_onnx_execution_mock(monkeypatch: pytest.MonkeyPatch, tm
     model_path.touch()
 
     router = SemanticRouter(Path("nonexistent.arrow"))
-    
+
     # Test RuntimeError before init
     with pytest.raises(RuntimeError, match="not initialized"):
         router.generate_query_embedding_onnx("test")
@@ -126,7 +128,7 @@ def test_semantic_router_onnx_execution_mock(monkeypatch: pytest.MonkeyPatch, tm
         "attention_mask": np.array([[1, 1, 1]]),
         "token_type_ids": np.array([[0, 0, 0]]),
     }
-    
+
     # Patch transformers.AutoTokenizer.from_pretrained
     mock_transformers = MagicMock()
     mock_transformers.AutoTokenizer.from_pretrained.return_value = mock_tokenizer
