@@ -476,15 +476,15 @@ class SovereignMCPRegistry:
     ) -> str:
         """Delegate substrate resolution to the NemoClaw proxy.
 
-        Stage 1 (Hard Filter) and Stage 2 (Pareto Optimization) are now 
+        Stage 1 (Hard Filter) and Stage 2 (Pareto Optimization) are now
         strictly handled by the out-of-process NemoClaw engine.
         """
         # In a real implementation, this would call NemoClaw via a bridge.
-        # For now, we return the first candidate, assuming NemoClaw already 
+        # For now, we return the first candidate, assuming NemoClaw already
         # pre-filtered the list via the federated discovery pipeline.
         if not candidate_urns:
-             raise KeyError("Substrate Resolution Fault: No candidate URNs provided.")
-        
+            raise KeyError("Substrate Resolution Fault: No candidate URNs provided.")
+
         return candidate_urns[0]
 
     @staticmethod
