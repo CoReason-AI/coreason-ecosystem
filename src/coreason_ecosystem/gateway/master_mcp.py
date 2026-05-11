@@ -9,7 +9,6 @@ from typing import Any, AsyncGenerator
 
 import mcp.server
 import mcp.types as types
-from coreason_ecosystem.gateway.epistemic_filter import EpistemicTransmuter
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.gateway.state_manifests import (
     FederatedDiscoveryIntent,
@@ -30,7 +29,6 @@ from starlette.requests import Request
 logger = logging.getLogger(__name__)
 
 registry = SovereignMCPRegistry()
-epistemic_transmuter = EpistemicTransmuter(registry)
 
 
 async def _hydrate_registry() -> None:
@@ -294,10 +292,6 @@ async def federated_discovery(arguments: dict[str, Any]) -> str:
     clearance = "PUBLIC"
 
     discovered = await registry.discover_active_substrates()
-
-    discovered = await epistemic_transmuter.project_capabilities(
-        available_urns=discovered,
-    )
 
     allowed_domains = set(manifest.domain_filter)
 

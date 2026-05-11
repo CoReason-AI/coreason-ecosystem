@@ -325,18 +325,11 @@ async def test_federated_discovery_builtin() -> None:
             new_callable=AsyncMock,
         ) as mock_disc,
         patch(
-            "coreason_ecosystem.gateway.master_mcp.epistemic_transmuter.project_capabilities",
-            new_callable=AsyncMock,
-        ) as mock_proj,
-        patch(
             "coreason_ecosystem.gateway.master_mcp.registry.get_epistemic_status",
             new_callable=AsyncMock,
         ) as mock_stat,
     ):
         mock_disc.return_value = {
-            "urn:coreason:oracle:clinical_extractor": "http://foo"
-        }
-        mock_proj.return_value = {
             "urn:coreason:oracle:clinical_extractor": "http://foo"
         }
         mock_stat.return_value = "DRAFT"
@@ -365,18 +358,10 @@ async def test_federated_discovery_filtering() -> None:
             new_callable=AsyncMock,
         ) as mock_disc,
         patch(
-            "coreason_ecosystem.gateway.master_mcp.epistemic_transmuter.project_capabilities",
-            new_callable=AsyncMock,
-        ) as mock_proj,
-        patch(
             "coreason_ecosystem.gateway.master_mcp.FederatedDiscoveryIntent.model_validate"
         ) as mock_val,
     ):
         mock_disc.return_value = {
-            "urn:coreason:oracle:mathematics": "http://foo",
-            "urn:coreason:oracle:physics": "http://bar",
-        }
-        mock_proj.return_value = {
             "urn:coreason:oracle:mathematics": "http://foo",
             "urn:coreason:oracle:physics": "http://bar",
         }
