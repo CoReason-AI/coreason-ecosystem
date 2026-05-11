@@ -32,6 +32,9 @@ dependencies = [
     "mcp>=1.27.0",
     "fastapi>=0.135.3",
     "pyyaml>=6.0.2",
+    "onnxruntime>=1.26.0",
+    "pyarrow>=24.0.0",
+    "transformers>=5.8.0",
 ]
 
 license = { file = "LICENSE" }
