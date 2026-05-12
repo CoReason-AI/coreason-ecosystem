@@ -145,7 +145,9 @@ class SkyPilotActuator:
                     try:
                         cloud = cluster["handle"].cloud.name()
                     except Exception:
-                        logger.debug("Failed to extract cloud name from SkyPilot handle")
+                        logger.debug(
+                            "Failed to extract cloud name from SkyPilot handle"
+                        )
 
                 active_nodes.append(
                     {
