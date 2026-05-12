@@ -34,10 +34,8 @@ from coreason_ecosystem.fleet.pricing_oracle import (
     assess_thermodynamic_expenditure,
 )
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
-from coreason_ecosystem.fleet.pulumi_actuator import PulumiActuator
-from pathlib import Path
+from coreason_ecosystem.fleet.skypilot_actuator import SkyPilotActuator, SkyPilotTarget
 import asyncio
-from typing import Literal
 
 HARDWARE_NODE_COST_GWEI = 10_000_000_000
 """Hardware threshold (approx 10,000,000,000 Gwei / ~10 ETH at historical rates)."""
@@ -104,20 +102,22 @@ async def von_neumann_expansion_daemon(
     while _running:
         try:
             from coreason_manifest.spec.ontology import (
+                EpistemicSecurityProfile,
+                EscrowPolicy,
                 SpatialHardwareProfile as HardwareProfile,
             )
 
             required_vram = 0.0
-            actuator = PulumiActuator(Path.cwd() / "infrastructure")
-            active_stacks = await actuator.reconcile_state()
+            actuator = SkyPilotActuator()
+            active_nodes = await actuator.reconcile_state()
             provisioned_vram = sum(
-                stack.get("vram_capacity", 0) for stack in active_stacks
+                node.get("vram_capacity", 0.0) for node in active_nodes
             )
             delta_vram = max(required_vram - provisioned_vram, 1.0)
 
             assessment = await assess_thermodynamic_expenditure(
                 hardware_profile=HardwareProfile(
-                    min_vram_gb=delta_vram, provider_whitelist=["aws", "vast"]
+                    min_vram_gb=delta_vram, provider_whitelist=["aws", "gcp", "azure", "vast"]
                 ),
                 max_budget_hr=max_budget_hr,
             )
@@ -126,54 +126,37 @@ async def von_neumann_expansion_daemon(
                     "[ExpansionLoop] Economic Guillotine triggered. "
                     "Halting expansion loop to prevent thermodynamic exhaustion."
                 )
-                actuator = PulumiActuator(Path.cwd() / "infrastructure")
-                await actuator.execute_thermodynamic_guillotine(assessment)
+                await actuator.execute_thermodynamic_guillotine(True)
                 _running = False
                 continue
 
-            total_active = len(active_stacks)
-            on_demand_count = sum(
-                1 for s in active_stacks if s.get("market_type") == "on-demand"
-            )
-
-            target_market_type: Literal["spot", "on-demand"] = "spot"
-            if total_active > 0 and (on_demand_count / total_active) < 0.3:
-                target_market_type = "on-demand"
-            elif total_active == 0:
-                target_market_type = "on-demand"
-
-            bid = await oracle.calculate_optimal_bid(
+            total_active = len(active_nodes)
+            
+            # SkyPilot handles spot vs on-demand automatically if we use its managed jobs/clusters,
+            # but we can still steer it if needed.
+            use_spot = True
+            
+            target = SkyPilotTarget(
+                use_spot=use_spot,
                 hardware_profile=HardwareProfile(
-                    min_vram_gb=delta_vram, provider_whitelist=["aws", "vast"]
+                    min_vram_gb=delta_vram, 
+                    accelerator_type="A100" if delta_vram > 40 else "T4"
                 ),
-                max_budget_hr=max_budget_hr,
-            )
-
-            if bid:
-                from coreason_manifest.spec.ontology import (
-                    EscrowPolicy,
-                    EpistemicSecurityProfile,
-                )
-
-                bid.market_type = target_market_type
-                bid.hardware_profile = HardwareProfile(
-                    min_vram_gb=delta_vram, provider_whitelist=["aws", "vast"]
-                )
-                bid.security_profile = EpistemicSecurityProfile(network_isolation=True)
-                bid.mesh_auth_key = mesh_auth_key
-                bid.temporal_mesh_ip = temporal_mesh_ip
-                bid.escrow_policy = EscrowPolicy(
+                security_profile=EpistemicSecurityProfile(network_isolation=True),
+                mesh_auth_key=mesh_auth_key,
+                temporal_mesh_ip=temporal_mesh_ip,
+                autostop_idle_minutes=15,
+                escrow_policy=EscrowPolicy(
                     escrow_locked_magnitude=max(int(max_budget_hr), 1),
                     release_condition_metric="fleet_expansion_hourly_budget",
-                    refund_target_node_cid=f"did:coreason:fleet:{bid.provider}",
+                    refund_target_node_cid="did:coreason:fleet:skypilot",
                 )
+            )
 
-                logger.info(
-                    f"[ExpansionLoop] Active nodes: {total_active} (On-Demand: {on_demand_count}). Bidding {target_market_type} on {bid.provider}."
-                )
-                await actuator.provision_node(bid)
-            else:
-                logger.warning("[ExpansionLoop] No viable bids found.")
+            logger.info(
+                f"[ExpansionLoop] Active SkyPilot nodes: {total_active}. Bidding via SkyPilot multi-cloud..."
+            )
+            await actuator.provision_node(target)
         except Exception as e:
             logger.error(f"[ExpansionLoop] Runtime execution anomaly: {e}")
 

@@ -36,6 +36,7 @@ dependencies = [
     "pyarrow>=24.0.0",
     "transformers>=5.8.0",
     "numpy>=2.4.4",
+    "skypilot>=0.6.2",
 ]
 
 license = { file = "LICENSE" }
@@ -155,6 +156,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "starlette.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sky.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
