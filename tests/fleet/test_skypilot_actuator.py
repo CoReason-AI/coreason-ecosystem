@@ -46,7 +46,9 @@ async def test_provision_node_basic(actuator: SkyPilotActuator, mock_sky: Any) -
 
 
 @pytest.mark.asyncio
-async def test_provision_node_with_hardware(actuator: SkyPilotActuator, mock_sky: Any) -> None:
+async def test_provision_node_with_hardware(
+    actuator: SkyPilotActuator, mock_sky: Any
+) -> None:
     hardware = HardwareProfile(accelerator_type="urn:coreason:accelerator:h100")
     target = SkyPilotTarget(hardware_profile=hardware, use_spot=False)
 
@@ -94,7 +96,9 @@ async def test_reconcile_state(actuator: SkyPilotActuator, mock_sky: Any) -> Non
 
 
 @pytest.mark.asyncio
-async def test_thermodynamic_guillotine(actuator: SkyPilotActuator, mock_sky: Any) -> None:
+async def test_thermodynamic_guillotine(
+    actuator: SkyPilotActuator, mock_sky: Any
+) -> None:
     # Setup reconcile_state mock
     mock_sky.status.return_value = "job-status"
     mock_sky.get.side_effect = [
@@ -109,13 +113,17 @@ async def test_thermodynamic_guillotine(actuator: SkyPilotActuator, mock_sky: An
 
 
 @pytest.mark.asyncio
-async def test_thermodynamic_guillotine_no_breach(actuator: SkyPilotActuator, mock_sky: Any) -> None:
+async def test_thermodynamic_guillotine_no_breach(
+    actuator: SkyPilotActuator, mock_sky: Any
+) -> None:
     await actuator.execute_thermodynamic_guillotine(False)
     mock_sky.status.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_provision_node_with_mesh_injection(actuator: SkyPilotActuator, mock_sky: Any) -> None:
+async def test_provision_node_with_mesh_injection(
+    actuator: SkyPilotActuator, mock_sky: Any
+) -> None:
     hardware = HardwareProfile(accelerator_type="urn:coreason:accelerator:a100")
     security = SecurityProfile()
     target = SkyPilotTarget(
@@ -142,7 +150,9 @@ async def test_provision_node_with_mesh_injection(actuator: SkyPilotActuator, mo
 
 
 @pytest.mark.asyncio
-async def test_reconcile_state_handle_exception(actuator: SkyPilotActuator, mock_sky: Any) -> None:
+async def test_reconcile_state_handle_exception(
+    actuator: SkyPilotActuator, mock_sky: Any
+) -> None:
     mock_sky.status.return_value = "job-status"
 
     # Create a mock cluster where accessing handle.cloud.name raises an exception
