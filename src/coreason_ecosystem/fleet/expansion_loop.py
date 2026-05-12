@@ -117,7 +117,8 @@ async def von_neumann_expansion_daemon(
 
             assessment = await assess_thermodynamic_expenditure(
                 hardware_profile=HardwareProfile(
-                    min_vram_gb=delta_vram, provider_whitelist=["aws", "gcp", "azure", "vast"]
+                    min_vram_gb=delta_vram,
+                    provider_whitelist=["aws", "gcp", "azure", "vast"],
                 ),
                 max_budget_hr=max_budget_hr,
             )
@@ -131,16 +132,18 @@ async def von_neumann_expansion_daemon(
                 continue
 
             total_active = len(active_nodes)
-            
+
             # SkyPilot handles spot vs on-demand automatically if we use its managed jobs/clusters,
             # but we can still steer it if needed.
             use_spot = True
-            
+
             target = SkyPilotTarget(
                 use_spot=use_spot,
                 hardware_profile=HardwareProfile(
-                    min_vram_gb=delta_vram, 
-                    accelerator_type="A100" if delta_vram > 40 else "T4"
+                    min_vram_gb=delta_vram,
+                    accelerator_type="urn:coreason:accelerator:a100"
+                    if delta_vram > 40
+                    else "urn:coreason:accelerator:t4",
                 ),
                 security_profile=EpistemicSecurityProfile(network_isolation=True),
                 mesh_auth_key=mesh_auth_key,
@@ -150,7 +153,7 @@ async def von_neumann_expansion_daemon(
                     escrow_locked_magnitude=max(int(max_budget_hr), 1),
                     release_condition_metric="fleet_expansion_hourly_budget",
                     refund_target_node_cid="did:coreason:fleet:skypilot",
-                )
+                ),
             )
 
             logger.info(
