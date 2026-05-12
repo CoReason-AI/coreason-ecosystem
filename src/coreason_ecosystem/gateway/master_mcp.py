@@ -1,19 +1,12 @@
-import base64
 import contextvars
 import hashlib
-import hmac
 import json
 import logging
 import os
-import time
-from typing import Any
+from typing import Any, AsyncGenerator
 
 import mcp.server
 import mcp.types as types
-from coreason_ecosystem.gateway.epistemic_filter import EpistemicTransmuter
-from coreason_ecosystem.gateway.ontological_identity_router import (
-    OntologicalIdentityRouter,
-)
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.gateway.state_manifests import (
     FederatedDiscoveryIntent,
@@ -25,54 +18,17 @@ from coreason_manifest.spec.ontology import (
     CognitiveSwarmDeploymentManifest,
     FederatedSecurityMacroManifest,
 )
-from fastapi import Depends, FastAPI, HTTPException
-from mcp.client.session import ClientSession
-from mcp.client.sse import sse_client
-from mcp.client.stdio import StdioServerParameters, stdio_client
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from mcp.server.sse import SseServerTransport
+import httpx
 from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="coreason-master-gateway")
-mcp_server = mcp.server.Server("coreason-master-gateway")
-
 registry = SovereignMCPRegistry()
-epistemic_transmuter = EpistemicTransmuter(registry)
-identity_router = OntologicalIdentityRouter()
-
-current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
 
 
-def _canonicalize_json(obj: Any) -> bytes:
-    """Produce RFC 8785 (JCS) canonical JSON serialization.
-
-    Sorts keys recursively and uses compact separators with no trailing
-    whitespace, which is the subset of JCS achievable via Python's stdlib.
-
-    Args:
-        obj: The object to canonicalize.
-
-    Returns:
-        UTF-8 encoded canonical JSON bytes.
-    """
-    return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
-
-
-def compute_schema_seal(schema: dict[str, Any]) -> str:
-    """Compute the SHA-256 seal of a canonicalized MCP tool schema.
-
-    Args:
-        schema: The MCP tool input schema dictionary.
-
-    Returns:
-        Hexadecimal SHA-256 digest string.
-    """
-    canonical = _canonicalize_json(schema)
-    return hashlib.sha256(canonical).hexdigest()
-
-
-@app.on_event("startup")
 async def _hydrate_registry() -> None:
     """Hydrate the capability registry utilizing Hierarchical Path Resolution.
 
@@ -113,37 +69,56 @@ async def _hydrate_registry() -> None:
     await registry.scan_action_space_modules()
 
 
-@app.on_event("shutdown")
 async def _shutdown_registry() -> None:  # pragma: no cover
     """Gracefully shutdown the capability registry and its background worker."""
     await registry.shutdown()
 
 
-async def extract_and_verify_identity(request: Request) -> None:
-    """Verify cryptographic semantic clearances binding identity envelopes bounds."""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        current_clearance.set("PUBLIC")
-        return
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    await _hydrate_registry()
+    yield
+    await _shutdown_registry()
 
-    try:
-        if not auth_header.startswith("Bearer "):
-            raise ValueError("Invalid format")
 
-        encoded_payload = auth_header[7:]
-        decoded_bytes = base64.b64decode(encoded_payload)
-        payload = json.loads(decoded_bytes.decode("utf-8"))
+app = FastAPI(title="coreason-master-gateway", lifespan=lifespan)
+mcp_server = mcp.server.Server("coreason-master-gateway")
 
-        profile = await identity_router.authorize_coordinate(payload)
-        current_clearance.set(profile["clearance"])
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid identity sequence")
+current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
+
+
+def _canonicalize_json(obj: Any) -> bytes:
+    """Produce RFC 8785 (JCS) canonical JSON serialization.
+
+    Sorts keys recursively and uses compact separators with no trailing
+    whitespace, which is the subset of JCS achievable via Python's stdlib.
+
+    Args:
+        obj: The object to canonicalize.
+
+    Returns:
+        UTF-8 encoded canonical JSON bytes.
+    """
+    return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def compute_schema_seal(schema: dict[str, Any]) -> str:
+    """Compute the SHA-256 seal of a canonicalized MCP tool schema.
+
+    Args:
+        schema: The MCP tool input schema dictionary.
+
+    Returns:
+        Hexadecimal SHA-256 digest string.
+    """
+    canonical = _canonicalize_json(schema)
+    return hashlib.sha256(canonical).hexdigest()
 
 
 sse_transport = SseServerTransport("/messages")
 
 
-@app.get("/sse", dependencies=[Depends(extract_and_verify_identity)])
+@app.get("/sse")
 async def handle_sse(request: Request) -> None:
     """Bootstrap proxy tunneling SSE execution projection capabilities bounds."""
     async with sse_transport.connect_sse(
@@ -157,7 +132,7 @@ async def handle_sse(request: Request) -> None:
             logger.debug("SSE client disconnected")
 
 
-@app.post("/messages", dependencies=[Depends(extract_and_verify_identity)])
+@app.post("/messages")
 async def handle_messages(request: Request) -> None:
     """Route asynchronous inbound message payload boundaries mapping."""
     await sse_transport.handle_post_message(
@@ -244,35 +219,36 @@ async def invoke_actuator(
         ]
 
     try:
-        physical_endpoint = await registry.resolve_urn(name)
+        target_urn = await registry.resolve_urn(name)
     except KeyError:
         raise ValueError(
             f"Geometrical topology fault: Tool {name} not found in active registry."
         )
 
+    nemoclaw_url = os.getenv("NEMOCLAW_URL", "https://nemoclaw:8443").rstrip("/")
+    url = f"{nemoclaw_url}/v1/mcp/{target_urn}/tools/call"
+    payload = {
+        "name": name,
+        "arguments": arguments,
+    }
+
     try:
-        if physical_endpoint.startswith("http://") or physical_endpoint.startswith(
-            "https://"
-        ):
-            async with sse_client(f"{physical_endpoint}/sse") as (
-                read_stream,
-                write_stream,
-            ):
-                async with ClientSession(read_stream, write_stream) as session:
-                    await session.initialize()
-                    result = await session.call_tool(name, arguments=arguments)
-                    return [types.TextContent(type="text", text=str(result.content))]
-        else:
-            server_params = StdioServerParameters(
-                command="wasmtime", args=["run", physical_endpoint]
-            )
-            async with stdio_client(server_params) as (read_stream, write_stream):
-                async with ClientSession(read_stream, write_stream) as session:
-                    await session.initialize()
-                    result = await session.call_tool(name, arguments=arguments)
-                    return [types.TextContent(type="text", text=str(result.content))]
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            return [
+                types.TextContent(type="text", text=str(result.get("content", result)))
+            ]
+    except httpx.HTTPStatusError as e:
+        logger.error(
+            f"NemoClaw returned HTTP error: {e.response.status_code} - {e.response.text}"
+        )
+        if e.response.status_code == 500:
+            raise RuntimeError(f"NemoClaw internal server error: {e}") from e
+        raise RuntimeError(f"NemoClaw HTTP error: {e}") from e
     except Exception as e:
-        logger.error(f"Failed to proxy MCP request to {physical_endpoint}: {e}")
+        logger.error(f"Failed to proxy MCP request to NemoClaw: {e}")
         raise RuntimeError(f"Cross-plane capability execution failed: {e}")
 
 
@@ -293,47 +269,24 @@ async def federated_discovery(arguments: dict[str, Any]) -> str:
         We apply epistemic filter constraints just like the old loop.
     """
     manifest = FederatedDiscoveryIntent.model_validate(arguments)
-    clearance = current_clearance.get()
-
-    discovered = await registry.discover_active_substrates(agent_clearance=clearance)
-
-    discovered = await epistemic_transmuter.project_capabilities(
-        available_urns=discovered,
-    )
+    discovered = await registry.discover_active_substrates()
 
     allowed_domains = set(manifest.domain_filter)
 
     results = []
-    secret = os.environ.get("MESH_SECRET", "coreason_mesh_secret").encode("utf-8")
-
-    status_ranks = {"DRAFT": 0, "SRB_APPROVED": 1, "CLIENT_APPROVED": 2, "PUBLISHED": 3}
-    min_rank = status_ranks.get(manifest.minimum_epistemic_status, 0)
 
     for urn, endpoint in discovered.items():
-        epistemic_status = await registry.get_epistemic_status(urn)
-        current_rank = status_ranks.get(epistemic_status, 0)
-
-        if current_rank < min_rank:
-            continue
-
         parts = urn.split(":")
         domain = parts[-1] if len(parts) > 0 else ""
 
         if allowed_domains and domain not in allowed_domains:
             continue
 
-        payload = f"{urn}:{endpoint}:{clearance}:{int(time.time())}"
-        signature = hmac.new(
-            secret, payload.encode("utf-8"), hashlib.sha256
-        ).hexdigest()
-        seal = f"{payload}:{signature}"
-
         results.append(
             {
                 "urn": urn,
                 "endpoint": endpoint,
-                "token": seal,
-                "epistemic_status": epistemic_status,
+                "epistemic_status": await registry.get_epistemic_status(urn),
             }
         )
 

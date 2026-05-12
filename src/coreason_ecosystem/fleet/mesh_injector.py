@@ -40,7 +40,7 @@ class MeshInjector:
     def compile_payload(
         self,
         node_cid: str,
-        provider: Literal["aws", "vast"],
+        provider: Literal["aws", "vast", "skypilot"],
         hardware: dict[str, Any],
         security: dict[str, Any],
         mesh_auth_key: str,
