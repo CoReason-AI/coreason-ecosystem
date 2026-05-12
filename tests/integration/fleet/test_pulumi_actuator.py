@@ -154,9 +154,7 @@ async def test_reconcile_state_exception(
 
 
 @pytest.mark.asyncio
-async def test_provision_node_rejects_missing_escrow(
-    driver: PulumiActuator,
-) -> None:
+async def test_provision_node_rejects_missing_escrow(driver: PulumiActuator) -> None:
     """Hardware Guillotine: no EscrowPolicy → provisioning rejected."""
     target = ComputeNodeTarget(
         provider="aws", instance_id="t3.micro", hourly_cost=0.01, vram_gb=0.0
@@ -166,9 +164,7 @@ async def test_provision_node_rejects_missing_escrow(
 
 
 @pytest.mark.asyncio
-async def test_provision_node_rejects_exceeded_budget(
-    driver: PulumiActuator,
-) -> None:
+async def test_provision_node_rejects_exceeded_budget(driver: PulumiActuator) -> None:
     """Hardware Guillotine: hourly_cost > escrow_locked_magnitude → rejected."""
     target = ComputeNodeTarget(
         provider="aws",
@@ -318,9 +314,7 @@ async def test_execute_thermodynamic_guillotine_destroy_exception(
 
 
 @pytest.mark.asyncio
-async def test_execute_thermodynamic_guillotine_timeout(
-    driver: PulumiActuator,
-) -> None:
+async def test_execute_thermodynamic_guillotine_timeout(driver: PulumiActuator) -> None:
     import asyncio
     from unittest.mock import AsyncMock
     from coreason_ecosystem.fleet.pricing_oracle import ThermodynamicAssessment

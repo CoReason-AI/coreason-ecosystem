@@ -164,3 +164,74 @@ async def test_calculate_optimal_bid_no_qualifying_instances(
     profile = HardwareProfile(min_vram_gb=100.0, provider_whitelist=["aws"])
     bid = await oracle.calculate_optimal_bid(profile, max_budget_hr=5.0)
     assert bid is None
+
+
+@pytest.mark.asyncio
+async def test_calculate_optimal_bid_aws_exception(
+    oracle: PricingOracle, mock_boto3: MagicMock
+) -> None:
+    # Cause an exception inside fetch_aws_spot
+    mock_boto3.client.side_effect = Exception("API down")
+    profile = HardwareProfile(min_vram_gb=10.0, provider_whitelist=["aws"])
+    bid = await oracle.calculate_optimal_bid(profile, max_budget_hr=5.0)
+    assert bid is None
+
+
+@pytest.mark.asyncio
+async def test_calculate_optimal_bid_vast_success(oracle: PricingOracle) -> None:
+    from unittest.mock import patch
+    from typing import Any
+
+    profile = HardwareProfile(min_vram_gb=10.0, provider_whitelist=["vast"])
+
+    class MockResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict[str, Any]:
+            return {
+                "offers": [
+                    {"gpu_ram": 16384, "dph_base": 0.5, "machine_id": "1234"},
+                    {"gpu_ram": 8192, "dph_base": 0.2, "machine_id": "5678"},
+                ]
+            }
+
+    class MockAsyncClient:
+        async def __aenter__(self) -> "MockAsyncClient":
+            return self
+
+        async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+            pass
+
+        async def get(self, *args: Any, **kwargs: Any) -> MockResponse:
+            return MockResponse()
+
+    with patch("httpx.AsyncClient", return_value=MockAsyncClient()):
+        bid = await oracle.calculate_optimal_bid(profile, max_budget_hr=5.0)
+        assert bid is not None
+        assert bid.provider == "vast"
+        assert bid.instance_id == "1234"
+        assert bid.vram_gb == 16.0
+        assert bid.hourly_cost == 0.5
+
+
+@pytest.mark.asyncio
+async def test_calculate_optimal_bid_vast_exception(oracle: PricingOracle) -> None:
+    from unittest.mock import patch
+    from typing import Any
+
+    profile = HardwareProfile(min_vram_gb=10.0, provider_whitelist=["vast"])
+
+    class MockAsyncClient:
+        async def __aenter__(self) -> "MockAsyncClient":
+            return self
+
+        async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+            pass
+
+        async def get(self, *args: Any, **kwargs: Any) -> Any:
+            raise Exception("API Error")
+
+    with patch("httpx.AsyncClient", return_value=MockAsyncClient()):
+        bid = await oracle.calculate_optimal_bid(profile, max_budget_hr=5.0)
+        assert bid is None

@@ -9,8 +9,6 @@
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
 import asyncio
-import os
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -23,6 +21,7 @@ from coreason_ecosystem.orchestration.registry import (
     write_registry_lock,
 )
 from coreason_manifest.spec.ontology import CognitiveSwarmDeploymentManifest
+from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from loguru import logger
 
 
@@ -106,25 +105,10 @@ async def wait_for_port(port: int, timeout: float = 30.0) -> None:
 
 
 async def execute_up() -> None:
-    """Implement Idempotent DAG Resolution for the Swarm infrastructure.
-
-    This routine dynamically resolves the compose file path, synthesizes
-    internal directory structures, and executes the Epistemic Cryptographic
-    Handshake to bind the Merkle Root to the Temporal orchestrator.
-    """
-
-    compose_path = Path.cwd() / "infrastructure" / "local" / "compose.yaml"
-    if not compose_path.exists():
-        internal_compose_path = (
-            Path(__file__).parent.parent.parent.parent
-            / "infrastructure"
-            / "local"
-            / "compose.yaml"
-        )
-        compose_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(internal_compose_path, compose_path)
-
-    compose_path_str = str(compose_path.resolve())
+    """Implement Just-in-Time Cognition Flow via NemoClaw."""
+    project_path = Path.cwd()
+    root_hash = await calculate_epistemic_root(project_path)
+    write_registry_lock(project_path, root_hash)
 
     with Progress(
         SpinnerColumn(),
@@ -132,164 +116,39 @@ async def execute_up() -> None:
         console=console,
         transient=False,
     ) as progress:
-        task_teardown = progress.add_task(
-            "[cyan]Executing Targeted Host Cleanup...[/cyan]", total=None
+        task_sandbox = progress.add_task(
+            "[cyan]Igniting NemoClaw Sandbox...[/cyan]", total=None
         )
         proc = await asyncio.create_subprocess_exec(
-            "docker",
-            "compose",
-            "-f",
-            compose_path_str,
-            "down",
-            "-v",
-            "--remove-orphans",
+            "nemoclaw",
+            "sandbox",
+            "start",
+            "--empty",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            console.print(
-                f"[red]Error during host cleanup:[/red]\n{stderr.decode('utf-8')}"
-            )
+            console.print()
             raise typer.Exit(1)
         progress.update(
-            task_teardown,
-            description="[green]✓ Cleaned dangling volumes and networks[/green]",
+            task_sandbox,
+            description="[green]✓ NemoClaw Sandbox ACTIVE[/green]",
             completed=True,
         )
 
-        task_postgres = progress.add_task(
-            "[cyan]Binding Epistemic Ledger...[/cyan]", total=None
+        task_injection = progress.add_task(
+            "[cyan]Injecting Sovereign MCP Gateway...[/cyan]", total=None
         )
-        proc = await asyncio.create_subprocess_exec(
-            "docker",
-            "compose",
-            "-f",
-            compose_path_str,
-            "up",
-            "-d",
-            "postgres",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+        logger.info(
+            "[Gateway] Connecting to NemoClaw via mTLS and registering MCP tools..."
         )
-        _, stderr = await proc.communicate()
-        if proc.returncode != 0:
-            console.print(
-                f"[red]Error starting Postgres:[/red]\n{stderr.decode('utf-8')}"
-            )
-            raise typer.Exit(1)
-        try:
-            await wait_for_postgres(compose_path_str)
-        except TimeoutError as e:
-            console.print(f"[bold red]Timeout waiting for Postgres:[/bold red]\n{e}")
-            raise typer.Exit(1)
+        registry = SovereignMCPRegistry()
+        await registry.initialize()
+        await registry.scan_action_space_modules()
         progress.update(
-            task_postgres,
-            description="[green]✓ Ledger ACTIVE (Postgres: 5432)[/green]",
-            completed=True,
-        )
-
-        task_temporal = progress.add_task(
-            "[cyan]Igniting Orchestrator Fabric...[/cyan]", total=None
-        )
-        proc = await asyncio.create_subprocess_exec(
-            "docker",
-            "compose",
-            "-f",
-            compose_path_str,
-            "up",
-            "-d",
-            "temporal",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        _, stderr = await proc.communicate()
-        if proc.returncode != 0:
-            console.print(
-                f"[red]Error starting Temporal:[/red]\n{stderr.decode('utf-8')}"
-            )  # pragma: no cover
-            raise typer.Exit(1)  # pragma: no cover
-        try:
-            await wait_for_temporal()
-        except TimeoutError as e:
-            console.print(f"[bold red]Timeout waiting for Temporal:[/bold red]\n{e}")
-            raise typer.Exit(1)
-        progress.update(
-            task_temporal,
-            description="[green]✓ Orchestrator ACTIVE (Temporal: 7233)[/green]",
-            completed=True,
-        )
-
-        task_daemon = progress.add_task(
-            "[cyan]Igniting Thermodynamic Mesh...[/cyan]", total=None
-        )
-
-        project_path = Path.cwd()
-        root_hash = await calculate_epistemic_root(project_path)
-        write_registry_lock(project_path, root_hash)
-
-        env = os.environ.copy()
-        env["EPISTEMIC_MERKLE_ROOT"] = root_hash
-
-        proc = await asyncio.create_subprocess_exec(
-            "docker",
-            "compose",
-            "-f",
-            compose_path_str,
-            "up",
-            "-d",
-            "--build",
-            "-V",
-            "--force-recreate",
-            "coreason-runtime",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=env,
-        )
-        _, stderr = await proc.communicate()
-        if proc.returncode != 0:
-            console.print(
-                f"[red]Error starting Physics Engine:[/red]\n{stderr.decode('utf-8')}"
-            )  # pragma: no cover
-            raise typer.Exit(1)  # pragma: no cover
-        try:
-            await wait_for_port(8000)
-        except TimeoutError as e:
-            console.print(
-                f"[bold red]Timeout waiting for Physics Engine:[/bold red]\n{e}"
-            )
-            raise typer.Exit(1)
-        progress.update(
-            task_daemon,
-            description="[green]✓ Physics Engine ACTIVE (Daemon: 8000)[/green]",
-            completed=True,
-        )
-
-        task_observability = progress.add_task(
-            "[cyan]Booting Observability Sidecars...[/cyan]",
-            total=None,
-        )
-        proc = await asyncio.create_subprocess_exec(
-            "docker",
-            "compose",
-            "-f",
-            compose_path_str,
-            "up",
-            "-d",
-            "prometheus",
-            "grafana",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        _, stderr = await proc.communicate()
-        if proc.returncode != 0:
-            console.print(
-                f"[red]Error starting Observability:[/red]\n{stderr.decode('utf-8')}"
-            )  # pragma: no cover
-            raise typer.Exit(1)  # pragma: no cover
-        progress.update(
-            task_observability,
-            description="[green]✓ Observability ACTIVE (Grafana: 3000)[/green]",
+            task_injection,
+            description="[green]✓ Gateway Injection Complete[/green]",
             completed=True,
         )
 

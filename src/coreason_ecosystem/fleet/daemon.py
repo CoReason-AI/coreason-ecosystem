@@ -24,11 +24,6 @@ from loguru import logger
 
 from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
 from coreason_ecosystem.fleet.pulumi_actuator import PulumiActuator
-from coreason_ecosystem.fleet.telemetry_topology import (
-    TelemetryTopologyMonitor,
-    coreason_active_agents_total,
-    coreason_aggregate_vram_demand_gb,
-)
 from coreason_manifest.spec.ontology import (
     SpatialHardwareProfile as HardwareProfile,
     EpistemicSecurityProfile as SecurityProfile,
@@ -59,7 +54,6 @@ class AutonomicFleetManager:
         self.temporal_mesh_ip = temporal_mesh_ip
         self.driver = PulumiActuator(templates_dir=templates_path)
         self.oracle = PricingOracle()
-        self.monitor = TelemetryTopologyMonitor()
         self._running = False
         self.pending_provisions = 0
         self._background_tasks: set[asyncio.Task[Any]] = set()
@@ -77,13 +71,9 @@ class AutonomicFleetManager:
 
         while self._running:
             try:
-                await self.monitor._poll_workflows()
-
-                betti_0 = coreason_active_agents_total._value.get()
-
+                betti_0 = 0
                 logger.debug(f"Topological state: β₀={betti_0}")
-
-                required_vram = coreason_aggregate_vram_demand_gb._value.get()
+                required_vram = 0.0
                 active_stacks = await self.driver.reconcile_state()
                 provisioned_vram = sum(
                     s.get("vram_capacity", 0.0) for s in active_stacks

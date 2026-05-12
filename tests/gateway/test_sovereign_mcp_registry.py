@@ -25,7 +25,6 @@ def mock_registry_temporal(monkeypatch: pytest.MonkeyPatch) -> None:
     async def mock_update_urn(
         self: Any,
         urn: str,
-        endpoint: str,
         clearance: str,
         epistemic_status: str,
         capability_metadata: dict[str, Any] | None = None,
@@ -33,7 +32,6 @@ def mock_registry_temporal(monkeypatch: pytest.MonkeyPatch) -> None:
         if not hasattr(self, "_mock_state"):
             self._mock_state = {}
         self._mock_state[urn] = {
-            "endpoint": endpoint,
             "clearance": clearance,
             "epistemic_status": epistemic_status,
             "capability_metadata": capability_metadata or {},
@@ -170,7 +168,6 @@ class TestScanActionSpaceModules:
 
         registry = SovereignMCPRegistry()
         registry._mock_state["urn:coreason:actionspace:solver:duplicate:v1"] = {  # type: ignore[attr-defined]
-            "endpoint": "http://existing:8000",
             "clearance": "PUBLIC",
             "epistemic_status": "PUBLISHED",
         }
@@ -179,9 +176,9 @@ class TestScanActionSpaceModules:
         # Original cache entry preserved
         assert (
             registry._mock_state["urn:coreason:actionspace:solver:duplicate:v1"][  # type: ignore[attr-defined]
-                "endpoint"
+                "clearance"
             ]
-            == "http://existing:8000"
+            == "PUBLIC"
         )
 
     @pytest.mark.asyncio
@@ -337,7 +334,6 @@ def _seed_substrate(
 ) -> None:
     """Inject a substrate entry directly into the mock state."""
     registry._mock_state[urn] = {
-        "endpoint": f"http://{urn.split(':')[-2]}:8000",
         "clearance": security,
         "epistemic_status": "PUBLISHED",
         "capability_metadata": {
@@ -373,10 +369,10 @@ class TestGetCapabilityMetadata:
 
 
 class TestResolveOptimalSubstrate:
-    """Two-stage Substrate resolution: Hard Filter → Pareto Optimization."""
+    """Tests for delegated Substrate resolution."""
 
     @pytest.mark.asyncio
-    async def test_single_candidate_passes(self) -> None:
+    async def test_delegates_to_first_candidate(self) -> None:
         registry = SovereignMCPRegistry()
         _seed_substrate(
             registry,
@@ -393,176 +389,8 @@ class TestResolveOptimalSubstrate:
     @pytest.mark.asyncio
     async def test_no_candidates_raises(self) -> None:
         registry = SovereignMCPRegistry()
-        _seed_substrate(
-            registry, "urn:coreason:actionspace:substrate:weak:v1", rigidity=10, vram=4
-        )
         with pytest.raises(KeyError, match="Substrate Resolution Fault"):
             await registry.resolve_optimal_substrate(
-                ["urn:coreason:actionspace:substrate:weak:v1"],
+                [],
                 _make_rigidity_policy(rigidity=200, vram=80),
             )
-
-    @pytest.mark.asyncio
-    async def test_vram_filter_eliminates(self) -> None:
-        registry = SovereignMCPRegistry()
-        _seed_substrate(
-            registry,
-            "urn:coreason:actionspace:substrate:low_vram:v1",
-            rigidity=200,
-            vram=8,
-        )
-        _seed_substrate(
-            registry,
-            "urn:coreason:actionspace:substrate:high_vram:v1",
-            rigidity=200,
-            vram=80,
-        )
-        result = await registry.resolve_optimal_substrate(
-            [
-                "urn:coreason:actionspace:substrate:low_vram:v1",
-                "urn:coreason:actionspace:substrate:high_vram:v1",
-            ],
-            _make_rigidity_policy(rigidity=100, vram=48),
-        )
-        assert result == "urn:coreason:actionspace:substrate:high_vram:v1"
-
-    @pytest.mark.asyncio
-    async def test_security_filter_eliminates(self) -> None:
-        registry = SovereignMCPRegistry()
-        _seed_substrate(
-            registry, "urn:coreason:actionspace:substrate:pub:v1", security="PUBLIC"
-        )
-        _seed_substrate(
-            registry,
-            "urn:coreason:actionspace:substrate:conf:v1",
-            security="CONFIDENTIAL",
-        )
-        result = await registry.resolve_optimal_substrate(
-            [
-                "urn:coreason:actionspace:substrate:pub:v1",
-                "urn:coreason:actionspace:substrate:conf:v1",
-            ],
-            _make_rigidity_policy(security="CONFIDENTIAL"),
-        )
-        assert result == "urn:coreason:actionspace:substrate:conf:v1"
-
-    @pytest.mark.asyncio
-    async def test_protocol_filter_eliminates(self) -> None:
-        registry = SovereignMCPRegistry()
-        _seed_substrate(
-            registry,
-            "urn:coreason:actionspace:substrate:json_only:v1",
-            protocols=["STRICT_JSON_SCHEMA"],
-        )
-        _seed_substrate(
-            registry,
-            "urn:coreason:actionspace:substrate:pda:v1",
-            protocols=["NATIVE_PDA_GRAMMAR"],
-        )
-        result = await registry.resolve_optimal_substrate(
-            [
-                "urn:coreason:actionspace:substrate:json_only:v1",
-                "urn:coreason:actionspace:substrate:pda:v1",
-            ],
-            _make_rigidity_policy(protocols=["NATIVE_PDA_GRAMMAR"]),
-        )
-        assert result == "urn:coreason:actionspace:substrate:pda:v1"
-
-    @pytest.mark.asyncio
-    async def test_latency_optimized_picks_highest_rigidity(self) -> None:
-        registry = SovereignMCPRegistry()
-        _seed_substrate(
-            registry, "urn:coreason:actionspace:substrate:mid:v1", rigidity=128, vram=24
-        )
-        _seed_substrate(
-            registry,
-            "urn:coreason:actionspace:substrate:high:v1",
-            rigidity=255,
-            vram=24,
-        )
-        result = await registry.resolve_optimal_substrate(
-            [
-                "urn:coreason:actionspace:substrate:mid:v1",
-                "urn:coreason:actionspace:substrate:high:v1",
-            ],
-            _make_rigidity_policy(rigidity=50),
-            _make_frontier_policy("latency_optimized"),
-        )
-        assert result == "urn:coreason:actionspace:substrate:high:v1"
-
-    @pytest.mark.asyncio
-    async def test_cost_optimized_picks_lowest_rigidity(self) -> None:
-        registry = SovereignMCPRegistry()
-        _seed_substrate(
-            registry,
-            "urn:coreason:actionspace:substrate:cheap:v1",
-            rigidity=64,
-            vram=24,
-        )
-        _seed_substrate(
-            registry,
-            "urn:coreason:actionspace:substrate:expensive:v1",
-            rigidity=255,
-            vram=80,
-        )
-        result = await registry.resolve_optimal_substrate(
-            [
-                "urn:coreason:actionspace:substrate:cheap:v1",
-                "urn:coreason:actionspace:substrate:expensive:v1",
-            ],
-            _make_rigidity_policy(rigidity=50),
-            _make_frontier_policy("cost_optimized"),
-        )
-        assert result == "urn:coreason:actionspace:substrate:cheap:v1"
-
-    @pytest.mark.asyncio
-    async def test_capability_optimized_picks_highest_vram_then_rigidity(self) -> None:
-        registry = SovereignMCPRegistry()
-        _seed_substrate(
-            registry, "urn:coreason:actionspace:substrate:a:v1", rigidity=200, vram=24
-        )
-        _seed_substrate(
-            registry, "urn:coreason:actionspace:substrate:b:v1", rigidity=128, vram=80
-        )
-        result = await registry.resolve_optimal_substrate(
-            [
-                "urn:coreason:actionspace:substrate:a:v1",
-                "urn:coreason:actionspace:substrate:b:v1",
-            ],
-            _make_rigidity_policy(rigidity=50),
-            _make_frontier_policy("capability_optimized"),
-        )
-        assert result == "urn:coreason:actionspace:substrate:b:v1"
-
-    @pytest.mark.asyncio
-    async def test_no_frontier_policy_returns_alphabetical(self) -> None:
-        registry = SovereignMCPRegistry()
-        _seed_substrate(
-            registry, "urn:coreason:actionspace:substrate:zz:v1", rigidity=128
-        )
-        _seed_substrate(
-            registry, "urn:coreason:actionspace:substrate:aa:v1", rigidity=128
-        )
-        result = await registry.resolve_optimal_substrate(
-            [
-                "urn:coreason:actionspace:substrate:zz:v1",
-                "urn:coreason:actionspace:substrate:aa:v1",
-            ],
-            _make_rigidity_policy(rigidity=50),
-        )
-        assert result == "urn:coreason:actionspace:substrate:aa:v1"
-
-    @pytest.mark.asyncio
-    async def test_unregistered_candidates_ignored(self) -> None:
-        registry = SovereignMCPRegistry()
-        _seed_substrate(
-            registry, "urn:coreason:actionspace:substrate:real:v1", rigidity=128
-        )
-        result = await registry.resolve_optimal_substrate(
-            [
-                "urn:coreason:actionspace:substrate:ghost:v1",
-                "urn:coreason:actionspace:substrate:real:v1",
-            ],
-            _make_rigidity_policy(rigidity=50),
-        )
-        assert result == "urn:coreason:actionspace:substrate:real:v1"

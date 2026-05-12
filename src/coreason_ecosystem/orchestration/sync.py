@@ -17,7 +17,6 @@ import typer
 from rich.status import Status
 
 from coreason_ecosystem.cli import console
-from coreason_ecosystem.orchestration.build import execute_build
 from coreason_ecosystem.orchestration.registry import (
     calculate_epistemic_root,
     write_registry_lock,
@@ -91,10 +90,6 @@ async def execute_sync() -> None:
             import json
 
             json.dump(schema, f, indent=4)
-
-        status.update("[magenta]Re-crystallizing Capabilities...[/magenta]")
-        await execute_build(str(project_path))
-
         # 3. Registry Sync
         status.update("[blue]Syncing Epistemic Registry...[/blue]")
         root_hash = await calculate_epistemic_root(project_path)

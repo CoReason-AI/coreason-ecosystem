@@ -37,3 +37,9 @@ capabilities:
     endpoint: "http://lean4-prover:8000"
     clearance: "RESTRICTED"
     epistemic_status: "SRB_APPROVED"
+
+  # ── Chaos Mesh Effector ──────────────────────────────────────────────
+  - urn: "urn:coreason:actionspace:effector:chaos_mesh:v1"
+    endpoint: "http://chaos-mesh-effector:8000"
+    clearance: "RESTRICTED"
+    epistemic_status: "SRB_APPROVED"

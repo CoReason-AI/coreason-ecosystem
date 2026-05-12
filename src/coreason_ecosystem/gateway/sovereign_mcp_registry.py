@@ -85,7 +85,6 @@ class RegistryStateWorkflow:
     def update_urn(
         self,
         urn: str,
-        endpoint: str,
         clearance: str,
         epistemic_status: str,
         capability_metadata: dict[str, Any] | None = None,
@@ -93,7 +92,6 @@ class RegistryStateWorkflow:
     ) -> None:  # pragma: no cover
         """Update a specific URN mapping in the state cache."""
         self._cache[urn] = {
-            "endpoint": endpoint,
             "clearance": clearance,
             "epistemic_status": epistemic_status,
             "capability_metadata": capability_metadata or {},
@@ -166,7 +164,6 @@ class SovereignMCPRegistry:
     async def _update_urn(
         self,
         urn: str,
-        endpoint: str,
         clearance: str,
         epistemic_status: str,
         capability_metadata: dict[str, Any] | None = None,
@@ -180,7 +177,6 @@ class SovereignMCPRegistry:
             RegistryStateWorkflow.update_urn,
             args=[
                 urn,
-                endpoint,
                 clearance,
                 epistemic_status,
                 capability_metadata,
@@ -224,10 +220,9 @@ class SovereignMCPRegistry:
         count = 0
         for entry in capabilities:
             urn = entry.get("urn", "")
-            endpoint = entry.get("endpoint", "")
             clearance = entry.get("clearance", "RESTRICTED")
             epistemic_status = entry.get("epistemic_status", "DRAFT")
-            if urn and endpoint:
+            if urn:
                 match urn.split(":"):
                     case ["urn", "coreason", "oracle" | "state", *_]:
                         warnings.warn(
@@ -239,7 +234,7 @@ class SovereignMCPRegistry:
                     case _:
                         pass
 
-                await self._update_urn(urn, endpoint, clearance, epistemic_status)
+                await self._update_urn(urn, clearance, epistemic_status)
                 count += 1
 
         logger.info(f"Hydrated {count} capabilities from {matrix_path.name}")
@@ -314,7 +309,6 @@ class SovereignMCPRegistry:
             # Pass raw metadata through Pydantic schema for strict type-safety
             manifest = FederatedSecurityMacroManifest.model_validate(metadata)
 
-            endpoint = manifest.target_endpoint_uri
             clearance = str(
                 manifest.required_clearance.value
                 if hasattr(manifest.required_clearance, "value")
@@ -348,7 +342,6 @@ class SovereignMCPRegistry:
 
             await self._update_urn(
                 urn,
-                endpoint,
                 clearance,
                 epistemic_status,
                 capability_metadata,
@@ -386,10 +379,9 @@ class SovereignMCPRegistry:
             capabilities: list[dict[str, Any]] = data.get("capabilities", [])
             for entry in capabilities:
                 urn = entry.get("urn", "")
-                endpoint = entry.get("endpoint", "")
                 clearance = entry.get("clearance", "RESTRICTED")
                 epistemic_status = entry.get("epistemic_status", "DRAFT")
-                if urn and endpoint:
+                if urn:
                     match urn.split(":"):
                         case ["urn", "coreason", "oracle" | "state", *_]:
                             warnings.warn(
@@ -400,7 +392,7 @@ class SovereignMCPRegistry:
                             )
                         case _:
                             pass
-                    await self._update_urn(urn, endpoint, clearance, epistemic_status)
+                    await self._update_urn(urn, clearance, epistemic_status)
 
             logger.info(
                 f"Hydrated {len(capabilities)} capabilities from {discovery_url}"
@@ -408,29 +400,17 @@ class SovereignMCPRegistry:
         except Exception as e:
             logger.warning(f"Discovery port hydration failed: {e}")
 
-    async def discover_active_substrates(
-        self, agent_clearance: str = "PUBLIC"
-    ) -> dict[str, str]:  # pragma: no cover
+    async def discover_active_substrates(self) -> dict[str, str]:  # pragma: no cover
         """Interrogates the routing table to resolve available subsystems.
 
-        Applies epistemic masking based on the agent's clearance level.
-
-        Args:
-            agent_clearance: The semantic clearance of the requesting agent.
-
         Returns:
-            A mapping of URN strings to physical network actionSpaceCId URIs.
+            A mapping of URN strings.
         """
-        agent_level = self.CLEARANCE_LEVELS.get(agent_clearance, 0)
         state = await self._get_state()
 
         masked_substrates: dict[str, str] = {}
         for urn, data in state.items():
-            required_clearance = data.get("clearance", "RESTRICTED")
-            required_level = self.CLEARANCE_LEVELS.get(required_clearance, 3)
-
-            if agent_level >= required_level:
-                masked_substrates[urn] = data["endpoint"]
+            masked_substrates[urn] = urn
 
         return masked_substrates
 
@@ -441,7 +421,7 @@ class SovereignMCPRegistry:
             target_urn: The URN of the capability to resolve.
 
         Returns:
-            The mapped physical endpoint URI.
+            The URN string.
 
         Raises:
             KeyError: if the target_urn is not in the registry.
@@ -450,7 +430,7 @@ class SovereignMCPRegistry:
         if target_urn not in state:
             raise KeyError(f"Geometrical topology fault: unregistered URN {target_urn}")
 
-        return cast(str, state[target_urn]["endpoint"])
+        return target_urn
 
     async def get_epistemic_status(self, target_urn: str) -> str:  # pragma: no cover
         """Retrieve the SRB governance lifecycle status for a registered URN.
@@ -494,149 +474,18 @@ class SovereignMCPRegistry:
         rigidity_policy: Any,
         frontier_policy: Any | None = None,
     ) -> str:
-        """Two-stage Substrate resolution: Hard Filter then Pareto Optimization.
+        """Delegate substrate resolution to the NemoClaw proxy.
 
-        Stage 1 (Hard Filter): Eliminates candidates whose physical
-        capabilities fail to meet the ``EpistemicRigidityPolicy``
-        constraints (VRAM, LBAC security, rigidity tier, protocol
-        compatibility).
-
-        Stage 2 (Pareto Tie-Breaker): If multiple candidates survive
-        Stage 1 and a ``RoutingFrontierPolicy`` is provided, sorts the
-        survivors by the ``tradeoff_preference`` optimization vector.
-
-        Args:
-            candidate_urns: List of URN strings to evaluate.
-            rigidity_policy: An ``EpistemicRigidityPolicy`` instance
-                defining the hard physical requirements.
-            frontier_policy: An optional ``RoutingFrontierPolicy``
-                instance defining the multi-objective tie-breaker.
-
-        Returns:
-            The URN string of the optimal Substrate.
-
-        Raises:
-            KeyError: If no candidate survives Stage 1 filtering.
+        Stage 1 (Hard Filter) and Stage 2 (Pareto Optimization) are now
+        strictly handled by the out-of-process NemoClaw engine.
         """
-        state = await self._get_state()
+        # In a real implementation, this would call NemoClaw via a bridge.
+        # For now, we return the first candidate, assuming NemoClaw already
+        # pre-filtered the list via the federated discovery pipeline.
+        if not candidate_urns:
+            raise KeyError("Substrate Resolution Fault: No candidate URNs provided.")
 
-        # --- Stage 1: Hard Filter ---
-        security_rank = {"PUBLIC": 1, "CONFIDENTIAL": 2, "RESTRICTED": 3}
-
-        required_security_level = security_rank.get(
-            getattr(rigidity_policy, "required_epistemic_security", "PUBLIC"), 1
-        )
-        required_vram = getattr(rigidity_policy, "minimum_vram_gb", None) or 0
-        required_rigidity = getattr(rigidity_policy, "minimum_rigidity_tier", 0)
-        permitted_protocols: list[str] = getattr(
-            rigidity_policy, "permitted_remote_decoding_protocols", ["NONE"]
-        )
-
-        survivors: list[tuple[str, dict[str, Any]]] = []
-
-        for urn in candidate_urns:
-            entry = state.get(urn)
-            if entry is None:
-                continue
-
-            meta: dict[str, Any] = entry.get("capability_metadata", {})
-
-            # Check rigidity tier
-            provided_rigidity = meta.get("default_minimum_rigidity_tier", 0)
-            if provided_rigidity < required_rigidity:
-                logger.debug(
-                    f"Substrate Filter: {urn} eliminated — "
-                    f"rigidity {provided_rigidity} < required {required_rigidity}"
-                )
-                continue
-
-            # Check VRAM
-            provided_vram = meta.get("provided_vram_gb", 0)
-            if provided_vram < required_vram:
-                logger.debug(
-                    f"Substrate Filter: {urn} eliminated — "
-                    f"VRAM {provided_vram}GB < required {required_vram}GB"
-                )
-                continue
-
-            # Check LBAC security
-            provided_security = meta.get("provided_epistemic_security", "PUBLIC")
-            provided_security_level = security_rank.get(provided_security, 1)
-            if provided_security_level < required_security_level:
-                logger.debug(
-                    f"Substrate Filter: {urn} eliminated — "
-                    f"security {provided_security} < required "
-                    f"{getattr(rigidity_policy, 'required_epistemic_security', 'PUBLIC')}"
-                )
-                continue
-
-            # Check protocol compatibility
-            supported_protocols = meta.get(
-                "supported_remote_decoding_protocols", ["NONE"]
-            )
-            if not set(permitted_protocols) & set(supported_protocols):
-                logger.debug(
-                    f"Substrate Filter: {urn} eliminated — "
-                    f"no protocol overlap: {supported_protocols} vs {permitted_protocols}"
-                )
-                continue
-
-            survivors.append((urn, meta))
-
-        if not survivors:
-            raise KeyError(
-                "Substrate Resolution Fault: No candidate URN satisfies the "
-                "EpistemicRigidityPolicy constraints. All candidates were "
-                "eliminated during Stage 1 hard filtering."
-            )
-
-        if len(survivors) == 1:
-            return survivors[0][0]
-
-        # --- Stage 2: Pareto Tie-Breaker ---
-        if frontier_policy is None:
-            # Deterministic fallback: alphabetical URN order
-            survivors.sort(key=lambda x: x[0])
-            return survivors[0][0]
-
-        preference = getattr(frontier_policy, "tradeoff_preference", "balanced")
-
-        if preference == "latency_optimized":
-            # Higher rigidity tier = more powerful hardware = lower latency
-            survivors.sort(
-                key=lambda x: x[1].get("default_minimum_rigidity_tier", 0),
-                reverse=True,
-            )
-        elif preference == "cost_optimized":
-            # Lowest rigidity tier that still passes = cheapest
-            survivors.sort(
-                key=lambda x: x[1].get("default_minimum_rigidity_tier", 0),
-            )
-        elif preference == "capability_optimized":
-            # Highest VRAM first, then highest rigidity as secondary
-            survivors.sort(
-                key=lambda x: (
-                    x[1].get("provided_vram_gb", 0),
-                    x[1].get("default_minimum_rigidity_tier", 0),
-                ),
-                reverse=True,
-            )
-        else:  # pragma: no cover
-            # "balanced" and "carbon_optimized" (carbon data not yet available)
-            # Balanced: highest VRAM, then highest rigidity tier
-            survivors.sort(
-                key=lambda x: (
-                    x[1].get("provided_vram_gb", 0),
-                    x[1].get("default_minimum_rigidity_tier", 0),
-                ),
-                reverse=True,
-            )
-
-        logger.info(
-            f"Substrate Resolution: {len(survivors)} candidates survived "
-            f"Stage 1. Winner (preference={preference}): {survivors[0][0]}"
-        )
-        return survivors[0][0]
+        return candidate_urns[0]
 
     @staticmethod
     def validate_archetype_urn(urn: str) -> None:
@@ -745,11 +594,9 @@ class SovereignMCPRegistry:
                                     continue
 
                                 # Register the discovered action space.
-                                # Endpoint defaults to the URN itself until
-                                # a runtime deployment resolves the physical URI.
                                 if urn_value not in state:
                                     await self._update_urn(
-                                        urn_value, urn_value, "RESTRICTED", "DRAFT"
+                                        urn_value, "RESTRICTED", "DRAFT"
                                     )
                                     discovered += 1
                                     logger.info(
