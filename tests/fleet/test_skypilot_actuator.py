@@ -11,6 +11,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from coreason_ecosystem.fleet.skypilot_actuator import SkyPilotActuator, SkyPilotTarget
+from typing import Any, Generator
 from coreason_manifest.spec.ontology import (
     SpatialHardwareProfile as HardwareProfile,
     EpistemicSecurityProfile as SecurityProfile,
@@ -18,18 +19,18 @@ from coreason_manifest.spec.ontology import (
 
 
 @pytest.fixture
-def mock_sky():
+def mock_sky() -> Generator[Any, None, None]:
     with patch("coreason_ecosystem.fleet.skypilot_actuator.sky") as mock:
         yield mock
 
 
 @pytest.fixture
-def actuator():
+def actuator() -> SkyPilotActuator:
     return SkyPilotActuator()
 
 
 @pytest.mark.asyncio
-async def test_provision_node_basic(actuator, mock_sky):
+async def test_provision_node_basic(actuator: SkyPilotActuator, mock_sky: Any) -> None:
     target = SkyPilotTarget(use_spot=True, autostop_idle_minutes=15)
 
     mock_sky.launch.return_value = "job-123"
@@ -45,7 +46,7 @@ async def test_provision_node_basic(actuator, mock_sky):
 
 
 @pytest.mark.asyncio
-async def test_provision_node_with_hardware(actuator, mock_sky):
+async def test_provision_node_with_hardware(actuator: SkyPilotActuator, mock_sky: Any) -> None:
     hardware = HardwareProfile(accelerator_type="urn:coreason:accelerator:h100")
     target = SkyPilotTarget(hardware_profile=hardware, use_spot=False)
 
@@ -58,7 +59,7 @@ async def test_provision_node_with_hardware(actuator, mock_sky):
 
 
 @pytest.mark.asyncio
-async def test_destroy_node(actuator, mock_sky):
+async def test_destroy_node(actuator: SkyPilotActuator, mock_sky: Any) -> None:
     mock_sky.down.return_value = "job-789"
     mock_sky.get.return_value = None
 
@@ -69,7 +70,7 @@ async def test_destroy_node(actuator, mock_sky):
 
 
 @pytest.mark.asyncio
-async def test_reconcile_state(actuator, mock_sky):
+async def test_reconcile_state(actuator: SkyPilotActuator, mock_sky: Any) -> None:
     mock_sky.status.return_value = "job-status"
     mock_handle = MagicMock()
     mock_handle.cloud.name.return_value = "aws"
@@ -93,7 +94,7 @@ async def test_reconcile_state(actuator, mock_sky):
 
 
 @pytest.mark.asyncio
-async def test_thermodynamic_guillotine(actuator, mock_sky):
+async def test_thermodynamic_guillotine(actuator: SkyPilotActuator, mock_sky: Any) -> None:
     # Setup reconcile_state mock
     mock_sky.status.return_value = "job-status"
     mock_sky.get.side_effect = [
@@ -108,13 +109,13 @@ async def test_thermodynamic_guillotine(actuator, mock_sky):
 
 
 @pytest.mark.asyncio
-async def test_thermodynamic_guillotine_no_breach(actuator, mock_sky):
+async def test_thermodynamic_guillotine_no_breach(actuator: SkyPilotActuator, mock_sky: Any) -> None:
     await actuator.execute_thermodynamic_guillotine(False)
     mock_sky.status.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_provision_node_with_mesh_injection(actuator, mock_sky):
+async def test_provision_node_with_mesh_injection(actuator: SkyPilotActuator, mock_sky: Any) -> None:
     hardware = HardwareProfile(accelerator_type="urn:coreason:accelerator:a100")
     security = SecurityProfile()
     target = SkyPilotTarget(
@@ -126,12 +127,11 @@ async def test_provision_node_with_mesh_injection(actuator, mock_sky):
     )
 
     # Mock MeshInjector
-    actuator.injector.compile_payload = MagicMock(return_value="payload-b64")
+    with patch.object(actuator.injector, "compile_payload", return_value="payload-b64"):
+        mock_sky.launch.return_value = "job-mesh"
+        mock_sky.get.return_value = {"status": "SUCCESS"}
 
-    mock_sky.launch.return_value = "job-mesh"
-    mock_sky.get.return_value = {"status": "SUCCESS"}
-
-    await actuator.provision_node(target)
+        await actuator.provision_node(target)
 
     # Verify setup commands were generated
     task_call_args = mock_sky.Task.call_args
@@ -142,7 +142,7 @@ async def test_provision_node_with_mesh_injection(actuator, mock_sky):
 
 
 @pytest.mark.asyncio
-async def test_reconcile_state_handle_exception(actuator, mock_sky):
+async def test_reconcile_state_handle_exception(actuator: SkyPilotActuator, mock_sky: Any) -> None:
     mock_sky.status.return_value = "job-status"
 
     # Create a mock cluster where accessing handle.cloud.name raises an exception
