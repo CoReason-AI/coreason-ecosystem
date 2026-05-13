@@ -134,6 +134,3 @@ async def test_execute_sync_docker_compose_fails(
         await execute_sync()
 
     assert exc.value.exit_code == 1
-
-
-

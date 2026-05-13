@@ -168,8 +168,6 @@ async def test_invoke_actuator_builtin_commands(
         mock_up.assert_called_once()
 
 
-
-
 @respx.mock
 @pytest.mark.asyncio
 async def test_invoke_actuator_nemoclaw_routing() -> None:
@@ -209,9 +207,7 @@ async def test_invoke_actuator_nemoclaw_exceptions() -> None:
         respx.post(
             "https://nemoclaw:8443/v1/mcp/urn:coreason:oracle:mathematics/tools/call"
         ).mock(return_value=httpx.Response(400, json={"error": "bad"}))
-        with pytest.raises(
-            RuntimeError, match="Security Policy Violation"
-        ):
+        with pytest.raises(RuntimeError, match="Security Policy Violation"):
             await invoke_actuator("urn:coreason:oracle:mathematics", {"arg": "val"})
 
         respx.post(

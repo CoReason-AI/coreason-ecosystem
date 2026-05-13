@@ -21,7 +21,6 @@ from coreason_ecosystem.orchestration.registry import (
     calculate_epistemic_root,
     write_registry_lock,
 )
-from loguru import logger
 
 
 import shutil

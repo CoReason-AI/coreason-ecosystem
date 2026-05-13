@@ -40,7 +40,9 @@ def test_mesh_gateway() -> None:
 
 
 def test_zero_copy_streaming_mock() -> None:
-    valid_cid = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    valid_cid = (
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    )
     stream = ZeroCopyStreamingMock()
     stream.store_blob(valid_cid, b"mocked_binary_content")
 
