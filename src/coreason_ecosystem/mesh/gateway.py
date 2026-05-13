@@ -31,7 +31,16 @@ class MeshGateway:
 
     def handle_discovery_intent(self, intent: FederatedDiscoveryIntent) -> List[str]:
         """Handles a discovery intent and returns a list of peer IPs."""
-        if intent.target_capability_cid:
-            cid_str = str(intent.target_capability_cid)
-            return self.dht.resolve_capability(cid_str)
-        return []
+        results: List[str] = []
+        for urn, ips in self.dht._store.items():
+            # Check domain filter
+            if not intent.domain_filter:
+                results.extend(list(ips))
+                continue
+
+            for domain in intent.domain_filter:
+                # Match domain in URN (e.g. urn:coreason:actionspace:solver:...)
+                if f":{domain}:" in urn or urn.endswith(f":{domain}"):
+                    results.extend(list(ips))
+                    break
+        return sorted(list(set(results)))

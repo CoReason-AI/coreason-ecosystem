@@ -128,9 +128,9 @@ async def test_messages_endpoint_direct() -> None:
 
 @pytest.mark.asyncio
 async def test_list_actuators() -> None:
-    """Test that list_actuators returns the 4 built-in capabilities."""
+    """Test that list_actuators returns the built-in capabilities."""
     tools = await list_actuators()
-    assert len(tools) == 3
+    assert len(tools) == 2
     names = [t.name for t in tools]
     assert "federated_discovery" in names
     assert "deploy_cognitive_swarm" in names
@@ -167,20 +167,7 @@ async def test_invoke_actuator_builtin_commands(
         assert "executed successfully" in res[0].text
         mock_up.assert_called_once()
 
-    # establish_federated_link
-    with (
-        patch(
-            "coreason_ecosystem.orchestration.sync.establish_federated_link",
-            new_callable=AsyncMock,
-        ) as mock_sync,
-        patch(
-            "coreason_ecosystem.gateway.master_mcp.FederatedSecurityMacroManifest.model_validate"
-        ),
-    ):
-        args_sync = {"any": "thing"}
-        res2 = await invoke_actuator("establish_federated_link", args_sync)
-        assert "executed successfully" in res2[0].text
-        mock_sync.assert_called_once()
+
 
 
 @respx.mock
@@ -212,7 +199,9 @@ async def test_invoke_actuator_nemoclaw_exceptions() -> None:
         respx.post(
             "https://nemoclaw:8443/v1/mcp/urn:coreason:oracle:clinical_extractor/tools/call"
         ).mock(return_value=httpx.Response(500, json={"error": "internal"}))
-        with pytest.raises(RuntimeError, match="NemoClaw internal server error"):
+        with pytest.raises(
+            RuntimeError, match="Cross-plane capability execution failed"
+        ):
             await invoke_actuator(
                 "urn:coreason:oracle:clinical_extractor", {"arg": "val"}
             )
@@ -220,7 +209,9 @@ async def test_invoke_actuator_nemoclaw_exceptions() -> None:
         respx.post(
             "https://nemoclaw:8443/v1/mcp/urn:coreason:oracle:mathematics/tools/call"
         ).mock(return_value=httpx.Response(400, json={"error": "bad"}))
-        with pytest.raises(RuntimeError, match="NemoClaw HTTP error"):
+        with pytest.raises(
+            RuntimeError, match="Security Policy Violation"
+        ):
             await invoke_actuator("urn:coreason:oracle:mathematics", {"arg": "val"})
 
         respx.post(

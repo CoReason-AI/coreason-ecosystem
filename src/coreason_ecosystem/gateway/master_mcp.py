@@ -9,18 +9,14 @@ import mcp.server
 import mcp.types as types
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.gateway.nemoclaw_client import NemoClawBridgeClient
-from coreason_ecosystem.gateway.state_manifests import (
-    FederatedDiscoveryIntent,
-)
-from coreason_ecosystem.orchestration import up, sync
+from coreason_ecosystem.orchestration import up
 from coreason_manifest.spec.ontology import (
     CognitiveSwarmDeploymentManifest,
-    FederatedSecurityMacroManifest,
+    FederatedDiscoveryIntent,
 )
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from mcp.server.sse import SseServerTransport
-import httpx
 from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
@@ -163,13 +159,6 @@ async def list_actuators() -> list[types.Tool]:
             inputSchema=CognitiveSwarmDeploymentManifest.model_json_schema(),
         )
     )
-    actuator_manifests.append(
-        types.Tool(
-            name="establish_federated_link",
-            description="Macro-Manifest Deployment: Establish federated link. Hollow Plane proxy endpoint.",
-            inputSchema=FederatedSecurityMacroManifest.model_json_schema(),
-        )
-    )
 
     return actuator_manifests
 
@@ -189,15 +178,6 @@ async def invoke_actuator(
         return [
             types.TextContent(
                 type="text", text="deploy_cognitive_swarm executed successfully"
-            )
-        ]
-
-    if name == "establish_federated_link":
-        manifest_link = FederatedSecurityMacroManifest.model_validate(arguments)
-        await sync.establish_federated_link(manifest_link)
-        return [
-            types.TextContent(
-                type="text", text="establish_federated_link executed successfully"
             )
         ]
 

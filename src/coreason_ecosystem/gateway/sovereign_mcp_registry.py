@@ -254,10 +254,6 @@ class SovereignMCPRegistry:
             json_path: Path to the JSON matrix file.
         """
         import json
-        from coreason_manifest.spec.ontology import (
-            FederatedSecurityMacroManifest,
-        )
-
         raw = json.loads(json_path.read_text(encoding="utf-8"))
         count = 0
         for urn, metadata in raw.items():
@@ -279,9 +275,9 @@ class SovereignMCPRegistry:
             # Extract the content-addressed hash for zero-trust verification
             content_hash = metadata.pop("content_hash", "")
 
-            # Extract capability metadata fields that are not part of FederatedSecurityMacroManifest.
+            # Extract capability metadata fields that are not part of the manifest.
             # These fields are injected by the coreason-urn-authority compile_registry.py
-            # and must be stripped before strict Pydantic validation (CoreasonBaseState extra='forbid').
+            # and must be stripped before strict Pydantic validation.
             capability_metadata: dict[str, Any] = {
                 "path": metadata.pop("path", ""),
                 "default_clearance_tiers": metadata.pop(
@@ -299,14 +295,9 @@ class SovereignMCPRegistry:
                 ),
             }
 
-            # Pass raw metadata through Pydantic schema for strict type-safety
-            manifest = FederatedSecurityMacroManifest.model_validate(metadata)
-
-            clearance = str(
-                manifest.required_clearance.value
-                if hasattr(manifest.required_clearance, "value")
-                else manifest.required_clearance
-            )
+            # FederatedSecurityMacroManifest was removed in v0.56.0.
+            # We now use the raw metadata dictionary.
+            clearance = str(metadata.get("required_clearance", "RESTRICTED")).upper()
 
             if _ACTIONSPACE_URN_PATTERN.match(urn):
                 pass  # Modern multi-authority actionspace URN

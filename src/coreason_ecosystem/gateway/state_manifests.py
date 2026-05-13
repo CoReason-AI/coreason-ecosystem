@@ -2,12 +2,6 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
-from coreason_manifest import (
-    FederatedDiscoveryIntent,
-    OntologicalNormalizationIntent,
-    OracleExecutionReceipt,
-)
-
 
 class SubstrateCapabilityProfile(BaseModel):
     """Typed representation of Substrate physical capability metadata.
@@ -52,8 +46,6 @@ class SubstrateCapabilityProfile(BaseModel):
             "constrained decoding offload."
         ),
     )
-
-
 
 
 class CapabilityEntry(BaseModel):

@@ -21,7 +21,6 @@ from coreason_ecosystem.orchestration.registry import (
     calculate_epistemic_root,
     write_registry_lock,
 )
-from coreason_manifest.spec.ontology import FederatedSecurityMacroManifest
 from loguru import logger
 
 
@@ -137,14 +136,3 @@ async def execute_sync() -> None:
 
         status.update("[green]Swarm Restored.[/green]")
         console.print("[bold green]✓ Autopoietic Healing Complete[/bold green]")
-
-
-async def establish_federated_link(manifest: FederatedSecurityMacroManifest) -> None:
-    """Establish a federated link based on the macro manifest.
-
-    Executes the synchronization of federated meshes (local healing via execute_sync).
-    """
-    logger.info(
-        f"[Thermodynamic Actuator] Establishing Federated Link with target mesh: {manifest.target_endpoint_uri}"
-    )
-    await execute_sync()
