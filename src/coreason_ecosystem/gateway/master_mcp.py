@@ -1,21 +1,31 @@
+# Copyright (c) 2026 CoReason, Inc
+#
+# This software is proprietary and dual-licensed
+# Licensed under the Prosperity Public License 3.0 (the "License")
+# A copy of the license is available at <https://prosperitylicense.com/versions/3.0.0>
+# For details, see the LICENSE file
+# Commercial use beyond a 30-day trial requires a separate license
+#
+# Source Code: <https://github.com/CoReason-AI/coreason-ecosystem>
+
 import contextvars
 import hashlib
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 
 import mcp.server
 import mcp.types as types
-from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.gateway.nemoclaw_client import NemoClawBridgeClient
+from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 from coreason_ecosystem.orchestration import up
 from coreason_manifest.spec.ontology import (
     CognitiveSwarmDeploymentManifest,
     FederatedDiscoveryIntent,
 )
 from fastapi import FastAPI
-from contextlib import asynccontextmanager
 from mcp.server.sse import SseServerTransport
 from starlette.requests import Request
 
@@ -41,7 +51,6 @@ async def _hydrate_registry() -> None:
     is raised to instantly crash the boot sequence, strictly preventing the
     swarm from booting blind.
     """
-    import os
     from pathlib import Path
 
     await registry.initialize()

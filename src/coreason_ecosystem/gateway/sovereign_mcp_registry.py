@@ -254,6 +254,7 @@ class SovereignMCPRegistry:
             json_path: Path to the JSON matrix file.
         """
         import json
+
         raw = json.loads(json_path.read_text(encoding="utf-8"))
         count = 0
         for urn, metadata in raw.items():
