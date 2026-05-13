@@ -8,6 +8,7 @@ from typing import Any, AsyncGenerator
 import mcp.server
 import mcp.types as types
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
+from coreason_ecosystem.gateway.nemoclaw_client import NemoClawBridgeClient
 from coreason_ecosystem.gateway.state_manifests import (
     FederatedDiscoveryIntent,
 )
@@ -208,27 +209,14 @@ async def invoke_actuator(
         )
 
     nemoclaw_url = os.getenv("NEMOCLAW_URL", "https://nemoclaw:8443").rstrip("/")
-    url = f"{nemoclaw_url}/v1/mcp/{target_urn}/tools/call"
-    payload = {
-        "name": name,
-        "arguments": arguments,
-    }
+    client = NemoClawBridgeClient(nemoclaw_url)
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            result = response.json()
-            return [
-                types.TextContent(type="text", text=str(result.get("content", result)))
-            ]
-    except httpx.HTTPStatusError as e:
-        logger.error(
-            f"NemoClaw returned HTTP error: {e.response.status_code} - {e.response.text}"
-        )
-        if e.response.status_code == 500:
-            raise RuntimeError(f"NemoClaw internal server error: {e}") from e
-        raise RuntimeError(f"NemoClaw HTTP error: {e}") from e
+        result = await client.call_tool(target_urn, name, arguments)
+        return [types.TextContent(type="text", text=str(result.get("content", result)))]
+    except RuntimeError as e:
+        logger.error(f"NemoClaw security or execution fault: {e}")
+        raise
     except Exception as e:
         logger.error(f"Failed to proxy MCP request to NemoClaw: {e}")
         raise RuntimeError(f"Cross-plane capability execution failed: {e}")
