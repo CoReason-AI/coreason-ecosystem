@@ -53,22 +53,18 @@ class NemoClawBridgeClient:
                     # Emit GuardrailViolationEvent telemetry
                     event = GuardrailViolationEvent(
                         event_cid=str(uuid.uuid4()),
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(timezone.utc).timestamp(),
                         violation_id=str(uuid.uuid4()),
-                        message=f"Guardrail violation detected for tool {name} (URN: {target_urn})",
-                        level="WARNING",
-                        context_profile={
-                            "event_type": "GuardrailViolationEvent",
-                            "endpoint": url,
-                            "status_code": response.status_code,
-                            "target_urn": target_urn,
-                            "tool_name": name,
-                            "violation_details": response.text,
-                        },
+                        status_code=response.status_code,
                         violation_type="output_scan"
                         if response.status_code == 403
                         else "input_scan",
-                        mitigation_action="blocked",
+                        violation_details={
+                            "endpoint": url,
+                            "target_urn": target_urn,
+                            "tool_name": name,
+                            "raw_response": response.text,
+                        },
                     )
                     # In ecosystem, we might not have the same log_event as runtime,
                     # so we log it as a structured log for now, or use a shared utility.
