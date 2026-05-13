@@ -1,9 +1,0 @@
-# Copyright (c) 2026 CoReason, Inc. All rights reserved.
-#
-# This software is proprietary and dual-licensed.
-# Licensed under the Prosperity Public License 3.0.
-# For details, see the LICENSE file.
-
-# AGENTS.md
-
-# ... (I'll just use replace_file_content for these since I don't have the full content easily for all)
