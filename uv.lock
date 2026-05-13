@@ -540,7 +540,7 @@ dev = [
 requires-dist = [
     { name = "boto3", specifier = ">=1.38.0" },
     { name = "click", specifier = ">=8.1.7" },
-    { name = "coreason-manifest", git = "https://github.com/CoReason-AI/coreason-manifest.git?branch=fix%2Fprm-schema-restoration" },
+    { name = "coreason-manifest", specifier = "==0.55.2" },
     { name = "cryptography", specifier = ">=44.0.0" },
     { name = "fastapi", specifier = ">=0.135.3" },
     { name = "httpx", specifier = ">=0.27.0" },
@@ -595,8 +595,8 @@ dev = [
 
 [[package]]
 name = "coreason-manifest"
-version = "0.54.1.dev47+gea66ae328"
-source = { git = "https://github.com/CoReason-AI/coreason-manifest.git?branch=fix%2Fprm-schema-restoration#ea66ae328a28d4afbe1afc4719865ca5d2569d5a" }
+version = "0.55.2"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "canonicaljson" },
     { name = "jsonpatch" },
@@ -604,6 +604,10 @@ dependencies = [
     { name = "numpy" },
     { name = "pycrdt" },
     { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/23/ea/14433e50fdb6ba08adf64dcb81a65a13c577b892e530211970a26cf28f18/coreason_manifest-0.55.2.tar.gz", hash = "sha256:5d904d7e6c4d1be0710d1b520e80a89b2473e78869eccbddd3544babb91802c2", size = 842674, upload-time = "2026-05-13T12:53:37.869Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/29/53/61d00030134dc8a85482cf7816a4d78bf537bf522a4cc06468bdb8d724e1/coreason_manifest-0.55.2-py3-none-any.whl", hash = "sha256:9bf798ac58dab5065a0386c40b877d40768c3de11d7a8d21de8247d98cdd581a", size = 195047, upload-time = "2026-05-13T12:53:36.256Z" },
 ]
 
 [[package]]
