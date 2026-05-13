@@ -101,5 +101,5 @@ If any of the above verification commands yield a non-zero exit code (failure), 
 
 **CRITICAL INSTRUCTION TO AI AGENTS:** 
 I expect real tests. No mocks.
-You are strictly forbidden from using unittest.mock, pytest.MonkeyPatch, esponses, or any other mocking library to simulate environment variables, network calls, or API responses. 
+You are strictly forbidden from using unittest.mock, pytest.MonkeyPatch, responses, or any other mocking library to simulate environment variables, network calls, or API responses. 
 All tests MUST execute against real local servers, real environment state, or deterministic string/file inputs. Mocking produces false confidence and is mathematically classified as non-isomorphic testing.
