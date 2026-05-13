@@ -32,7 +32,7 @@ def test_mesh_injector_aws_isolated() -> None:
     )
     payload = base64.b64decode(payload_b64).decode("utf-8")
     assert "#cloud-config" in payload
-    assert "tailscale.com" in payload
+    assert "https://tailscale.com" in payload
     assert "test_auth_key" in payload
     assert "cilium endpoint config coreason.node.cid=test-node-123" in payload
     assert "10.0.0.5" in payload
