@@ -5,7 +5,7 @@
 
 ### Features
 
-* add CI workflow to automate documentation deployment and packag… ([64991ee](https://github.com/CoReason-AI/coreason-ecosystem/commit/64991ee19eebf468097c2318b24aaceae04477dc))
+* add CI workflow to automate documentation deployment and package publishing ([64991ee](https://github.com/CoReason-AI/coreason-ecosystem/commit/64991ee19eebf468097c2318b24aaceae04477dc))
 * add CI workflow to automate documentation deployment and package publishing ([4490a95](https://github.com/CoReason-AI/coreason-ecosystem/commit/4490a95d36085e55b2d779854df6159dacdfb42e))
 * formalize Neurosymbolic Caging Protocol and Epistemic Quarantine directives across agent configuration rules ([603912c](https://github.com/CoReason-AI/coreason-ecosystem/commit/603912c7ed49b20b1b18a535948af9d4fe50a602))
 * **governance:** provision thermodynamic boundaries for chaos mesh via RBAC and deployment scripts ([90053a2](https://github.com/CoReason-AI/coreason-ecosystem/commit/90053a2a280fa487d1a23f01b94208605ec4d315))

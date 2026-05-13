@@ -256,7 +256,6 @@ class SovereignMCPRegistry:
         import json
         from coreason_manifest.spec.ontology import (
             FederatedSecurityMacroManifest,
-            SemanticClassificationProfile,
         )
 
         raw = json.loads(json_path.read_text(encoding="utf-8"))
@@ -269,16 +268,10 @@ class SovereignMCPRegistry:
                     dns_name = bundle_name.replace("_", "-")
                     metadata["target_endpoint_uri"] = f"http://{dns_name}:8000"
 
-            # Coerce clearance string to Enum for Pydantic V2 strict instance checks
             if "required_clearance" in metadata and isinstance(
                 metadata["required_clearance"], str
             ):
-                try:
-                    metadata["required_clearance"] = SemanticClassificationProfile(
-                        metadata["required_clearance"].lower()
-                    )
-                except ValueError as e:
-                    logger.warning(f"Clearance validation failure for {urn}: {e}")
+                metadata["required_clearance"] = metadata["required_clearance"].lower()
 
             # Epistemic status might not be in the strict macro manifest, extract it first
             epistemic_status = metadata.pop("epistemic_status", "DRAFT")

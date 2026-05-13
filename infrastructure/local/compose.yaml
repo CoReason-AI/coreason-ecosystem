@@ -159,6 +159,25 @@ services:
       milvus:
         condition: service_healthy
 
+  nemoclaw:
+    image: ghcr.io/nvidia/nemoclaw:latest
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: '2G'
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8443/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8443:8443"
+    networks:
+      - swarm-mesh
+      - sensory-gateway
+
   milvus:
     image: milvusdb/milvus:v2.3.0
     restart: on-failure
