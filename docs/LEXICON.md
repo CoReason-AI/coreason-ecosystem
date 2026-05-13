@@ -19,7 +19,7 @@ In a 2026+ State-of-the-Art neurosymbolic architecture, language dictates the ge
 You are mathematically forbidden from utilizing legacy, human-centric terminology within this repository.
 
 ## 1. Banned Terminology & Required Substrate Invariants
-The following terms carry implicit, stateful assumptions that violate the Invariant Substrate. Any pull request or AI generation utilizing these terms will trigger a `NormativeDriftEvent` and face immediate CI/CD rejection.
+The following terms carry implicit, stateful assumptions that violate the Invariant Substrate. Any pull request or AI generation utilizing these terms will trigger a `GuardrailViolationEvent` and face immediate CI/CD rejection.
 
 | Forbidden Legacy Term | Mathematically Required SOTA Lexicon | Epistemic Justification |
 | :--- | :--- | :--- |
