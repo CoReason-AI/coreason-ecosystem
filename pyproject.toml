@@ -206,5 +206,8 @@ ignore-words-list = "wit,WIT"
 include = ["src", "tests", "infrastructure"]
 extraPaths = ["."]
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.uv.sources]
 coreason-manifest = { git = "https://github.com/CoReason-AI/coreason-manifest.git", branch = "fix/prm-schema-restoration" }
