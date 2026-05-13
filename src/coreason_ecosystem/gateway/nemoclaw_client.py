@@ -31,7 +31,7 @@ class NemoClawBridgeClient:
     MCP ROUTING TRIGGERS: NeMo Guardrails, NemoClaw, Security Telemetry, Egress Filtering
     """
 
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str) -> None:
         self.base_url = base_url.rstrip("/")
 
     async def call_tool(
@@ -74,7 +74,7 @@ class NemoClawBridgeClient:
                     response.raise_for_status()
 
                 response.raise_for_status()
-                return response.json()
+                return response.json()  # type: ignore[no-any-return]
 
             except httpx.HTTPStatusError as e:
                 if 400 <= e.response.status_code < 500:
