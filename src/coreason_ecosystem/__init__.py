@@ -12,7 +12,7 @@
 The CoReason AI Swarm Ecosystem Integration Wrapper and Execution Plane
 """
 
-__version__ = "0.1.0"
+__version__ = "0.11.1"
 __author__ = "Gowtham A Rao"
 __email__ = "gowtham.rao@coreason.ai"
 
