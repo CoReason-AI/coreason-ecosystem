@@ -12,7 +12,7 @@ authors = [
     { name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" },
 ]
 dependencies = [
-    "coreason-manifest==0.53.0",
+    "coreason-manifest==0.55.2",
     "click>=8.1.7",
     "loguru>=0.7.2",
     "typer>=0.9.0",
@@ -206,8 +206,4 @@ ignore-words-list = "wit,WIT"
 include = ["src", "tests", "infrastructure"]
 extraPaths = ["."]
 
-[tool.hatch.metadata]
-allow-direct-references = true
 
-[tool.uv.sources]
-coreason-manifest = { git = "https://github.com/CoReason-AI/coreason-manifest.git", branch = "fix/prm-schema-restoration" }
