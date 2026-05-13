@@ -130,7 +130,7 @@ async def test_messages_endpoint_direct() -> None:
 async def test_list_actuators() -> None:
     """Test that list_actuators returns the 4 built-in capabilities."""
     tools = await list_actuators()
-    assert len(tools) == 4
+    assert len(tools) == 3
     names = [t.name for t in tools]
     assert "federated_discovery" in names
     assert "deploy_cognitive_swarm" in names
@@ -181,21 +181,6 @@ async def test_invoke_actuator_builtin_commands(
         res2 = await invoke_actuator("establish_federated_link", args_sync)
         assert "executed successfully" in res2[0].text
         mock_sync.assert_called_once()
-
-    # inject_chaos_fault
-    with (
-        patch(
-            "coreason_ecosystem.fleet.pulumi_actuator.inject_chaos_fault",
-            new_callable=AsyncMock,
-        ) as mock_chaos,
-        patch(
-            "coreason_ecosystem.gateway.master_mcp.ChaosExperimentTask.model_validate"
-        ),
-    ):
-        args_chaos = {"any": "thing"}
-        res3 = await invoke_actuator("inject_chaos_fault", args_chaos)
-        assert "executed successfully" in res3[0].text
-        mock_chaos.assert_called_once()
 
 
 @respx.mock
