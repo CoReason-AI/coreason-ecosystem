@@ -23,7 +23,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Trufflehog Secret Scan
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@0c381f12b3f9a934f33fc61bf003599f5323ff55 # main
         with:
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
@@ -77,7 +77,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Compliance Reports as Artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: security-audit-reports
           path: |

@@ -61,13 +61,13 @@ jobs:
 
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@15c56dba361d8335944d31a2ecd17d700fd7ece1 # release/v1
         with:
           skip-existing: true
           attestations: false # Requires Enterprise Cloud or public repo
 
       - name: Generate SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@bb716408e75840bab848af0a4e0a969df8b46e4b # v0.17.6
         with:
           path: ./dist
           format: spdx-json
@@ -84,7 +84,7 @@ jobs:
           source: false
 
       - name: Upload attestations to GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.1.0
         with:
           files: |
             dist/*.sigstore.json
