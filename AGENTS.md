@@ -96,3 +96,10 @@ If any of the above verification commands yield a non-zero exit code (failure), 
 5. **Forge-Centric Mutation**: Agents do NOT possess ambient authority to write to the file system. They MUST submit 100% schema-compliant AST differentials to the `coreason-meta-engineering` Forge for deterministic "etching."
 
 *Copyright (c) 2026 CoReason, Inc. Licensed under the Prosperity Public License 3.0.*
+
+## **The Anti-Mocking "Real Test" Directive**
+
+**CRITICAL INSTRUCTION TO AI AGENTS:** 
+I expect real tests. No mocks.
+You are strictly forbidden from using unittest.mock, pytest.MonkeyPatch, esponses, or any other mocking library to simulate environment variables, network calls, or API responses. 
+All tests MUST execute against real local servers, real environment state, or deterministic string/file inputs. Mocking produces false confidence and is mathematically classified as non-isomorphic testing.
