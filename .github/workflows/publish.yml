@@ -39,12 +39,7 @@ jobs:
         with:
           enable-cache: false
           cache-dependency-glob: "uv.lock"
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version-file: "pyproject.toml"
-          allow-prereleases: true
+          python-version: "3.14"
 
       - name: Install system dependencies (for temporalio source build)
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
