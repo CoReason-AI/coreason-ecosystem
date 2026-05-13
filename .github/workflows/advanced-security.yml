@@ -22,7 +22,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -39,7 +39,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v4
 
       - name: Install ClamAV
         run: |

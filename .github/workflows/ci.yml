@@ -31,7 +31,7 @@ jobs:
       - name: Pre-Flight Workspace Purity
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
-        uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
+        uses: actions/checkout@v4
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Dynamic Ecosystem Sync
@@ -84,7 +84,7 @@ jobs:
       - name: Pre-Flight Workspace Purity
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
-        uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
+        uses: actions/checkout@v4
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Dynamic Ecosystem Sync
@@ -113,7 +113,7 @@ jobs:
       - name: Pre-Flight Workspace Purity
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
-        uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
+        uses: actions/checkout@v4
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Install System Dependencies
@@ -176,7 +176,7 @@ jobs:
       - name: Pre-Flight Workspace Purity
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
-        uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
+        uses: actions/checkout@v4
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Install System Dependencies
@@ -220,7 +220,7 @@ jobs:
       - name: Pre-Flight Workspace Purity
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
-        uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
+        uses: actions/checkout@v4
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Build wheel (attempt 1)
