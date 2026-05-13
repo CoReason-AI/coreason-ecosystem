@@ -205,3 +205,6 @@ ignore-words-list = "wit,WIT"
 [tool.pyright]
 include = ["src", "tests", "infrastructure"]
 extraPaths = ["."]
+
+[tool.uv.sources]
+coreason-manifest = { git = "https://github.com/CoReason-AI/coreason-manifest.git", branch = "fix/prm-schema-restoration" }
