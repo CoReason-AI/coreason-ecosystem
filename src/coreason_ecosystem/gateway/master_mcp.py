@@ -1,25 +1,32 @@
+# Copyright (c) 2026 CoReason, Inc
+#
+# This software is proprietary and dual-licensed
+# Licensed under the Prosperity Public License 3.0 (the "License")
+# A copy of the license is available at <https://prosperitylicense.com/versions/3.0.0>
+# For details, see the LICENSE file
+# Commercial use beyond a 30-day trial requires a separate license
+#
+# Source Code: <https://github.com/CoReason-AI/coreason-ecosystem>
+
 import contextvars
 import hashlib
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 
 import mcp.server
 import mcp.types as types
+from coreason_ecosystem.gateway.nemoclaw_client import NemoClawBridgeClient
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
-from coreason_ecosystem.gateway.state_manifests import (
-    FederatedDiscoveryIntent,
-)
-from coreason_ecosystem.orchestration import up, sync
+from coreason_ecosystem.orchestration import up
 from coreason_manifest.spec.ontology import (
     CognitiveSwarmDeploymentManifest,
-    FederatedSecurityMacroManifest,
+    FederatedDiscoveryIntent,
 )
 from fastapi import FastAPI
-from contextlib import asynccontextmanager
 from mcp.server.sse import SseServerTransport
-import httpx
 from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
@@ -44,7 +51,6 @@ async def _hydrate_registry() -> None:
     is raised to instantly crash the boot sequence, strictly preventing the
     swarm from booting blind.
     """
-    import os
     from pathlib import Path
 
     await registry.initialize()
@@ -162,13 +168,6 @@ async def list_actuators() -> list[types.Tool]:
             inputSchema=CognitiveSwarmDeploymentManifest.model_json_schema(),
         )
     )
-    actuator_manifests.append(
-        types.Tool(
-            name="establish_federated_link",
-            description="Macro-Manifest Deployment: Establish federated link. Hollow Plane proxy endpoint.",
-            inputSchema=FederatedSecurityMacroManifest.model_json_schema(),
-        )
-    )
 
     return actuator_manifests
 
@@ -191,15 +190,6 @@ async def invoke_actuator(
             )
         ]
 
-    if name == "establish_federated_link":
-        manifest_link = FederatedSecurityMacroManifest.model_validate(arguments)
-        await sync.establish_federated_link(manifest_link)
-        return [
-            types.TextContent(
-                type="text", text="establish_federated_link executed successfully"
-            )
-        ]
-
     try:
         target_urn = await registry.resolve_urn(name)
     except KeyError:
@@ -208,27 +198,14 @@ async def invoke_actuator(
         )
 
     nemoclaw_url = os.getenv("NEMOCLAW_URL", "https://nemoclaw:8443").rstrip("/")
-    url = f"{nemoclaw_url}/v1/mcp/{target_urn}/tools/call"
-    payload = {
-        "name": name,
-        "arguments": arguments,
-    }
+    client = NemoClawBridgeClient(nemoclaw_url)
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            result = response.json()
-            return [
-                types.TextContent(type="text", text=str(result.get("content", result)))
-            ]
-    except httpx.HTTPStatusError as e:
-        logger.error(
-            f"NemoClaw returned HTTP error: {e.response.status_code} - {e.response.text}"
-        )
-        if e.response.status_code == 500:
-            raise RuntimeError(f"NemoClaw internal server error: {e}") from e
-        raise RuntimeError(f"NemoClaw HTTP error: {e}") from e
+        result = await client.call_tool(target_urn, name, arguments)
+        return [types.TextContent(type="text", text=str(result.get("content", result)))]
+    except RuntimeError as e:
+        logger.error(f"NemoClaw security or execution fault: {e}")
+        raise
     except Exception as e:
         logger.error(f"Failed to proxy MCP request to NemoClaw: {e}")
         raise RuntimeError(f"Cross-plane capability execution failed: {e}")

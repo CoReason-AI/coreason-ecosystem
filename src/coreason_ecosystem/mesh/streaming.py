@@ -10,8 +10,6 @@
 
 from typing import Dict
 
-from coreason_manifest.spec.ontology import FederatedCIDFetchIntent
-
 
 class ZeroCopyStreamingMock:
     """
@@ -30,6 +28,8 @@ class ZeroCopyStreamingMock:
     def store_blob(self, cid: str, data: bytes) -> None:
         self._blobs[cid] = data
 
-    def handle_fetch_intent(self, intent: FederatedCIDFetchIntent) -> bytes:
-        cid_str = str(intent.target_cid)
+    def handle_fetch_intent(self, cid_str: str) -> bytes:
+        """DEPRECATED: FederatedCIDFetchIntent was removed from v0.56.0.
+        Directly fetching by CID string for now.
+        """
         return self._blobs.get(cid_str, b"")

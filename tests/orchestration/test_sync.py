@@ -6,7 +6,6 @@ import typer
 from coreason_ecosystem.orchestration.sync import (
     detect_and_heal_drift,
     execute_sync,
-    establish_federated_link,
 )
 
 
@@ -135,12 +134,3 @@ async def test_execute_sync_docker_compose_fails(
         await execute_sync()
 
     assert exc.value.exit_code == 1
-
-
-@pytest.mark.asyncio
-@patch("coreason_ecosystem.orchestration.sync.execute_sync", new_callable=AsyncMock)
-async def test_establish_federated_link(mock_execute_sync: Any) -> None:
-    manifest = MagicMock()
-    manifest.target_endpoint_uri = "http://target"
-    await establish_federated_link(manifest)
-    mock_execute_sync.assert_called_once()
