@@ -45,6 +45,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
         shell: bash
 
+      - name: Build package
+        run: uv build
+        shell: bash
+
       - name: Build Docs
         run: uv run zensical build
         shell: bash
@@ -53,10 +57,6 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: "site/"
-
-      - name: Build package
-        run: uv build
-        shell: bash
 
 
 
