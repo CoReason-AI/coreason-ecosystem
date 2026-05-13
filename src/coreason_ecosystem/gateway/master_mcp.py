@@ -12,9 +12,7 @@ from coreason_ecosystem.gateway.state_manifests import (
     FederatedDiscoveryIntent,
 )
 from coreason_ecosystem.orchestration import up, sync
-from coreason_ecosystem.fleet import pulumi_actuator
 from coreason_manifest.spec.ontology import (
-    ChaosExperimentTask,
     CognitiveSwarmDeploymentManifest,
     FederatedSecurityMacroManifest,
 )
@@ -171,13 +169,6 @@ async def list_actuators() -> list[types.Tool]:
             inputSchema=FederatedSecurityMacroManifest.model_json_schema(),
         )
     )
-    actuator_manifests.append(
-        types.Tool(
-            name="inject_chaos_fault",
-            description="Macro-Manifest Deployment: Inject chaos fault. Hollow Plane proxy endpoint.",
-            inputSchema=ChaosExperimentTask.model_json_schema(),
-        )
-    )
 
     return actuator_manifests
 
@@ -206,15 +197,6 @@ async def invoke_actuator(
         return [
             types.TextContent(
                 type="text", text="establish_federated_link executed successfully"
-            )
-        ]
-
-    if name == "inject_chaos_fault":
-        manifest_chaos = ChaosExperimentTask.model_validate(arguments)
-        await pulumi_actuator.inject_chaos_fault(manifest_chaos)
-        return [
-            types.TextContent(
-                type="text", text="inject_chaos_fault executed successfully"
             )
         ]
 
