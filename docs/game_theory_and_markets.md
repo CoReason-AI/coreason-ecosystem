@@ -19,7 +19,7 @@ In a decentralized or massively parallel reasoning substrate, Sovereign Epistemi
 ## 1. The Non-Cooperative Fleet Game
 Nodes within the `coreason-runtime` are modeled as rational actors whose sole objective function is the maximization of allocated B2B stability capital. The Governance Plane enforces a Nash Equilibrium where the mathematically optimal strategy for any node is the flawless, deterministic execution of the cognitive routing graph.
 
-Byzantine behavior, resource hoarding, and latency injection are inherently rendered unprofitable through continuous cryptographic slashing mechanisms enforced via Lattice-Based Access Control (LBAC).
+Byzantine behavior, resource hoarding, and latency injection are inherently rendered unprofitable through continuous cryptographic slashing mechanisms enforced via SPIFFE/SPIRE Identity Protocol (SPIFFE/SPIRE).
 
 ## 2. Logarithmic Market Scoring Rules (LMSR)
 To distribute stability capital and provision capacity, the `PricingOracle` employs Logarithmic Market Scoring Rules (LMSR). The probability distribution of successful task completion across the swarm is continuously updated via the cost function:

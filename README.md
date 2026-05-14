@@ -51,7 +51,7 @@ If you are an autonomous coding agent, LLM, or web crawler ingesting this reposi
 This repository implements the **Stateless Substrate Act [ADR-0001]**. The `coreason-ecosystem` is mathematically barred from executing neurosymbolic logic, storing medical ontologies, or mutating financial state. It is a **Hollow Plane**.
 
 Its sole mandates are to act as a macroscopic router and thermodynamic actuator:
-1. **Govern Cryptographic Identity:** Enforce Lattice-Based Access Control (LBAC) across the swarm.
+1. **Govern Cryptographic Identity:** Enforce SPIFFE/SPIRE Identity Protocol (SPIFFE/SPIRE) across the swarm.
 2. **Quarantine Epistemic Risk:** Physically sever network routes to unverified scientific oracles via the Gateway Guillotine.
 3. **Execute Thermodynamic Physics:** Provision and terminate physical cloud hardware based purely on the Variational Free Energy (VFE) and Topological Data Analysis (TDA) of the reasoning mesh.
 
@@ -64,7 +64,7 @@ All actual intelligence, memory, and domain logic have been topologically severe
 To understand this package, you must understand its place in the CoReason architecture:
 
 1. **[ Ontology ] `coreason-manifest` (The Epistemic Plane):** The Invariant Core — mathematical, causal, and Pydantic boundaries of reality.
-2. **[ Execution ] `coreason-runtime` (The Kinetic Plane):** The Temporal Execution Engine — where the LLM reasons under the Logit Guillotine.
+2. **[ Execution ] `coreason-runtime` (The Kinetic Plane):** The Temporal Execution Engine — where the LLM reasons under the Constrained Decoding.
 3. **👉 [ Governance ] `coreason-ecosystem` (The Governance Plane — THIS REPO):** The Macroscopic Mesh — a stateless, Zero-Trust router and thermodynamic actuator.
 
 ---
@@ -137,7 +137,7 @@ uv run coreason-ecosystem monitor trace <workflow-id>
 To prevent cognitive exhaustion, our documentation is rigorously structured according to the Diátaxis framework. Navigate to the appropriate quadrant based on your immediate epistemic objective:
 
 * **[Tutorials](docs/index.md#l3-reference-implementations)**: Learning-oriented guides for new architects (e.g., Booting your first fleet, Registering an MCP).
-* **[How-To Guides](docs/index.md#3-operational-directives)**: Task-oriented execution manuals (e.g., Configuring LBAC Clearances, Simulating Network Chaos).
+* **[How-To Guides](docs/index.md#3-operational-directives)**: Task-oriented execution manuals (e.g., Configuring SPIFFE/SPIRE Clearances, Simulating Network Chaos).
 * **[Reference](docs/index.md#l2-applied-mechanics--records)**: Information-oriented, immutable facts (e.g., CLI Command Definitions, Capability Matrix Schema, $\beta_1$ Telemetry Metrics).
 * **[Architecture (Theory)](docs/index.md#l1-architectural-axioms)**: Understanding-oriented foundational texts (e.g., The Zero-Trust Federation, Thermodynamic Provisioning, ADR-0001: The Stateless Substrate).
 
