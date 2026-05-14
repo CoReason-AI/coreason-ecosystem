@@ -32,7 +32,6 @@ from __future__ import annotations
 import ast
 import asyncio
 import re
-import warnings
 from pathlib import Path
 from typing import Any, cast
 

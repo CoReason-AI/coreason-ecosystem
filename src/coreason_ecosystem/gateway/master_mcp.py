@@ -32,6 +32,11 @@ from fastapi.responses import PlainTextResponse
 from mcp.server.sse import SseServerTransport
 from starlette.requests import Request
 
+try:
+    import hvac
+except ImportError:
+    hvac = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 registry = SovereignMCPRegistry()
@@ -150,7 +155,8 @@ def compute_schema_seal(schema: dict[str, Any]) -> str | dict[str, str]:
 
     if vault_addr and vault_token:
         try:
-            import hvac
+            if hvac is None:
+                raise ImportError("hvac package is not installed.")
 
             client = hvac.Client(url=vault_addr, token=vault_token)
             # Vault transit sign requires base64 encoded input
