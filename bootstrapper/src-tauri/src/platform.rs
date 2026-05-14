@@ -1,6 +1,14 @@
-use crate::schema::{SwarmBootstrapIntent, SwarmBootstrapReceipt};
+use crate::schema::{
+    NemoClawInstallReceipt, NemoClawOnboardIntent, NemoClawOnboardReceipt, SwarmBootstrapIntent,
+    SwarmBootstrapReceipt, SwarmIgnitionIntent, SwarmIgnitionReceipt,
+};
 use std::env;
-use std::process::Command;
+use std::io::{BufRead, BufReader};
+use std::process::{Command, Stdio};
+use std::thread;
+use tauri::{Emitter, Manager};
+
+// ─── Dependency Detection ────────────────────────────────────────────────────
 
 pub fn check_dependencies(_intent: SwarmBootstrapIntent) -> SwarmBootstrapReceipt {
     let os_type = env::consts::OS.to_string();
@@ -17,22 +25,55 @@ pub fn check_dependencies(_intent: SwarmBootstrapIntent) -> SwarmBootstrapReceip
         .output()
         .map(|out| out.status.success())
         .unwrap_or(false);
-        
-    // For NemoClaw, we assume it's part of the standard coreason CLI tools or path if installed locally.
-    // If not, it will be pulled via docker compose, but the Bootstrapper might check for the binary if it runs natively.
-    // Since we deploy it via Docker Compose in this configuration, it is available if Docker Compose is available.
-    let nemoclaw_available = docker_compose_available;
 
-    let status = if docker_available && docker_compose_available {
-        "SUCCESS".to_string()
+    // Real binary check: does `nemoclaw --version` exit 0?
+    let nemoclaw_installed = Command::new("nemoclaw")
+        .arg("--version")
+        .output()
+        .map(|out| out.status.success())
+        .unwrap_or(false);
+
+    // Onboard check: `nemoclaw list` succeeds AND doesn't say "No sandboxes registered"
+    let nemoclaw_onboarded = if nemoclaw_installed {
+        Command::new("nemoclaw")
+            .arg("list")
+            .output()
+            .map(|out| {
+                if out.status.success() {
+                    let stdout = String::from_utf8_lossy(&out.stdout);
+                    !stdout.contains("No sandboxes registered")
+                } else {
+                    false
+                }
+            })
+            .unwrap_or(false)
     } else {
-        "FAILURE".to_string()
+        false
     };
 
-    let message = if status == "SUCCESS" {
-        "All base dependencies met. Ready to ignite swarm.".to_string()
+    // Determine the precise status code so the UI can route to the right step
+    let status = if !docker_available || !docker_compose_available {
+        "NEEDS_DOCKER".to_string()
+    } else if !nemoclaw_installed {
+        "NEEDS_NEMOCLAW_INSTALL".to_string()
+    } else if !nemoclaw_onboarded {
+        "NEEDS_NEMOCLAW_ONBOARD".to_string()
     } else {
-        "Missing Docker or Docker Compose. Please install Docker Desktop.".to_string()
+        "SUCCESS".to_string()
+    };
+
+    let message = match status.as_str() {
+        "NEEDS_DOCKER" => {
+            "Missing Docker or Docker Compose. Please install Docker Desktop.".to_string()
+        }
+        "NEEDS_NEMOCLAW_INSTALL" => {
+            "NemoClaw binary not found. The bootstrapper will install it automatically.".to_string()
+        }
+        "NEEDS_NEMOCLAW_ONBOARD" => {
+            "NemoClaw is installed but not configured. Please provide your NGC API key to onboard."
+                .to_string()
+        }
+        _ => "All dependencies satisfied. Ready to ignite swarm.".to_string(),
     };
 
     SwarmBootstrapReceipt {
@@ -41,28 +82,181 @@ pub fn check_dependencies(_intent: SwarmBootstrapIntent) -> SwarmBootstrapReceip
         os_type,
         docker_available,
         docker_compose_available,
-        nemoclaw_available,
+        nemoclaw_installed,
+        nemoclaw_onboarded,
     }
 }
 
-use crate::schema::{SwarmIgnitionIntent, SwarmIgnitionReceipt};
-use tauri::{Manager, Emitter};
-use std::time::Duration;
-use std::thread;
-use std::process::Stdio;
-use std::io::{BufRead, BufReader};
+// ─── NemoClaw Binary Installation ────────────────────────────────────────────
+
+pub fn install_nemoclaw(app: tauri::AppHandle) -> NemoClawInstallReceipt {
+    let _ = app.emit("boot-log", "[NemoClaw] Starting binary installation via NVIDIA installer...");
+
+    // The official NVIDIA curl|bash installer for NemoClaw
+    let mut child = match Command::new("sh")
+        .arg("-c")
+        .arg("curl -fsSL https://www.nvidia.com/nemoclaw.sh | bash")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            return NemoClawInstallReceipt {
+                status: "FAILURE".to_string(),
+                message: format!("Failed to launch installer: {}", e),
+            };
+        }
+    };
+
+    let stdout = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
+
+    let app_clone1 = app.clone();
+    thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines().flatten() {
+            let _ = app_clone1.emit("boot-log", format!("[NemoClaw Install] {}", line));
+        }
+    });
+
+    let app_clone2 = app.clone();
+    thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        for line in reader.lines().flatten() {
+            let _ = app_clone2.emit("boot-log", format!("[NemoClaw Install] {}", line));
+        }
+    });
+
+    match child.wait() {
+        Ok(status) if status.success() => {
+            let _ = app.emit("boot-log", "[NemoClaw] ✅ Binary installed successfully.");
+            NemoClawInstallReceipt {
+                status: "SUCCESS".to_string(),
+                message: "NemoClaw binary installed. Please provide your NGC API key to onboard."
+                    .to_string(),
+            }
+        }
+        Ok(status) => NemoClawInstallReceipt {
+            status: "FAILURE".to_string(),
+            message: format!(
+                "Installer exited with non-zero code: {}",
+                status.code().unwrap_or(-1)
+            ),
+        },
+        Err(e) => NemoClawInstallReceipt {
+            status: "FAILURE".to_string(),
+            message: format!("Failed to wait on installer process: {}", e),
+        },
+    }
+}
+
+// ─── NemoClaw Onboarding ─────────────────────────────────────────────────────
+
+pub fn onboard_nemoclaw(app: tauri::AppHandle, intent: NemoClawOnboardIntent) -> NemoClawOnboardReceipt {
+    let _ = app.emit(
+        "boot-log",
+        format!(
+            "[NemoClaw] Starting non-interactive onboarding for sandbox '{}'...",
+            intent.sandbox_name
+        ),
+    );
+
+    // Run nemoclaw onboard in fully non-interactive mode.
+    // NGC_API_KEY env var is consumed by the nemoclaw CLI for authentication.
+    // --non-interactive --yes suppresses all prompts.
+    // --yes-i-accept-third-party-software accepts the NVIDIA software notice.
+    // --no-gpu avoids GPU detection blocking in CI/dev environments.
+    let mut child = match Command::new("nemoclaw")
+        .args([
+            "onboard",
+            "--non-interactive",
+            "--yes",
+            "--yes-i-accept-third-party-software",
+            "--no-gpu",
+            "--name",
+            &intent.sandbox_name,
+        ])
+        .env("NGC_API_KEY", &intent.ngc_api_key)
+        .env("NVIDIA_API_KEY", &intent.ngc_api_key)
+        .env("NEMOCLAW_GATEWAY_PORT", "8088")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            return NemoClawOnboardReceipt {
+                status: "FAILURE".to_string(),
+                message: format!("Failed to launch nemoclaw onboard: {}", e),
+            };
+        }
+    };
+
+    let stdout = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let tx_out = tx.clone();
+    let tx_err = tx;
+
+    thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines().flatten() {
+            let _ = tx_out.send(line);
+        }
+    });
+
+    thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        for line in reader.lines().flatten() {
+            let _ = tx_err.send(line);
+        }
+    });
+
+    let mut success_detected = false;
+
+    for line in rx {
+        let _ = app.emit("boot-log", format!("[NemoClaw Onboard] {}", line));
+        
+        // The NemoClaw non-interactive onboard hangs indefinitely waiting for the dashboard.
+        // We detect the success state and manually terminate the process.
+        if line.contains("Waiting for NemoClaw dashboard") || line.contains("dashboard to become ready") {
+            success_detected = true;
+            let _ = child.kill();
+            break;
+        }
+    }
+
+    let _ = child.wait();
+
+    if success_detected {
+        let _ = app.emit("boot-log", "[NemoClaw] ✅ Onboarding complete. Sandbox is ready.");
+        NemoClawOnboardReceipt {
+            status: "SUCCESS".to_string(),
+            message: format!(
+                "NemoClaw sandbox '{}' onboarded successfully.",
+                intent.sandbox_name
+            ),
+        }
+    } else {
+        NemoClawOnboardReceipt {
+            status: "FAILURE".to_string(),
+            message: "nemoclaw onboard exited with an error. Check the NGC API key and try again.".to_string(),
+        }
+    }
+}
+
+// ─── Swarm Ignition ───────────────────────────────────────────────────────────
 
 pub fn ignite_swarm(app: tauri::AppHandle, intent: SwarmIgnitionIntent) -> SwarmIgnitionReceipt {
-    // 1. Resolve the path to the bundled compose.yaml
-    // In Tauri v2, we get the resource_dir and join the path.
     let resource_dir = app.path().resource_dir();
-    
+
     let compose_file_path = match resource_dir {
         Ok(mut path) => {
-            // Note: Tauri replaces `../` with `_up_/` when bundling resources.
             path.push("_up_/_up_/infrastructure/local/compose.yaml");
             path
-        },
+        }
         Err(_) => {
             return SwarmIgnitionReceipt {
                 status: "FAILURE".to_string(),
@@ -73,19 +267,23 @@ pub fn ignite_swarm(app: tauri::AppHandle, intent: SwarmIgnitionIntent) -> Swarm
 
     let compose_path_str = compose_file_path.to_string_lossy().to_string();
 
-    // 2. Execute docker compose up -d
     let mut command = Command::new("docker");
     command.arg("compose").arg("-f").arg(&compose_path_str);
-    
+
     if intent.force_rebuild {
         command.arg("up").arg("--build").arg("-d");
     } else {
         command.arg("up").arg("-d");
     }
 
-    // Pass required environment variables to prevent warnings and satisfy container requirements
-    command.env("EPISTEMIC_MERKLE_ROOT", "0x0000000000000000000000000000000000000000000000000000000000000000");
-    command.env("COREASON_TREASURY_CONTRACT", "0x0000000000000000000000000000000000000000");
+    command.env(
+        "EPISTEMIC_MERKLE_ROOT",
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+    );
+    command.env(
+        "COREASON_TREASURY_CONTRACT",
+        "0x0000000000000000000000000000000000000000",
+    );
 
     command.stdout(Stdio::piped());
     command.stderr(Stdio::piped());
@@ -106,50 +304,37 @@ pub fn ignite_swarm(app: tauri::AppHandle, intent: SwarmIgnitionIntent) -> Swarm
     let app_clone1 = app.clone();
     thread::spawn(move || {
         let reader = BufReader::new(stdout);
-        for line in reader.lines() {
-            if let Ok(l) = line {
-                let _ = app_clone1.emit("boot-log", l);
-            }
+        for line in reader.lines().flatten() {
+            let _ = app_clone1.emit("boot-log", line);
         }
     });
 
     let app_clone2 = app.clone();
     thread::spawn(move || {
         let reader = BufReader::new(stderr);
-        for line in reader.lines() {
-            if let Ok(l) = line {
-                let _ = app_clone2.emit("boot-log", l);
-            }
+        for line in reader.lines().flatten() {
+            let _ = app_clone2.emit("boot-log", line);
         }
     });
 
-    let status = match child.wait() {
-        Ok(s) => s,
-        Err(e) => {
-            return SwarmIgnitionReceipt {
-                status: "FAILURE".to_string(),
-                message: format!("Failed to wait on docker process: {}", e),
-            };
-        }
-    };
-
-    if !status.success() {
-        return SwarmIgnitionReceipt {
+    match child.wait() {
+        Ok(s) if s.success() => SwarmIgnitionReceipt {
+            status: "SUCCESS".to_string(),
+            message: "Swarm ignited successfully. Sensory Command Center is coming online."
+                .to_string(),
+        },
+        Ok(_) => SwarmIgnitionReceipt {
             status: "FAILURE".to_string(),
             message: "Docker Compose failed to start containers.".to_string(),
-        };
-    }
-
-    // 3. Health check loop (simulated check of MCP endpoint for now, or just return success)
-    // In a real scenario we might poll http://localhost:8080/health using reqwest.
-    // For this prototype, we'll sleep a bit to let containers spin up.
-    thread::sleep(Duration::from_secs(3));
-
-    SwarmIgnitionReceipt {
-        status: "SUCCESS".to_string(),
-        message: "Swarm ignited successfully. Sensory Command Center is coming online.".to_string(),
+        },
+        Err(e) => SwarmIgnitionReceipt {
+            status: "FAILURE".to_string(),
+            message: format!("Failed to wait on docker process: {}", e),
+        },
     }
 }
+
+// ─── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {

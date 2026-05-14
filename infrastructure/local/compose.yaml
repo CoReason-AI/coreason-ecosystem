@@ -161,7 +161,7 @@ services:
         condition: service_healthy
 
   nemoclaw:
-    image: busybox:latest
+    image: ghcr.io/nvidia/nemoclaw/sandbox-base:latest
     restart: on-failure
     command: ["sleep", "infinity"]
     deploy:
