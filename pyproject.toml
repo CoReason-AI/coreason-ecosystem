@@ -73,6 +73,7 @@ dev = [
     "pandas>=2.0.0",
     "types-protobuf>=6.32.1.20260221",
     "respx>=0.23.1",
+    "types-hvac",
 ]
 
 [tool.hatch.build.targets.wheel]

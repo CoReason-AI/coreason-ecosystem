@@ -508,9 +508,8 @@ class SemanticRouter:
             min_score: Minimum final score threshold.
             hybrid: Optional HybridWeighting to blend holistic and well scores.
                     If None, defaults to multi-well-only (backward compatible).
-            query_text: Raw query text for Aurelio holistic matching.
-                        Deprecated in favor of query_vector to avoid
-                        double-encoding.  If both are provided, query_vector
+            query_text: Raw query text for Aurelio holistic matching. If both
+                        query_text and query_vector are provided, query_vector
                         takes precedence.
             query_vector: Pre-computed query embedding for Aurelio. This is
                           the recommended parameter — it eliminates the

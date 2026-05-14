@@ -8,14 +8,12 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-"""Tests for Passive Ontological Projection, URN validation, and deprecation warnings."""
+"""Tests for Passive Ontological Projection and modern URN validation."""
 
-import warnings
 from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml
 
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
 
@@ -28,6 +26,7 @@ def mock_registry_temporal(monkeypatch: pytest.MonkeyPatch) -> None:
         clearance: str,
         epistemic_status: str,
         capability_metadata: dict[str, Any] | None = None,
+        content_hash: str = "",
     ) -> None:
         if not hasattr(self, "_mock_state"):
             self._mock_state = {}
@@ -35,6 +34,7 @@ def mock_registry_temporal(monkeypatch: pytest.MonkeyPatch) -> None:
             "clearance": clearance,
             "epistemic_status": epistemic_status,
             "capability_metadata": capability_metadata or {},
+            "content_hash": content_hash,
         }
 
     async def mock_get_state(self: Any) -> dict[str, dict[str, Any]]:
@@ -209,109 +209,6 @@ class TestScanActionSpaceModules:
         count = await registry.scan_action_space_modules([scan_dir])
         assert count == 1
         assert "urn:coreason:actionspace:oracle:test:v1" in registry._mock_state  # type: ignore[attr-defined]
-
-
-class TestLegacyURNDeprecationWarnings:
-    """Legacy URN prefixes emit DeprecationWarning."""
-
-    @pytest.mark.asyncio
-    async def test_hydrate_from_matrix_warns_on_legacy_oracle(
-        self, tmp_path: Path
-    ) -> None:
-        matrix_file = tmp_path / "capabilities.matrix.yaml"
-        matrix_data = {
-            "capabilities": [
-                {
-                    "urn": "urn:coreason:oracle:legacy_test",
-                    "endpoint": "http://legacy:8000",
-                    "clearance": "PUBLIC",
-                }
-            ]
-        }
-        matrix_file.write_text(yaml.dump(matrix_data), encoding="utf-8")
-
-        registry = SovereignMCPRegistry()
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            await registry.hydrate_from_matrix(matrix_file)
-            deprecation_warnings = [
-                x for x in w if issubclass(x.category, DeprecationWarning)
-            ]
-            assert len(deprecation_warnings) == 1
-            assert "Legacy URN prefix detected" in str(deprecation_warnings[0].message)
-
-    @pytest.mark.asyncio
-    async def test_hydrate_from_matrix_warns_on_legacy_state(
-        self, tmp_path: Path
-    ) -> None:
-        matrix_file = tmp_path / "capabilities.matrix.yaml"
-        matrix_data = {
-            "capabilities": [
-                {
-                    "urn": "urn:coreason:state:treasury",
-                    "endpoint": "http://treasury:8000",
-                    "clearance": "RESTRICTED",
-                }
-            ]
-        }
-        matrix_file.write_text(yaml.dump(matrix_data), encoding="utf-8")
-
-        registry = SovereignMCPRegistry()
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            await registry.hydrate_from_matrix(matrix_file)
-            deprecation_warnings = [
-                x for x in w if issubclass(x.category, DeprecationWarning)
-            ]
-            assert len(deprecation_warnings) == 1
-
-    @pytest.mark.asyncio
-    async def test_no_warning_for_actionspace_urn(self, tmp_path: Path) -> None:
-        matrix_file = tmp_path / "capabilities.matrix.yaml"
-        matrix_data = {
-            "capabilities": [
-                {
-                    "urn": "urn:coreason:actionspace:solver:clean:v1",
-                    "endpoint": "http://clean:8000",
-                    "clearance": "PUBLIC",
-                }
-            ]
-        }
-        matrix_file.write_text(yaml.dump(matrix_data), encoding="utf-8")
-
-        registry = SovereignMCPRegistry()
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            await registry.hydrate_from_matrix(matrix_file)
-            deprecation_warnings = [
-                x for x in w if issubclass(x.category, DeprecationWarning)
-            ]
-            assert len(deprecation_warnings) == 0
-
-    @pytest.mark.asyncio
-    async def test_hydrate_from_matrix_with_callback_url(self, tmp_path: Path) -> None:
-        matrix_file = tmp_path / "capabilities.matrix.yaml"
-        matrix_data = {
-            "capabilities": [
-                {
-                    "urn": "urn:coreason:actionspace:solver:clean:v1",
-                    "endpoint": "http://clean:8000",
-                    "clearance": "PUBLIC",
-                    "callback_url": "http://svix-broker.internal/api/v1/webhook",
-                }
-            ]
-        }
-        matrix_file.write_text(yaml.dump(matrix_data), encoding="utf-8")
-
-        registry = SovereignMCPRegistry()
-        await registry.hydrate_from_matrix(matrix_file)
-        state = await registry._get_state()
-        entry = state.get("urn:coreason:actionspace:solver:clean:v1")
-        assert entry is not None
-        assert (
-            entry.get("capability_metadata", {}).get("callback_url")
-            == "http://svix-broker.internal/api/v1/webhook"
-        )
 
 
 # ---------------------------------------------------------------------------

@@ -21,19 +21,19 @@ from hypothesis import given, settings, strategies as st
 def _seed_registry() -> None:
     """Seed the registry with test capabilities for the test suite."""
     registry._mock_state = {  # type: ignore[attr-defined]
-        "urn:coreason:oracle:clinical_extractor": {
+        "urn:coreason:actionspace:solver:clinical_extractor:v1": {
             "endpoint": "http://svc-pubmed-mcp.internal:8000",
             "clearance": "PUBLIC",
         },
-        "urn:coreason:oracle:mathematics": {
+        "urn:coreason:actionspace:solver:mathematics:v1": {
             "endpoint": "http://svc-math-mcp.internal:8000",
             "clearance": "CONFIDENTIAL",
         },
-        "urn:coreason:oracle:milvus": {
+        "urn:coreason:actionspace:oracle:milvus:v1": {
             "endpoint": "http://coreason-milvus-mcp:8000",
             "clearance": "CONFIDENTIAL",
         },
-        "urn:coreason:oracle:neo4j": {
+        "urn:coreason:actionspace:oracle:neo4j:v1": {
             "endpoint": "http://coreason-neo4j-mcp:8000",
             "clearance": "CONFIDENTIAL",
         },
@@ -67,37 +67,38 @@ async def test_compute_schema_seal() -> None:
 async def test_compute_schema_seal_vault_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that schema sealing integrates with Vault transit engine."""
     schema = {"type": "object", "properties": {"name": {"type": "string"}}}
-    
-    # We must use physical mocks/intercepts as per "No Mock" directive,
-    # but since this is an external HTTP request, we use respx for network interception.
+
     monkeypatch.setenv("VAULT_ADDR", "http://vault:8200")
     monkeypatch.setenv("VAULT_TOKEN", "test-token")
-    
-    with respx.mock(assert_all_called=False) as respx_mock:
-        route = respx_mock.post("http://vault:8200/v1/transit/sign/coreason-merkle-key")
-        route.return_value = httpx.Response(200, json={"data": {"signature": "vault:v1:test-signature"}})
-        
+
+    with patch("hvac.Client") as mock_vault_class:
+        mock_client = mock_vault_class.return_value
+        mock_client.secrets.transit.sign_data.return_value = {
+            "data": {"signature": "vault:v1:test-signature"}
+        }
+
         seal = compute_schema_seal(schema)
-        
+
         assert isinstance(seal, dict)
         assert "hash" in seal
         assert seal["signature"] == "vault:v1:test-signature"
+        mock_client.secrets.transit.sign_data.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_compute_schema_seal_vault_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that schema sealing falls back to local hash if Vault fails."""
     schema = {"type": "object", "properties": {"name": {"type": "string"}}}
-    
+
     monkeypatch.setenv("VAULT_ADDR", "http://vault:8200")
     monkeypatch.setenv("VAULT_TOKEN", "test-token")
-    
-    with respx.mock(assert_all_called=False) as respx_mock:
-        route = respx_mock.post("http://vault:8200/v1/transit/sign/coreason-merkle-key")
-        route.return_value = httpx.Response(500, json={"errors": ["internal server error"]})
-        
+
+    with patch("hvac.Client") as mock_vault_class:
+        mock_client = mock_vault_class.return_value
+        mock_client.secrets.transit.sign_data.side_effect = Exception("Vault down")
+
         seal = compute_schema_seal(schema)
-        
+
         assert isinstance(seal, str)
         assert len(seal) == 64  # Fell back to SHA-256 hex digest
 
@@ -358,23 +359,22 @@ async def test_hydrate_registry() -> None:
             new_callable=AsyncMock,
         ),
         patch(
-            "coreason_ecosystem.gateway.master_mcp.registry.hydrate_from_matrix",
+            "coreason_ecosystem.gateway.master_mcp.registry.hydrate_from_compiled_matrix",
             new_callable=AsyncMock,
-        ) as mock_hydrate_yaml,
+        ) as mock_hydrate_json,
         patch(
             "coreason_ecosystem.gateway.master_mcp.registry.scan_action_space_modules",
             new_callable=AsyncMock,
         ),
     ):
-        # Scenario 1: Fallback exists (primary=False, fallback=True)
-        # exists() is called twice if primary is False
-        mock_exists.side_effect = [False, True]
+        # Scenario 1: Primary exists
+        mock_exists.return_value = True
 
         await _hydrate_registry()
-        mock_hydrate_yaml.assert_called_once()
+        mock_hydrate_json.assert_called_once()
 
-        # Scenario 2: Neither exists -> Exception
-        mock_exists.side_effect = [False, False]
+        # Scenario 2: Missing -> Exception
+        mock_exists.return_value = False
 
         with pytest.raises(RuntimeError, match="Epistemic routing table missing."):
             await _hydrate_registry()

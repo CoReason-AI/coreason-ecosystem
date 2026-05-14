@@ -484,6 +484,7 @@ dev = [
     { name = "respx" },
     { name = "ruff" },
     { name = "syrupy" },
+    { name = "types-hvac" },
     { name = "types-protobuf" },
     { name = "types-pyyaml" },
     { name = "tzdata" },
@@ -537,6 +538,7 @@ dev = [
     { name = "respx", specifier = ">=0.23.1" },
     { name = "ruff", specifier = ">=0.14.14" },
     { name = "syrupy" },
+    { name = "types-hvac" },
     { name = "types-protobuf", specifier = ">=6.32.1.20260221" },
     { name = "types-pyyaml", specifier = ">=6.0.12.20250915" },
     { name = "tzdata", specifier = ">=2025.3" },
@@ -3481,6 +3483,18 @@ wheels = [
 ]
 
 [[package]]
+name = "types-hvac"
+version = "2.4.0.20260408"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "types-requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cf/b0/0a3704a080090f72f0fbc4b4d7035c4a47cb5aa5c6f7b816228155dd7622/types_hvac-2.4.0.20260408.tar.gz", hash = "sha256:291eeeaa0af0bc5d02960fc8aaa6365ad53a05715d5b055b3c64023e74d738c1", size = 24381, upload-time = "2026-04-08T04:37:03.526Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8e/ae/3d8232e6e1669980e5690b539ed6a93dd6a258cc9a6fce5eb207ec8039e5/types_hvac-2.4.0.20260408-py3-none-any.whl", hash = "sha256:ee8d3528eaa6a2b480dbdde04fec06bcd26d13c9dfd97837b62cca98f175d70a", size = 42382, upload-time = "2026-04-08T04:37:02.393Z" },
+]
+
+[[package]]
 name = "types-paramiko"
 version = "4.0.0.20260508"
 source = { registry = "https://pypi.org/simple" }
@@ -3508,6 +3522,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/36/85/0d9fafce21be112e977a89677f1ce9d1aef921d745b17c758c93e861c11f/types_pyyaml-6.0.12.20260510.tar.gz", hash = "sha256:09c1f1cb65a6eebea1e2e51ccf4918b8288e152909609a35cdb0d805efd125ad", size = 17831, upload-time = "2026-05-10T05:26:28.136Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d3/ad/fd618a218925daada7b8a5e7326e662599fa5fdff4a4c44ab2795bd2d9ca/types_pyyaml-6.0.12.20260510-py3-none-any.whl", hash = "sha256:3492eb9ba4d9d833473214c4d5736cccf5f37d93f5854059721e1c84f785309d", size = 20304, upload-time = "2026-05-10T05:26:26.981Z" },
+]
+
+[[package]]
+name = "types-requests"
+version = "2.33.0.20260513"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6d/f7/3228dd3794941bcb92ca6ca2045a6671a828ec0b47becbef23310bc45559/types_requests-2.33.0.20260513.tar.gz", hash = "sha256:bd845450e954e751373d5d33526742592f298808a3ee3bda7e858e46b839b57f", size = 24714, upload-time = "2026-05-13T05:39:23.481Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/51/f5/233a78be8367a9888de718f002fb27b1ea4be39471cd88aedeafceed872e/types_requests-2.33.0.20260513-py3-none-any.whl", hash = "sha256:d5a965f9d18b6e06b72039a69565de9027e58f36a7f709857da747fbe7521122", size = 21390, upload-time = "2026-05-13T05:39:22.262Z" },
 ]
 
 [[package]]

@@ -45,14 +45,10 @@ async def _hydrate_registry() -> None:
     /mnt/coreason-state/registry/compiled_matrix.json. If the file exists, it
     invokes the strict JSON hydration protocol.
 
-    Fallback Resolution: If the primary mount is absent, gracefully falls back
-    to the local developer path at infrastructure/local/capabilities.matrix.yaml
-    and invokes the legacy YAML hydration protocol.
-
-    Strict Fail-Fast Degradation: If neither the primary JSON path nor the
-    fallback YAML path resolves, a fatal RuntimeError("Epistemic routing table missing.")
-    is raised to instantly crash the boot sequence, strictly preventing the
-    swarm from booting blind.
+    Strict Fail-Fast Degradation: If the primary JSON path does not resolve,
+    a fatal RuntimeError("Epistemic routing table missing.") is raised to
+    instantly crash the boot sequence, strictly preventing the swarm from
+    booting blind.
     """
     from pathlib import Path
 
@@ -64,14 +60,11 @@ async def _hydrate_registry() -> None:
             "/mnt/coreason-state/registry/compiled_matrix.json",
         )
     )
-    fallback_path = Path("infrastructure/local/capabilities.matrix.yaml")
 
     if primary_path.exists():  # pragma: no cover
         await registry.hydrate_from_compiled_matrix(primary_path)
-    elif fallback_path.exists():
-        await registry.hydrate_from_matrix(fallback_path)
     else:
-        raise RuntimeError("Epistemic routing table missing.")
+        raise RuntimeError(f"Epistemic routing table missing at {primary_path}")
 
     await registry.scan_action_space_modules()
 
@@ -92,27 +85,33 @@ app = FastAPI(title="coreason-master-gateway", lifespan=lifespan)
 mcp_server = mcp.server.Server("coreason-master-gateway")
 
 current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
-tenant_cid_var = contextvars.ContextVar("tenant_cid", default="889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531")
-spiffe_id_var = contextvars.ContextVar("spiffe_id", default="spiffe://coreason.ai/ns/default/sa/master-gateway")
+tenant_cid_var = contextvars.ContextVar(
+    "tenant_cid",
+    default="889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531",
+)
+spiffe_id_var = contextvars.ContextVar(
+    "spiffe_id", default="spiffe://coreason.ai/ns/default/sa/master-gateway"
+)
+
 
 @app.middleware("http")
-async def extract_jwt_claims(request: Request, call_next):
+async def extract_jwt_claims(request: Request, call_next: Any) -> Any:
     jwt_payload = request.headers.get("x-jwt-payload")
     if jwt_payload:
         try:
             # Envoy forward_payload_header injects the base64url encoded payload
             # Pad if necessary
-            padding = '=' * (4 - len(jwt_payload) % 4)
+            padding = "=" * (4 - len(jwt_payload) % 4)
             decoded_bytes = base64.urlsafe_b64decode(jwt_payload + padding)
             payload = json.loads(decoded_bytes)
-            
+
             if "sub" in payload:
                 tenant_cid_var.set(payload["sub"])
             if "spiffe_id" in payload:
                 spiffe_id_var.set(payload["spiffe_id"])
         except Exception as e:
             logger.warning(f"Failed to decode x-jwt-payload header: {e}")
-            
+
     response = await call_next(request)
     return response
 
@@ -142,6 +141,7 @@ def compute_schema_seal(schema: dict[str, Any]) -> str | dict[str, str]:
         Hexadecimal SHA-256 digest string, or a dict containing signature if Vault is enabled.
     """
     import base64
+
     canonical = _canonicalize_json(schema)
     digest = hashlib.sha256(canonical).hexdigest()
 
@@ -150,24 +150,23 @@ def compute_schema_seal(schema: dict[str, Any]) -> str | dict[str, str]:
 
     if vault_addr and vault_token:
         try:
-            import httpx
+            import hvac
+
+            client = hvac.Client(url=vault_addr, token=vault_token)
             # Vault transit sign requires base64 encoded input
             encoded_payload = base64.b64encode(canonical).decode("utf-8")
-            
-            response = httpx.post(
-                f"{vault_addr}/v1/transit/sign/coreason-merkle-key",
-                headers={"X-Vault-Token": vault_token},
-                json={"input": encoded_payload},
-                timeout=2.0
+
+            # Sign the digest using the transit engine
+            sign_result = client.secrets.transit.sign_data(
+                name="coreason-merkle-key",
+                hash_input=encoded_payload,
             )
-            response.raise_for_status()
-            data = response.json()
-            return {
-                "hash": digest,
-                "signature": data["data"]["signature"]
-            }
+
+            return {"hash": digest, "signature": sign_result["data"]["signature"]}
         except Exception as e:
-            logger.warning(f"Vault transit sign failed, falling back to local hash: {e}")
+            logger.warning(
+                f"Vault transit sign failed, falling back to local hash: {e}"
+            )
 
     return digest
 
@@ -244,8 +243,10 @@ async def invoke_actuator(
     # Extract JWT from context (injected by gateway middleware)
     # Validate that payload tenant_cid matches JWT tenant_cid
     jwt_tenant = tenant_cid_var.get()
-    payload_tenant = arguments.get("tenant_cid", "889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531")
-    
+    payload_tenant = arguments.get(
+        "tenant_cid", "889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531"
+    )
+
     if jwt_tenant != payload_tenant:
         raise ValueError(
             f"GuardrailViolationEvent: Hard Multi-Tenancy Breach. JWT claim tenant_cid '{jwt_tenant}' "
@@ -282,7 +283,9 @@ async def invoke_actuator(
     client = NemoClawBridgeClient(nemoclaw_url)
 
     try:
-        result = await client.call_tool(target_urn, name, arguments, spiffe_id=spiffe_id)
+        result = await client.call_tool(
+            target_urn, name, arguments, spiffe_id=spiffe_id
+        )
         return [types.TextContent(type="text", text=str(result.get("content", result)))]
     except RuntimeError as e:
         logger.error(f"NemoClaw security or execution fault: {e}")
