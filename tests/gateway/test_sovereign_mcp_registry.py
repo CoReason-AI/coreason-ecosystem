@@ -288,6 +288,28 @@ class TestLegacyURNDeprecationWarnings:
             ]
             assert len(deprecation_warnings) == 0
 
+    @pytest.mark.asyncio
+    async def test_hydrate_from_matrix_with_callback_url(self, tmp_path: Path) -> None:
+        matrix_file = tmp_path / "capabilities.matrix.yaml"
+        matrix_data = {
+            "capabilities": [
+                {
+                    "urn": "urn:coreason:actionspace:solver:clean:v1",
+                    "endpoint": "http://clean:8000",
+                    "clearance": "PUBLIC",
+                    "callback_url": "http://svix-broker.internal/api/v1/webhook"
+                }
+            ]
+        }
+        matrix_file.write_text(yaml.dump(matrix_data), encoding="utf-8")
+
+        registry = SovereignMCPRegistry()
+        await registry.hydrate_from_matrix(matrix_file)
+        state = await registry._get_state()
+        entry = state.get("urn:coreason:actionspace:solver:clean:v1")
+        assert entry is not None
+        assert entry.get("capability_metadata", {}).get("callback_url") == "http://svix-broker.internal/api/v1/webhook"
+
 
 # ---------------------------------------------------------------------------
 # Helpers for Substrate Resolution tests

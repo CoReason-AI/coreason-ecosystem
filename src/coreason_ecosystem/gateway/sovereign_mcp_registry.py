@@ -222,6 +222,8 @@ class SovereignMCPRegistry:
             urn = entry.get("urn", "")
             clearance = entry.get("clearance", "RESTRICTED")
             epistemic_status = entry.get("epistemic_status", "DRAFT")
+            callback_url = entry.get("callback_url")
+            capability_metadata = {"callback_url": callback_url} if callback_url else {}
             if urn:
                 match urn.split(":"):
                     case ["urn", "coreason", "oracle" | "state", *_]:
@@ -234,7 +236,7 @@ class SovereignMCPRegistry:
                     case _:
                         pass
 
-                await self._update_urn(urn, clearance, epistemic_status)
+                await self._update_urn(urn, clearance, epistemic_status, capability_metadata)
                 count += 1
 
         logger.info(f"Hydrated {count} capabilities from {matrix_path.name}")
