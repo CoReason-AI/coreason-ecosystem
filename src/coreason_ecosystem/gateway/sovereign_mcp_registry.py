@@ -19,7 +19,7 @@ No URN-to-endpoint mappings are hardcoded.
 
 Each capability entry tracks:
   - ``endpoint``: Physical network URI of the deployed action space.
-  - ``clearance``: LBAC clearance level (PUBLIC / CONFIDENTIAL / RESTRICTED).
+  - ``clearance``: SPIFFE/SPIRE clearance level (PUBLIC / CONFIDENTIAL / RESTRICTED).
   - ``epistemic_status``: SRB governance lifecycle phase
     (DRAFT / SRB_APPROVED / CLIENT_APPROVED / PUBLISHED).
 

@@ -27,7 +27,7 @@ Your mandate is strictly structural: you provision thermodynamic boundaries (inf
 To prevent semantic confusion and latent boundary drift, you must strictly differentiate the three planes. You operate ONLY in Plane 3.
 
 1. **Plane 1: `coreason-manifest` (The Epistemic Plane):** The Invariant Core. It defines the mathematical, causal, and Pydantic boundaries of reality. (No compute).
-2. **Plane 2: `coreason-runtime` (The Kinetic Plane):** The Temporal Execution Engine. This is where the LLM (The Agent) lives and reasons under the Logit Guillotine. (Pure compute).
+2. **Plane 2: `coreason-runtime` (The Kinetic Plane):** The Temporal Execution Engine. This is where the LLM (The Agent) lives and reasons under the Constrained Decoding. (Pure compute).
 3. **Plane 3: `coreason-ecosystem` (The Governance Plane - THIS REPO):** The Macroscopic Mesh. It is a stateless, Zero-Trust router and thermodynamic actuator.
 
 ### **1.2 The Sovereign MCP Projection Law**
@@ -50,7 +50,7 @@ uv run ruff check . --fix
 ```
 
 ### **2.2 Strict Type Checking**
-Type hints are non-negotiable. They act as the local manifestation of the Logit Guillotine.
+Type hints are non-negotiable. They act as the local manifestation of the Constrained Decoding.
 ```bash
 uv run mypy src/ tests/
 ```
@@ -107,4 +107,3 @@ All tests MUST execute against real local servers, real environment state, or de
 
 ## The "Zero-Waste Engineering" Mandate
 You are strictly bound by the "Borrow vs. Build" philosophy. You MUST maximize the use of stable Open Source Software (OSS) whenever available. You are mathematically forbidden from building custom, proprietary implementations for logging, tracing, graph layout, container routing, UI components, or serialization if a mature OSS standard (e.g., OpenTelemetry, Zep Graphiti, Pi.dev, React Flow) exists to solve the problem.
-

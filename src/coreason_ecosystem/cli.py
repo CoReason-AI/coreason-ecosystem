@@ -108,17 +108,8 @@ def fleet_start(
 @app.command(name="up")
 def up() -> None:
     """Implement Idempotent DAG Resolution for the Swarm infrastructure."""
-    from coreason_ecosystem.utils.telemetry import (
-        start_otlp_background_worker,
-        stop_otlp_background_worker,
-    )
-
     async def _run() -> None:  # pragma: no cover
-        start_otlp_background_worker()
-        try:
-            await execute_up()
-        finally:
-            await stop_otlp_background_worker()
+        await execute_up()
 
     asyncio.run(_run())
 
@@ -126,17 +117,8 @@ def up() -> None:
 @app.command(name="doctor")
 def doctor() -> None:
     """Prove Ontological Isomorphism across the Tripartite Manifold."""
-    from coreason_ecosystem.utils.telemetry import (
-        start_otlp_background_worker,
-        stop_otlp_background_worker,
-    )
-
     async def _run() -> None:
-        start_otlp_background_worker()
-        try:
-            await execute_oracle_diagnostic()
-        finally:
-            await stop_otlp_background_worker()
+        await execute_oracle_diagnostic()
 
     asyncio.run(_run())
 
@@ -147,17 +129,8 @@ def doctor() -> None:
 )
 def sync() -> None:
     """Autonomically heal Ontological Drift."""
-    from coreason_ecosystem.utils.telemetry import (
-        start_otlp_background_worker,
-        stop_otlp_background_worker,
-    )
-
     async def _run() -> None:
-        start_otlp_background_worker()
-        try:
-            await execute_sync()
-        finally:
-            await stop_otlp_background_worker()
+        await execute_sync()
 
     asyncio.run(_run())
 

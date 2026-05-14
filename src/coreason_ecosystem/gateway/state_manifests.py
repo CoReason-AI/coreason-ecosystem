@@ -36,7 +36,7 @@ class SubstrateCapabilityProfile(BaseModel):
         Field(
             default="PUBLIC",
             description=(
-                "The LBAC network perimeter that this Substrate physically "
+                "The SPIFFE/SPIRE network perimeter that this Substrate physically "
                 "guarantees for tenant data isolation."
             ),
         )

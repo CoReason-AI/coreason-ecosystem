@@ -44,7 +44,7 @@ These documents define the rigid boundaries and absolute laws of the Governance 
 | # | Document | Topological Scope |
 |---|----------|-------------------|
 | 4 | [The Macroscopic Lexicon](LEXICON.md) | The strict linguistic topology — banned legacy terminology, required SOTA lexicon, and the Lexical Guillotine enforcement protocol. |
-| 5 | [Zero-Trust Federation](zero_trust_federation.md) | Cryptographic boundaries — LBAC lattice-based access control, W3C DID ontological identity, RFC 8785 canonical hashing, and sovereign SMPC handshakes. |
+| 5 | [Zero-Trust Federation](zero_trust_federation.md) | Cryptographic boundaries — SPIFFE/SPIRE lattice-based access control, W3C DID ontological identity, RFC 8785 canonical hashing, and sovereign SMPC handshakes. |
 | 6 | [MCP Projection Doctrine](MCP_PROJECTION_DOCTRINE.md) | The Epistemic Variable Interface Contract — Master MCP federation, translation archetypes (A–D), autonomic capability discovery, and manifest bindings. |
 
 ### L2: Applied Mechanics & Records
