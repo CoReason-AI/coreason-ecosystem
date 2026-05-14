@@ -379,9 +379,7 @@ class SemanticRouter:
             logger.error(f"Aurelio router initialization failed: {e}")
             self._aurelio_available = False
 
-    def _score_holistic(
-        self, query_vector: List[float]
-    ) -> Dict[str, float]:
+    def _score_holistic(self, query_vector: List[float]) -> Dict[str, float]:
         """Score all capabilities holistically via Aurelio.
 
         Passes the pre-computed query vector directly to Aurelio via its

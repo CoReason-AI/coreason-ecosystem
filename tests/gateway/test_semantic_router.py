@@ -6,6 +6,7 @@ These tests validate the structural behavior of the router using
 deterministic vector inputs. No mocks — all assertions are against real
 objects and real math.
 """
+
 import pytest
 import pyarrow as pa
 from pathlib import Path

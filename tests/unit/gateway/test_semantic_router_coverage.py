@@ -5,11 +5,10 @@ Real integration tests for the Hybrid Semantic Router — no mocks.
 These tests exercise the full sentence-transformers + Aurelio semantic-router
 pipeline using real model inference and real Aurelio route compilation.
 """
-import sys
+
 from pathlib import Path
 
 import pyarrow as pa
-import pyarrow.ipc as ipc
 import pytest
 
 from coreason_ecosystem.gateway.semantic_router import (
@@ -116,6 +115,7 @@ def test_init_encoder_real() -> None:
     assert len(embedding) == 384
     # Normalized embedding: magnitude ≈ 1.0
     import numpy as np
+
     mag = float(np.linalg.norm(embedding))
     assert abs(mag - 1.0) < 0.01
 
