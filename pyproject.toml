@@ -7,12 +7,12 @@ name = "coreason_ecosystem"
 dynamic = ["version"]
 description = "The CoReason AI Swarm Ecosystem Integration Wrapper and Execution Plane"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = "==3.14.*"
 authors = [
     { name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" },
 ]
 dependencies = [
-    "coreason-manifest==0.56.0",
+    "coreason-manifest==0.60.0",
     "click>=8.1.7",
     "loguru>=0.7.2",
     "typer>=0.9.0",
