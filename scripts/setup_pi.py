@@ -9,24 +9,23 @@
 #
 # Source Code: <https://github.com/CoReason-AI/coreason-ecosystem>
 
-import os
-import sys
 from pathlib import Path
+
 
 def setup_pi_agent() -> None:
     """Configures the local pi.dev coding agent with CoReason's strict ontology."""
-    
+
     home = Path.home()
     pi_dir = home / ".pi" / "agent"
-    
+
     print(f"Configuring pi.dev Sovereign Developer Console at {pi_dir}...")
-    
+
     if not pi_dir.exists():
         print(f"Directory {pi_dir} does not exist. Creating it.")
         pi_dir.mkdir(parents=True, exist_ok=True)
-        
+
     system_md_path = pi_dir / "system.md"
-    
+
     system_prompt = """# CoReason Sovereign Developer Console
 You are the official kinetic execution harness for the CoReason Swarm.
 You operate as a zero-waste, deterministic CLI proxy.
@@ -44,9 +43,12 @@ You operate as a zero-waste, deterministic CLI proxy.
 
     with open(system_md_path, "w", encoding="utf-8") as f:
         f.write(system_prompt)
-        
+
     print(f"Successfully wrote CoReason Epistemic Constraints to {system_md_path}")
-    print("You may now launch the console by running `npx @mariozechner/pi-coding-agent` in your terminal.")
+    print(
+        "You may now launch the console by running `npx @mariozechner/pi-coding-agent` in your terminal."
+    )
+
 
 if __name__ == "__main__":
     setup_pi_agent()
