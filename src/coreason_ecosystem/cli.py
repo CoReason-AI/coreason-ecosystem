@@ -108,6 +108,7 @@ def fleet_start(
 @app.command(name="up")
 def up() -> None:
     """Implement Idempotent DAG Resolution for the Swarm infrastructure."""
+
     async def _run() -> None:  # pragma: no cover
         await execute_up()
 
@@ -117,6 +118,7 @@ def up() -> None:
 @app.command(name="doctor")
 def doctor() -> None:
     """Prove Ontological Isomorphism across the Tripartite Manifold."""
+
     async def _run() -> None:
         await execute_oracle_diagnostic()
 
@@ -129,6 +131,7 @@ def doctor() -> None:
 )
 def sync() -> None:
     """Autonomically heal Ontological Drift."""
+
     async def _run() -> None:
         await execute_sync()
 

@@ -175,6 +175,7 @@ class SkyPilotActuator:
         if coroutines:
             await asyncio.gather(*coroutines)
 
+
 class ThermodynamicAssessment(BaseModel):
     """Diagnostic snapshot of the swarm's thermodynamic expenditure."""
 

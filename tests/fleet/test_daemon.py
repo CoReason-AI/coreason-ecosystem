@@ -34,9 +34,7 @@ async def test_autonomic_fleet_manager_scale_zero(
     mock_sleep: Any, fleet_manager: Any
 ) -> None:
     # delta <= 0, active_stacks > 0
-    fleet_manager.driver.reconcile_state.return_value = [
-        {"cluster_name": "stack1"}
-    ]
+    fleet_manager.driver.reconcile_state.return_value = [{"cluster_name": "stack1"}]
 
     # Cancel sleep to stop loop
     mock_sleep.side_effect = asyncio.CancelledError()
@@ -63,9 +61,6 @@ async def test_autonomic_fleet_manager_scale_up_success(
 
     fleet_manager.driver.provision_node.assert_called_once()
     assert fleet_manager.pending_provisions == 1
-
-
-
 
 
 @pytest.mark.asyncio

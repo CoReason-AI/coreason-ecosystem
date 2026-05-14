@@ -15,21 +15,12 @@ def mock_registry() -> Any:
     return registry
 
 
-@pytest.fixture
-def mock_oracle() -> Any:
-    oracle = MagicMock()
-    oracle.calculate_optimal_bid = AsyncMock(return_value=None)
-    return oracle
-
-
 @pytest.mark.asyncio
-async def test_von_neumann_treasury_urn_missing(
-    mock_registry: Any, mock_oracle: Any
-) -> None:
+async def test_von_neumann_treasury_urn_missing(mock_registry: Any) -> None:
     mock_registry.resolve_urn.side_effect = KeyError("urn missing")
 
     # Should return immediately without looping
-    await von_neumann_expansion_daemon(mock_registry, mock_oracle, "key", "ip")
+    await von_neumann_expansion_daemon(mock_registry, "key", "ip")
     mock_registry.resolve_urn.assert_called_once_with(TREASURY_URN)
 
 
@@ -37,7 +28,7 @@ async def test_von_neumann_treasury_urn_missing(
 @patch("coreason_ecosystem.fleet.expansion_loop.assess_thermodynamic_expenditure")
 @patch("coreason_ecosystem.fleet.expansion_loop.SkyPilotActuator")
 async def test_von_neumann_economic_guillotine(
-    mock_actuator_cls: Any, mock_assess: Any, mock_registry: Any, mock_oracle: Any
+    mock_actuator_cls: Any, mock_assess: Any, mock_registry: Any
 ) -> None:
     mock_assess.return_value = MagicMock(threshold_breached=True, expenditure_gwei=10)
     mock_actuator = MagicMock()
@@ -46,7 +37,7 @@ async def test_von_neumann_economic_guillotine(
     mock_actuator_cls.return_value = mock_actuator
 
     # Should exit the loop when guillotine triggers
-    await von_neumann_expansion_daemon(mock_registry, mock_oracle, "key", "ip")
+    await von_neumann_expansion_daemon(mock_registry, "key", "ip")
 
     mock_actuator.execute_thermodynamic_guillotine.assert_called_once_with(True)
 
@@ -60,7 +51,6 @@ async def test_von_neumann_provision_bid(
     mock_actuator_cls: Any,
     mock_assess: Any,
     mock_registry: Any,
-    mock_oracle: Any,
 ) -> None:
     mock_assess.return_value = MagicMock(threshold_breached=False, expenditure_gwei=10)
     mock_actuator = MagicMock()
@@ -74,7 +64,7 @@ async def test_von_neumann_provision_bid(
 
     mock_sleep.side_effect = asyncio.CancelledError()
 
-    await von_neumann_expansion_daemon(mock_registry, mock_oracle, "key", "ip")
+    await von_neumann_expansion_daemon(mock_registry, "key", "ip")
 
     mock_actuator.provision_node.assert_called_once()
     target = mock_actuator.provision_node.call_args[0][0]
@@ -90,11 +80,10 @@ async def test_von_neumann_runtime_exception(
     mock_actuator_cls: Any,
     mock_assess: Any,
     mock_registry: Any,
-    mock_oracle: Any,
 ) -> None:
     mock_actuator_cls.side_effect = Exception("Actuator initialization failed")
 
     mock_sleep.side_effect = asyncio.CancelledError()
 
-    await von_neumann_expansion_daemon(mock_registry, mock_oracle, "key", "ip")
+    await von_neumann_expansion_daemon(mock_registry, "key", "ip")
     # exception is caught, logged, and then sleep raises CancelledError, stopping the loop

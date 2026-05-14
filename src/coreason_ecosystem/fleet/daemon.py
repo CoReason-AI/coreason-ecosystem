@@ -81,7 +81,8 @@ class AutonomicFleetManager:
 
                 if delta > 0:
                     profile = HardwareProfile(
-                        min_vram_gb=delta, provider_whitelist=["aws", "gcp", "azure", "vast"]
+                        min_vram_gb=delta,
+                        provider_whitelist=["aws", "gcp", "azure", "vast"],
                     )
                     security_profile = SecurityProfile(network_isolation=True)
 
@@ -118,9 +119,7 @@ class AutonomicFleetManager:
                         self._background_tasks.add(task)
                         task.add_done_callback(self._background_tasks.discard)
                     except Exception as e:
-                        self.pending_provisions = max(
-                            0, self.pending_provisions - 1
-                        )
+                        self.pending_provisions = max(0, self.pending_provisions - 1)
                         logger.error(f"Provisioning failed: {e}")
                         raise
                 elif betti_0 == 0 and self.pending_provisions == 0:
