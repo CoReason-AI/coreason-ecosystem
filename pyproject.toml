@@ -126,10 +126,6 @@ module = "prometheus_client.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "lancedb.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
 module = "pyarrow.*"
 ignore_missing_imports = true
 
