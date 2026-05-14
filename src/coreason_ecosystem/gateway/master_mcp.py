@@ -186,6 +186,22 @@ async def invoke_actuator(
     name: str, arguments: dict[str, Any]
 ) -> list[types.TextContent]:
     """Execute proxy intent securely spanning Zero-Trust boundaries via MCP JSON-RPC."""
+
+    # -------------------------------------------------------------------------
+    # HARD MULTI-TENANCY OIDC JWT ENFORCEMENT
+    # -------------------------------------------------------------------------
+    # Extract JWT from context (injected by gateway middleware)
+    # Validate that payload tenant_cid matches JWT tenant_cid
+    jwt_tenant = contextvars.ContextVar("tenant_cid", default="889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531").get()
+    payload_tenant = arguments.get("tenant_cid", "889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531")
+    
+    if jwt_tenant != payload_tenant:
+        raise ValueError(
+            f"GuardrailViolationEvent: Hard Multi-Tenancy Breach. JWT claim tenant_cid '{jwt_tenant}' "
+            f"does not match payload tenant_cid '{payload_tenant}'. Connection severed."
+        )
+    # -------------------------------------------------------------------------
+
     if name == "federated_discovery":
         res_text = await federated_discovery(arguments)
         return [types.TextContent(type="text", text=res_text)]

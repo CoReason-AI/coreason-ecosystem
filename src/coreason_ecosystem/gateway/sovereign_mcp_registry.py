@@ -236,7 +236,9 @@ class SovereignMCPRegistry:
                     case _:
                         pass
 
-                await self._update_urn(urn, clearance, epistemic_status, capability_metadata)
+                await self._update_urn(
+                    urn, clearance, epistemic_status, capability_metadata
+                )
                 count += 1
 
         logger.info(f"Hydrated {count} capabilities from {matrix_path.name}")

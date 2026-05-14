@@ -297,7 +297,7 @@ class TestLegacyURNDeprecationWarnings:
                     "urn": "urn:coreason:actionspace:solver:clean:v1",
                     "endpoint": "http://clean:8000",
                     "clearance": "PUBLIC",
-                    "callback_url": "http://svix-broker.internal/api/v1/webhook"
+                    "callback_url": "http://svix-broker.internal/api/v1/webhook",
                 }
             ]
         }
@@ -308,7 +308,10 @@ class TestLegacyURNDeprecationWarnings:
         state = await registry._get_state()
         entry = state.get("urn:coreason:actionspace:solver:clean:v1")
         assert entry is not None
-        assert entry.get("capability_metadata", {}).get("callback_url") == "http://svix-broker.internal/api/v1/webhook"
+        assert (
+            entry.get("capability_metadata", {}).get("callback_url")
+            == "http://svix-broker.internal/api/v1/webhook"
+        )
 
 
 # ---------------------------------------------------------------------------
