@@ -37,7 +37,11 @@ class NemoClawBridgeClient:
         self.base_url = base_url.rstrip("/")
 
     async def call_tool(
-        self, target_urn: str, name: str, arguments: dict[str, Any], spiffe_id: str | None = None
+        self,
+        target_urn: str,
+        name: str,
+        arguments: dict[str, Any],
+        spiffe_id: str | None = None,
     ) -> dict[str, Any]:
         url = f"{self.base_url}/v1/mcp/{target_urn}/tools/call"
         payload = {
@@ -50,7 +54,9 @@ class NemoClawBridgeClient:
 
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.post(url, json=payload, headers=headers, timeout=30.0)
+                response = await client.post(
+                    url, json=payload, headers=headers, timeout=30.0
+                )
 
                 if 400 <= response.status_code < 500:
                     # Emit GuardrailViolationEvent telemetry

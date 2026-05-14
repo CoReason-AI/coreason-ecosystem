@@ -64,7 +64,9 @@ async def test_compute_schema_seal() -> None:
 
 
 @pytest.mark.asyncio
-async def test_compute_schema_seal_vault_success(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_compute_schema_seal_vault_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that schema sealing integrates with Vault transit engine."""
     schema = {"type": "object", "properties": {"name": {"type": "string"}}}
 
@@ -86,7 +88,9 @@ async def test_compute_schema_seal_vault_success(monkeypatch: pytest.MonkeyPatch
 
 
 @pytest.mark.asyncio
-async def test_compute_schema_seal_vault_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_compute_schema_seal_vault_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that schema sealing falls back to local hash if Vault fails."""
     schema = {"type": "object", "properties": {"name": {"type": "string"}}}
 
@@ -195,11 +199,12 @@ async def test_the_guillotine() -> None:
     with pytest.raises(ValueError, match="Geometrical topology fault"):
         await invoke_actuator(name=unregistered_tool, arguments=arguments)
 
+
 @pytest.mark.asyncio
 async def test_invoke_actuator_tenant_mismatch() -> None:
     """Test that a mismatch between JWT tenant_cid and payload tenant_cid raises a ValueError."""
     from coreason_ecosystem.gateway.master_mcp import invoke_actuator
-    
+
     # We set the jwt_tenant via ContextVar logic (or rely on default if unchanged)
     # The default is "889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531"
     arguments = {"tenant_cid": "invalid_tenant_12345", "query": "test"}

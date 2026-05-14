@@ -182,7 +182,6 @@ class SovereignMCPRegistry:
         handle = self._client.get_workflow_handle(self._workflow_id)
         return await handle.query(RegistryStateWorkflow.get_state)
 
-
     async def hydrate_from_compiled_matrix(
         self, json_path: Path
     ) -> None:  # pragma: no cover
