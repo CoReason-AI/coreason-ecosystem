@@ -52,6 +52,9 @@ services:
 
   coreason-runtime:
     image: coreason-runtime:local
+    build:
+      context: ../../../coreason-runtime
+      dockerfile: Dockerfile
     restart: on-failure
     deploy:
       resources:

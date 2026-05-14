@@ -170,6 +170,15 @@ function App() {
 
       if (ignResult.status === "SUCCESS") {
         setBootState("Active");
+        // Refresh diagnostics state to show updated "Available" checkmarks
+        try {
+          const freshResult: SwarmBootstrapReceipt = await invoke("check_dependencies", {
+            intent: { environmentMode: "local", includeDefaultKit: true },
+          });
+          setReceipt(freshResult);
+        } catch (e) {
+          console.error("Failed to refresh diagnostics", e);
+        }
       } else {
         setErrorMessage(ignResult.message);
         setBootState("Error");
@@ -182,6 +191,22 @@ function App() {
 
   async function openDashboard() {
     await openUrl("http://localhost:8080");
+  }
+
+  async function handleUninstall() {
+    if (!window.confirm("Are you sure you want to completely uninstall NemoClaw and wipe all sandbox configuration?")) return;
+    setBootState("Detecting");
+    setLogs(["[Uninstall] Initiating wipe..."]);
+    try {
+      await invoke("uninstall_nemoclaw");
+      setLogs((prev) => [...prev, "Uninstall complete. Restarting detection..."]);
+      setTimeout(() => {
+        launchSwarm();
+      }, 1500);
+    } catch (e) {
+      setErrorMessage(String(e));
+      setBootState("Error");
+    }
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -320,8 +345,8 @@ function App() {
         </div>
       )}
 
-      {/* ── Diagnostics (after check, not in Active/Idle) ── */}
-      {receipt && bootState !== "Idle" && bootState !== "Active" && (
+      {/* ── Diagnostics (after check, not in Idle) ── */}
+      {receipt && bootState !== "Idle" && (
         <div style={styles.diagnostics}>
           <h3 style={{ margin: "0 0 0.5rem" }}>Environment Diagnostics</h3>
           <DiagRow label="OS" value={receipt.osType} />
@@ -329,6 +354,15 @@ function App() {
           <DiagRow label="Docker Compose" ok={receipt.dockerComposeAvailable} />
           <DiagRow label="NemoClaw Binary" ok={receipt.nemoclawInstalled} />
           <DiagRow label="NemoClaw Onboarded" ok={receipt.nemoclawOnboarded} />
+          
+          <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid #333", textAlign: "right" }}>
+            <button 
+              style={{ ...styles.secondaryButton, color: "#f44336", borderColor: "#f44336" }} 
+              onClick={handleUninstall}
+            >
+              🗑️ Factory Reset (Uninstall)
+            </button>
+          </div>
         </div>
       )}
     </main>

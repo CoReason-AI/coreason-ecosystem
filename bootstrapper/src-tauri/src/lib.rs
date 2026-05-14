@@ -26,6 +26,11 @@ async fn ignite_swarm(app: tauri::AppHandle, intent: SwarmIgnitionIntent) -> Swa
     platform::ignite_swarm(app, intent)
 }
 
+#[tauri::command]
+async fn uninstall_nemoclaw(app: tauri::AppHandle) -> Result<(), String> {
+    platform::uninstall_nemoclaw(app)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -34,7 +39,8 @@ pub fn run() {
             check_dependencies,
             install_nemoclaw,
             onboard_nemoclaw,
-            ignite_swarm
+            ignite_swarm,
+            uninstall_nemoclaw
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

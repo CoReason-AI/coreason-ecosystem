@@ -26,17 +26,20 @@ pub fn check_dependencies(_intent: SwarmBootstrapIntent) -> SwarmBootstrapReceip
         .map(|out| out.status.success())
         .unwrap_or(false);
 
-    // Real binary check: does `nemoclaw --version` exit 0?
-    let nemoclaw_installed = Command::new("nemoclaw")
-        .arg("--version")
-        .output()
-        .map(|out| out.status.success())
+    // Real binary check: does `~/.local/bin/nemoclaw` exist and is executable?
+    let nemoclaw_installed = Command::new("sh")
+        .arg("-c")
+        .arg("[ -x ~/.local/bin/nemoclaw ]")
+        .status()
+        .map(|s| s.success())
         .unwrap_or(false);
 
     // Onboard check: `nemoclaw list` succeeds AND doesn't say "No sandboxes registered"
+    // OR the openshell sandbox container is running.
     let nemoclaw_onboarded = if nemoclaw_installed {
-        Command::new("nemoclaw")
-            .arg("list")
+        let list_success = Command::new("sh")
+            .arg("-c")
+            .arg("~/.local/bin/nemoclaw list")
             .output()
             .map(|out| {
                 if out.status.success() {
@@ -46,7 +49,16 @@ pub fn check_dependencies(_intent: SwarmBootstrapIntent) -> SwarmBootstrapReceip
                     false
                 }
             })
-            .unwrap_or(false)
+            .unwrap_or(false);
+
+        let docker_success = Command::new("sh")
+            .arg("-c")
+            .arg("docker ps -q --filter 'name=openshell' | grep -q .")
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+
+        list_success || docker_success
     } else {
         false
     };
@@ -95,7 +107,7 @@ pub fn install_nemoclaw(app: tauri::AppHandle) -> NemoClawInstallReceipt {
     // The official NVIDIA curl|bash installer for NemoClaw
     let mut child = match Command::new("sh")
         .arg("-c")
-        .arg("curl -fsSL https://www.nvidia.com/nemoclaw.sh | bash")
+        .arg("curl -fsSL https://www.nvidia.com/nemoclaw.sh | bash -s -- --non-interactive --yes-i-accept-third-party-software --fresh")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -128,26 +140,27 @@ pub fn install_nemoclaw(app: tauri::AppHandle) -> NemoClawInstallReceipt {
         }
     });
 
-    match child.wait() {
-        Ok(status) if status.success() => {
+    let _ = child.wait();
+
+    let check_child = Command::new("sh")
+        .arg("-c")
+        .arg("[ -x ~/.local/bin/nemoclaw ]")
+        .status();
+
+    if let Ok(status) = check_child {
+        if status.success() {
             let _ = app.emit("boot-log", "[NemoClaw] ✅ Binary installed successfully.");
-            NemoClawInstallReceipt {
+            return NemoClawInstallReceipt {
                 status: "SUCCESS".to_string(),
                 message: "NemoClaw binary installed. Please provide your NGC API key to onboard."
                     .to_string(),
-            }
+            };
         }
-        Ok(status) => NemoClawInstallReceipt {
-            status: "FAILURE".to_string(),
-            message: format!(
-                "Installer exited with non-zero code: {}",
-                status.code().unwrap_or(-1)
-            ),
-        },
-        Err(e) => NemoClawInstallReceipt {
-            status: "FAILURE".to_string(),
-            message: format!("Failed to wait on installer process: {}", e),
-        },
+    }
+
+    NemoClawInstallReceipt {
+        status: "FAILURE".to_string(),
+        message: "Installer exited and ~/.local/bin/nemoclaw was not found. Please check your internet connection.".to_string(),
     }
 }
 
@@ -349,4 +362,29 @@ mod tests {
         let receipt = check_dependencies(intent);
         assert!(!receipt.os_type.is_empty());
     }
+}
+
+pub fn uninstall_nemoclaw(app: tauri::AppHandle) -> Result<(), String> {
+    let _ = app.emit("boot-log", "[Uninstall] Removing NemoClaw containers...");
+    Command::new("sh")
+        .arg("-c")
+        .arg("docker rm -f $(docker ps -aq --filter 'name=coreason') 2>/dev/null")
+        .status()
+        .ok();
+    
+    Command::new("sh")
+        .arg("-c")
+        .arg("docker rm -f $(docker ps -aq --filter 'name=openshell') 2>/dev/null")
+        .status()
+        .ok();
+
+    let _ = app.emit("boot-log", "[Uninstall] Removing NemoClaw CLI and config...");
+    Command::new("sh")
+        .arg("-c")
+        .arg("rm -f ~/.local/bin/nemoclaw && rm -rf ~/.nemoclaw && rm -rf ~/.local/state/nemoclaw")
+        .status()
+        .ok();
+
+    let _ = app.emit("boot-log", "[Uninstall] Complete. Environment reset.");
+    Ok(())
 }
