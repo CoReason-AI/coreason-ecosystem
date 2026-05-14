@@ -1,3 +1,0 @@
-name: coreason-swarm-mesh
-runtime: python
-description: "A minimal Pulumi program setting up a Proxmox VM/LXC with WireGuard mesh."

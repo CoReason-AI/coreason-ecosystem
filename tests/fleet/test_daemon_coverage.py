@@ -11,10 +11,7 @@ from coreason_ecosystem.fleet.daemon import AutonomicFleetManager
 
 @pytest.fixture
 def fleet_manager() -> Any:
-    with (
-        patch("coreason_ecosystem.fleet.daemon.PulumiActuator"),
-        patch("coreason_ecosystem.fleet.daemon.PricingOracle"),
-    ):
+    with patch("coreason_ecosystem.fleet.daemon.SkyPilotActuator"):
         manager = AutonomicFleetManager(
             max_budget_hr=10.0,
             polling_interval_sec=1,
@@ -25,11 +22,9 @@ def fleet_manager() -> Any:
         manager.driver = MagicMock()
         manager.driver.reconcile_state = AsyncMock(return_value=[])
         manager.driver.provision_node = AsyncMock(
-            return_value={"stack_name": "test_stack"}
+            return_value={"cluster_name": "test_stack"}
         )
         manager.driver.destroy_node = AsyncMock()
-        manager.oracle = MagicMock()
-        manager.oracle.calculate_optimal_bid = AsyncMock(return_value=None)
         return manager
 
 
@@ -37,9 +32,6 @@ def fleet_manager() -> Any:
 async def test_daemon_cooldown_decrement(fleet_manager: Any) -> None:
     """Cover lines 113-117: background _cooldown_and_decrement task."""
     fleet_manager.driver.reconcile_state.return_value = [{"vram_capacity": -10.0}]
-    bid = MagicMock()
-    bid.provider = "aws"
-    fleet_manager.oracle.calculate_optimal_bid.return_value = bid
 
     with patch("asyncio.sleep", AsyncMock()):
 

@@ -96,16 +96,6 @@ def test_redaction_filter_prod() -> None:
     assert "<REDACTED_SSN>" in record["message"]
 
 
-
-
-
-
-
-
-
-
-
-
 def test_telemetry_model_success() -> None:
     class TestModel(TelemetryModel):
         name: str
@@ -117,12 +107,6 @@ def test_telemetry_model_success() -> None:
         assert (
             mock_get_tracer.return_value.start_as_current_span.call_count == 1
         )  # Called in validate_with_telemetry
-
-
-
-
-
-
 
 
 @patch("coreason_ecosystem.utils.telemetry.get_observability_settings")
@@ -145,10 +129,6 @@ def test_telemetry_model_failure_no_diagnostics(mock_get_settings: Any) -> None:
 
     with pytest.raises(ValidationError), patch("opentelemetry.trace.get_tracer"):
         TestModel.validate_with_telemetry({"name": 123})
-
-
-
-
 
 
 def test_logger_patch_record_none() -> None:

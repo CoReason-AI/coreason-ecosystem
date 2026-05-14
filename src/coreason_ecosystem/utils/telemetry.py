@@ -60,9 +60,6 @@ def get_observability_settings() -> ObservabilitySettings:
     return ObservabilitySettings()
 
 
-
-
-
 class TelemetryModel(BaseModel):
     """
     Base Pydantic model that automatically instruments validation with OpenTelemetry spans.
@@ -174,17 +171,21 @@ def setup_telemetry_mesh() -> None:
         from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
         from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
         from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
-        
+
         logger_provider = LoggerProvider()
         set_logger_provider(logger_provider)
-        
+
         otlp_log_exporter = OTLPLogExporter(endpoint=settings.otlp_endpoint)
-        logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_exporter))
-        
+        logger_provider.add_log_record_processor(
+            BatchLogRecordProcessor(otlp_log_exporter)
+        )
+
         otlp_handler = LoggingHandler(level=0, logger_provider=logger_provider)
         logger.add(otlp_handler, level=settings.log_level)
     except ImportError:
-        logger.warning("OpenTelemetry log exporter not found. Skipping native OTLP logs setup.")
+        logger.warning(
+            "OpenTelemetry log exporter not found. Skipping native OTLP logs setup."
+        )
 
     # Route standard logging to loguru
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
