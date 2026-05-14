@@ -43,3 +43,4 @@ capabilities:
     endpoint: "http://chaos-mesh-effector:8000"
     clearance: "RESTRICTED"
     epistemic_status: "SRB_APPROVED"
+    callback_url: "https://api.svix.com/v1/app/app_xxx/msg/"

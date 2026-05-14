@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import os
+import yaml
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 
@@ -26,6 +27,7 @@ from coreason_manifest.spec.ontology import (
     FederatedDiscoveryIntent,
 )
 from fastapi import FastAPI
+from fastapi.responses import PlainTextResponse
 from mcp.server.sse import SseServerTransport
 from starlette.requests import Request
 
@@ -120,6 +122,13 @@ def compute_schema_seal(schema: dict[str, Any]) -> str:
 
 
 sse_transport = SseServerTransport("/messages")
+
+
+@app.get("/openapi.yaml", response_class=PlainTextResponse)
+async def get_openapi_yaml() -> str:
+    """Dynamic OpenAPI 3.1 projection for Hyperscalers (Google Vertex / AWS Bedrock)."""
+    openapi_schema = app.openapi()
+    return yaml.dump(openapi_schema, sort_keys=False)
 
 
 @app.get("/sse")

@@ -129,6 +129,20 @@ services:
       coreason-master-gateway:
         condition: service_healthy
 
+  dex:
+    image: ghcr.io/dexidp/dex:v2.38.0
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '512M'
+    ports:
+      - "5556:5556"
+    networks:
+      - swarm-mesh
+      - sensory-gateway
+
   coreason-master-gateway:
     image: ghcr.io/coreason/coreason-master-gateway:latest
     restart: on-failure

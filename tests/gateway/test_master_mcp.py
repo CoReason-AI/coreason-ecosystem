@@ -127,6 +127,15 @@ async def test_messages_endpoint_direct() -> None:
 
 
 @pytest.mark.asyncio
+async def test_openapi_yaml_endpoint(client: TestClient) -> None:
+    """Test the dynamic OpenAPI 3.1 YAML projection endpoint."""
+    response = client.get("/openapi.yaml")
+    assert response.status_code == 200
+    assert "openapi:" in response.text
+    assert "info:" in response.text
+
+
+@pytest.mark.asyncio
 async def test_list_actuators() -> None:
     """Test that list_actuators returns the built-in capabilities."""
     tools = await list_actuators()
