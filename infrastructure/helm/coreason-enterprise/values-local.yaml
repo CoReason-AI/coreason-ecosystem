@@ -1,0 +1,23 @@
+# Local Deployment Overrides (e.g. Minikube, Docker Desktop)
+global:
+  environment: local
+
+gateway:
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+runtime:
+  replicaCount: 1
+  autoscaling:
+    enabled: false # HPA is disabled on laptops
+
+# Use embedded OSS databases instead of managed services
+neo4j:
+  enabled: true
+temporal:
+  enabled: true
+milvus:
+  enabled: true

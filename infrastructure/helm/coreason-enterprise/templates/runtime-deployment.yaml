@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-runtime
+  labels:
+    app: coreason-runtime
+spec:
+  replicas: {{ .Values.runtime.replicaCount }}
+  selector:
+    matchLabels:
+      app: coreason-runtime
+  template:
+    metadata:
+      labels:
+        app: coreason-runtime
+    spec:
+      containers:
+        - name: runtime
+          image: "{{ .Values.runtime.image.repository }}:{{ .Values.runtime.image.tag }}"
+          imagePullPolicy: {{ .Values.runtime.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+          resources:
+            {{- toYaml .Values.runtime.resources | nindent 12 }}
+          env:
+            - name: COREASON_ENVIRONMENT
+              value: {{ .Values.global.environment }}
