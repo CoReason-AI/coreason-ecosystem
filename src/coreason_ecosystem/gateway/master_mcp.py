@@ -91,6 +91,30 @@ app = FastAPI(title="coreason-master-gateway", lifespan=lifespan)
 mcp_server = mcp.server.Server("coreason-master-gateway")
 
 current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
+tenant_cid_var = contextvars.ContextVar("tenant_cid", default="889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531")
+spiffe_id_var = contextvars.ContextVar("spiffe_id", default="spiffe://coreason.ai/ns/default/sa/master-gateway")
+
+import base64
+@app.middleware("http")
+async def extract_jwt_claims(request: Request, call_next):
+    jwt_payload = request.headers.get("x-jwt-payload")
+    if jwt_payload:
+        try:
+            # Envoy forward_payload_header injects the base64url encoded payload
+            # Pad if necessary
+            padding = '=' * (4 - len(jwt_payload) % 4)
+            decoded_bytes = base64.urlsafe_b64decode(jwt_payload + padding)
+            payload = json.loads(decoded_bytes)
+            
+            if "sub" in payload:
+                tenant_cid_var.set(payload["sub"])
+            if "spiffe_id" in payload:
+                spiffe_id_var.set(payload["spiffe_id"])
+        except Exception as e:
+            logger.warning(f"Failed to decode x-jwt-payload header: {e}")
+            
+    response = await call_next(request)
+    return response
 
 
 def _canonicalize_json(obj: Any) -> bytes:
@@ -192,7 +216,7 @@ async def invoke_actuator(
     # -------------------------------------------------------------------------
     # Extract JWT from context (injected by gateway middleware)
     # Validate that payload tenant_cid matches JWT tenant_cid
-    jwt_tenant = contextvars.ContextVar("tenant_cid", default="889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531").get()
+    jwt_tenant = tenant_cid_var.get()
     payload_tenant = arguments.get("tenant_cid", "889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531")
     
     if jwt_tenant != payload_tenant:
@@ -204,7 +228,7 @@ async def invoke_actuator(
     # -------------------------------------------------------------------------
     # SPIFFE/SPIRE NODE-TO-NODE VERIFIABLE IDENTITY ENFORCEMENT
     # -------------------------------------------------------------------------
-    spiffe_id = contextvars.ContextVar("spiffe_id", default="spiffe://coreason.ai/ns/default/sa/master-gateway").get()
+    spiffe_id = spiffe_id_var.get()
     # -------------------------------------------------------------------------
 
     if name == "federated_discovery":

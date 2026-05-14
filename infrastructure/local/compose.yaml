@@ -137,6 +137,8 @@ services:
         limits:
           cpus: '0.5'
           memory: '512M'
+    volumes:
+      - ./dex-config.yaml:/etc/dex/config.docker.yaml:ro
     ports:
       - "5556:5556"
     networks:
