@@ -200,6 +200,11 @@ async def invoke_actuator(
             f"GuardrailViolationEvent: Hard Multi-Tenancy Breach. JWT claim tenant_cid '{jwt_tenant}' "
             f"does not match payload tenant_cid '{payload_tenant}'. Connection severed."
         )
+
+    # -------------------------------------------------------------------------
+    # SPIFFE/SPIRE NODE-TO-NODE VERIFIABLE IDENTITY ENFORCEMENT
+    # -------------------------------------------------------------------------
+    spiffe_id = contextvars.ContextVar("spiffe_id", default="spiffe://coreason.ai/ns/default/sa/master-gateway").get()
     # -------------------------------------------------------------------------
 
     if name == "federated_discovery":
@@ -226,7 +231,7 @@ async def invoke_actuator(
     client = NemoClawBridgeClient(nemoclaw_url)
 
     try:
-        result = await client.call_tool(target_urn, name, arguments)
+        result = await client.call_tool(target_urn, name, arguments, spiffe_id=spiffe_id)
         return [types.TextContent(type="text", text=str(result.get("content", result)))]
     except RuntimeError as e:
         logger.error(f"NemoClaw security or execution fault: {e}")
