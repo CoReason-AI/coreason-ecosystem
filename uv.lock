@@ -1,13 +1,10 @@
 version = 1
 revision = 3
-requires-python = ">=3.14"
+requires-python = "==3.14.*"
 resolution-markers = [
-    "python_full_version >= '3.15' and sys_platform == 'win32'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version < '3.15' and sys_platform == 'win32'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "sys_platform == 'win32'",
+    "sys_platform == 'emscripten'",
+    "sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
 [[package]]
@@ -540,7 +537,7 @@ dev = [
 requires-dist = [
     { name = "boto3", specifier = ">=1.38.0" },
     { name = "click", specifier = ">=8.1.7" },
-    { name = "coreason-manifest", specifier = "==0.60.0" },
+    { name = "coreason-manifest", specifier = "==0.60.1" },
     { name = "cryptography", specifier = ">=44.0.0" },
     { name = "fastapi", specifier = ">=0.135.3" },
     { name = "httpx", specifier = ">=0.27.0" },
@@ -595,7 +592,7 @@ dev = [
 
 [[package]]
 name = "coreason-manifest"
-version = "0.60.0"
+version = "0.60.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "canonicaljson" },
@@ -605,9 +602,9 @@ dependencies = [
     { name = "pycrdt" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ad/fc/209a5d17b2591f2c1d53403bacc4ac25f365d596e2eb97a305c874359bb0/coreason_manifest-0.60.0.tar.gz", hash = "sha256:486a6353d76c3ea23145498aca06fc4f97b3c80d9d606f307ec254e04fcb5d12", size = 857916, upload-time = "2026-05-14T01:15:56.724Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/49/d1/bf498b3e32615499ac370355bebc9621aef9790e3a6b4e0fc96594bea4ca/coreason_manifest-0.60.1.tar.gz", hash = "sha256:e7df4961a141c1d82663b1f41c7bd22254437c35855ffcc15d68d9d81addc9cf", size = 857964, upload-time = "2026-05-14T02:08:04.049Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/c2/8f2ff2dcd944bfa76cc3cefbe05475b1d413d325a30da25b66f74d16cec1/coreason_manifest-0.60.0-py3-none-any.whl", hash = "sha256:ebee726dbc1fd168e4c0a7746cad302fab81ba75d28e3209eacfc94d66886c42", size = 199359, upload-time = "2026-05-14T01:15:55.459Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/16/e6ce7e2b3ae09df903b44f1dbc608d685d26ef6e55df76164cb937d09688/coreason_manifest-0.60.1-py3-none-any.whl", hash = "sha256:c2e35bcf5e3e9c05d4011d8113d16f13ba21ec67302d8bebfcfc4bf60ce5f958", size = 199405, upload-time = "2026-05-14T02:08:02.829Z" },
 ]
 
 [[package]]
@@ -745,7 +742,7 @@ dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "packaging" },
     { name = "requirements-parser" },
-    { name = "tomli", marker = "python_full_version < '3.15'" },
+    { name = "tomli" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b8/b2/50ccc99362ae7757342978b7ecb3b98e47fade721fd617d74db1948ec3a1/deptry-0.25.1.tar.gz", hash = "sha256:45c8cd982c85cd4faae573ddff6920de7eec735336db6973f26a765ae7950f7d", size = 509748, upload-time = "2026-03-18T23:22:18.139Z" }
 wheels = [
