@@ -129,6 +129,36 @@ services:
       coreason-master-gateway:
         condition: service_healthy
 
+  vault:
+    image: hashicorp/vault:latest
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '512M'
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=root-token
+      - VAULT_ADDR=http://127.0.0.1:8200
+    command: >
+      /bin/sh -c "
+        vault server -dev -dev-listen-address=0.0.0.0:8200 &
+        sleep 5
+        vault secrets enable transit
+        vault write -f transit/keys/coreason-merkle-key
+        wait
+      "
+    ports:
+      - "8200:8200"
+    networks:
+      - swarm-mesh
+      - sensory-gateway
+    healthcheck:
+      test: [ "CMD", "vault", "status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   dex:
     image: ghcr.io/dexidp/dex:v2.38.0
     restart: on-failure
@@ -193,6 +223,8 @@ services:
       - COREASON_MILVUS_URI=${COREASON_MILVUS_URI:-http://milvus:19530}
       - COREASON_TREASURY_CONTRACT=${COREASON_TREASURY_CONTRACT}
       - COREASON_OTLP_ENDPOINT=http://otel-collector:4318/v1/logs
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=root-token
     ports:
       - "8001:8000"
     networks:
@@ -204,6 +236,8 @@ services:
       neo4j:
         condition: service_healthy
       milvus:
+        condition: service_healthy
+      vault:
         condition: service_healthy
 
   nemoclaw:

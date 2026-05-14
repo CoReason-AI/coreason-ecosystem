@@ -64,6 +64,45 @@ async def test_compute_schema_seal() -> None:
 
 
 @pytest.mark.asyncio
+async def test_compute_schema_seal_vault_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that schema sealing integrates with Vault transit engine."""
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+    
+    # We must use physical mocks/intercepts as per "No Mock" directive,
+    # but since this is an external HTTP request, we use respx for network interception.
+    monkeypatch.setenv("VAULT_ADDR", "http://vault:8200")
+    monkeypatch.setenv("VAULT_TOKEN", "test-token")
+    
+    with respx.mock(assert_all_called=False) as respx_mock:
+        route = respx_mock.post("http://vault:8200/v1/transit/sign/coreason-merkle-key")
+        route.return_value = httpx.Response(200, json={"data": {"signature": "vault:v1:test-signature"}})
+        
+        seal = compute_schema_seal(schema)
+        
+        assert isinstance(seal, dict)
+        assert "hash" in seal
+        assert seal["signature"] == "vault:v1:test-signature"
+
+
+@pytest.mark.asyncio
+async def test_compute_schema_seal_vault_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that schema sealing falls back to local hash if Vault fails."""
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+    
+    monkeypatch.setenv("VAULT_ADDR", "http://vault:8200")
+    monkeypatch.setenv("VAULT_TOKEN", "test-token")
+    
+    with respx.mock(assert_all_called=False) as respx_mock:
+        route = respx_mock.post("http://vault:8200/v1/transit/sign/coreason-merkle-key")
+        route.return_value = httpx.Response(500, json={"errors": ["internal server error"]})
+        
+        seal = compute_schema_seal(schema)
+        
+        assert isinstance(seal, str)
+        assert len(seal) == 64  # Fell back to SHA-256 hex digest
+
+
+@pytest.mark.asyncio
 async def test_sse_endpoint_direct() -> None:
     from coreason_ecosystem.gateway.master_mcp import handle_sse
 
@@ -158,7 +197,6 @@ async def test_the_guillotine() -> None:
 @pytest.mark.asyncio
 async def test_invoke_actuator_tenant_mismatch() -> None:
     """Test that a mismatch between JWT tenant_cid and payload tenant_cid raises a ValueError."""
-    import contextvars
     from coreason_ecosystem.gateway.master_mcp import invoke_actuator
     
     # We set the jwt_tenant via ContextVar logic (or rely on default if unchanged)

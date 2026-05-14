@@ -34,6 +34,7 @@ dependencies = [
     "semantic-router>=0.1.1",
     "numpy>=2.4.4",
     "skypilot>=0.6.2",
+    "hvac>=2.4.0",
 ]
 
 license = { file = "LICENSE" }

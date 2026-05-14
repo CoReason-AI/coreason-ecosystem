@@ -8,6 +8,7 @@
 #
 # Source Code: <https://github.com/CoReason-AI/coreason-ecosystem>
 
+import base64
 import contextvars
 import hashlib
 import json
@@ -94,7 +95,6 @@ current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC"
 tenant_cid_var = contextvars.ContextVar("tenant_cid", default="889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531")
 spiffe_id_var = contextvars.ContextVar("spiffe_id", default="spiffe://coreason.ai/ns/default/sa/master-gateway")
 
-import base64
 @app.middleware("http")
 async def extract_jwt_claims(request: Request, call_next):
     jwt_payload = request.headers.get("x-jwt-payload")
@@ -132,17 +132,44 @@ def _canonicalize_json(obj: Any) -> bytes:
     return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
-def compute_schema_seal(schema: dict[str, Any]) -> str:
+def compute_schema_seal(schema: dict[str, Any]) -> str | dict[str, str]:
     """Compute the SHA-256 seal of a canonicalized MCP tool schema.
 
     Args:
         schema: The MCP tool input schema dictionary.
 
     Returns:
-        Hexadecimal SHA-256 digest string.
+        Hexadecimal SHA-256 digest string, or a dict containing signature if Vault is enabled.
     """
+    import base64
     canonical = _canonicalize_json(schema)
-    return hashlib.sha256(canonical).hexdigest()
+    digest = hashlib.sha256(canonical).hexdigest()
+
+    vault_addr = os.getenv("VAULT_ADDR")
+    vault_token = os.getenv("VAULT_TOKEN")
+
+    if vault_addr and vault_token:
+        try:
+            import httpx
+            # Vault transit sign requires base64 encoded input
+            encoded_payload = base64.b64encode(canonical).decode("utf-8")
+            
+            response = httpx.post(
+                f"{vault_addr}/v1/transit/sign/coreason-merkle-key",
+                headers={"X-Vault-Token": vault_token},
+                json={"input": encoded_payload},
+                timeout=2.0
+            )
+            response.raise_for_status()
+            data = response.json()
+            return {
+                "hash": digest,
+                "signature": data["data"]["signature"]
+            }
+        except Exception as e:
+            logger.warning(f"Vault transit sign failed, falling back to local hash: {e}")
+
+    return digest
 
 
 sse_transport = SseServerTransport("/messages")
