@@ -143,6 +143,36 @@ services:
       - swarm-mesh
       - sensory-gateway
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.100.0
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '512M'
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - swarm-mesh
+
+  redpanda-connect:
+    image: redpandadata/connect:4.30.0
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '512M'
+    volumes:
+      - ./redpanda-connect-pipeline.yaml:/benthos.yaml:ro
+    networks:
+      - swarm-mesh
+      - sensory-gateway
+
   coreason-master-gateway:
     image: ghcr.io/coreason/coreason-master-gateway:latest
     restart: on-failure
@@ -160,6 +190,7 @@ services:
       - COREASON_NEO4J_URI=${COREASON_NEO4J_URI:-bolt://neo4j:7687}
       - COREASON_MILVUS_URI=${COREASON_MILVUS_URI:-http://milvus:19530}
       - COREASON_TREASURY_CONTRACT=${COREASON_TREASURY_CONTRACT}
+      - COREASON_OTLP_ENDPOINT=http://otel-collector:4318/v1/logs
     ports:
       - "8001:8000"
     networks:
