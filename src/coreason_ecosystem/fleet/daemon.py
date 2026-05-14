@@ -22,8 +22,7 @@ from typing import Any
 
 from loguru import logger
 
-from coreason_ecosystem.fleet.pricing_oracle import PricingOracle
-from coreason_ecosystem.fleet.pulumi_actuator import PulumiActuator
+from coreason_ecosystem.fleet.skypilot_actuator import SkyPilotActuator, SkyPilotTarget
 from coreason_manifest.spec.ontology import (
     SpatialHardwareProfile as HardwareProfile,
     EpistemicSecurityProfile as SecurityProfile,
@@ -52,8 +51,7 @@ class AutonomicFleetManager:
         self.polling_interval_sec = polling_interval_sec
         self.mesh_auth_key = mesh_auth_key
         self.temporal_mesh_ip = temporal_mesh_ip
-        self.driver = PulumiActuator(templates_dir=templates_path)
-        self.oracle = PricingOracle()
+        self.driver = SkyPilotActuator()
         self._running = False
         self.pending_provisions = 0
         self._background_tasks: set[asyncio.Task[Any]] = set()
@@ -83,62 +81,57 @@ class AutonomicFleetManager:
 
                 if delta > 0:
                     profile = HardwareProfile(
-                        min_vram_gb=delta, provider_whitelist=["aws", "vast"]
+                        min_vram_gb=delta, provider_whitelist=["aws", "gcp", "azure", "vast"]
                     )
                     security_profile = SecurityProfile(network_isolation=True)
 
-                    bid = await self.oracle.calculate_optimal_bid(
-                        profile, self.max_budget_hr
-                    )
-                    if bid:
-                        logger.info(f"Optimal Bid Found: {bid}. Provisioning...")
-
-                        bid.hardware_profile = profile
-                        bid.security_profile = security_profile
-                        bid.mesh_auth_key = self.mesh_auth_key
-                        bid.temporal_mesh_ip = self.temporal_mesh_ip
-                        bid.escrow_policy = EscrowPolicy(
+                    target = SkyPilotTarget(
+                        use_spot=True,
+                        hardware_profile=profile,
+                        security_profile=security_profile,
+                        mesh_auth_key=self.mesh_auth_key,
+                        temporal_mesh_ip=self.temporal_mesh_ip,
+                        autostop_idle_minutes=15,
+                        escrow_policy=EscrowPolicy(
                             escrow_locked_magnitude=max(int(self.max_budget_hr), 1),
                             release_condition_metric="fleet_daemon_hourly_budget",
-                            refund_target_node_cid=f"did:coreason:fleet:{bid.provider}",
+                            refund_target_node_cid="did:coreason:fleet:skypilot",
+                        ),
+                    )
+
+                    logger.info("Optimal target generated. Provisioning...")
+
+                    self.pending_provisions += 1
+                    try:
+                        result = await self.driver.provision_node(target)
+                        logger.info(
+                            f"Provisioning Complete: {result.get('cluster_name', 'unknown')}"
                         )
 
-                        self.pending_provisions += 1
-                        try:
-                            result = await self.driver.provision_node(bid)
-                            logger.info(
-                                f"Provisioning Complete: {result['stack_name']}"
-                            )
-
-                            async def _cooldown_and_decrement() -> None:
-                                await asyncio.sleep(300)
-                                self.pending_provisions = max(
-                                    0, self.pending_provisions - 1
-                                )
-
-                            task = asyncio.create_task(_cooldown_and_decrement())
-                            self._background_tasks.add(task)
-                            task.add_done_callback(self._background_tasks.discard)
-                        except Exception as e:
+                        async def _cooldown_and_decrement() -> None:
+                            await asyncio.sleep(300)
                             self.pending_provisions = max(
                                 0, self.pending_provisions - 1
                             )
-                            logger.error(f"Provisioning failed: {e}")
-                            raise
-                    else:
-                        logger.warning(
-                            "No viable bids found under budget for current requirements."
+
+                        task = asyncio.create_task(_cooldown_and_decrement())
+                        self._background_tasks.add(task)
+                        task.add_done_callback(self._background_tasks.discard)
+                    except Exception as e:
+                        self.pending_provisions = max(
+                            0, self.pending_provisions - 1
                         )
+                        logger.error(f"Provisioning failed: {e}")
+                        raise
                 elif betti_0 == 0 and self.pending_provisions == 0:
                     if active_stacks:
-                        target = active_stacks[0]
-                        stack_to_destroy = target["stack_name"]
-                        provider = target["provider"]
+                        target_stack = active_stacks[0]
+                        stack_to_destroy = target_stack.get("cluster_name", "unknown")
 
                         logger.info(
-                            f"Scale to zero triggered. Destroying {stack_to_destroy} on {provider}..."
+                            f"Scale to zero triggered. Destroying {stack_to_destroy}..."
                         )
-                        await self.driver.destroy_node(stack_to_destroy, provider)
+                        await self.driver.destroy_node(stack_to_destroy)
                     else:
                         logger.debug(
                             "Queue empty, but no active compute nodes to destroy."

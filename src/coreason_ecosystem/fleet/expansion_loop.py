@@ -29,12 +29,12 @@ from __future__ import annotations
 
 from loguru import logger
 
-from coreason_ecosystem.fleet.pricing_oracle import (
-    PricingOracle,
+from coreason_ecosystem.fleet.skypilot_actuator import (
+    SkyPilotActuator,
+    SkyPilotTarget,
     assess_thermodynamic_expenditure,
 )
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
-from coreason_ecosystem.fleet.skypilot_actuator import SkyPilotActuator, SkyPilotTarget
 import asyncio
 
 HARDWARE_NODE_COST_GWEI = 10_000_000_000
@@ -51,7 +51,6 @@ TREASURY_URN = "urn:coreason:state:treasury"
 
 async def von_neumann_expansion_daemon(
     registry: SovereignMCPRegistry,
-    oracle: PricingOracle,
     mesh_auth_key: str,
     temporal_mesh_ip: str,
     max_budget_hr: float = 10.0,
@@ -75,7 +74,6 @@ async def von_neumann_expansion_daemon(
 
     Args:
         registry: The SovereignMCPRegistry for URN-based treasury resolution.
-        oracle: The PricingOracle for dynamic hardware profile resolution.
         max_budget_hr: Maximum hourly budget for compute provisioning.
         polling_interval_sec: Seconds between polling iterations.
 
