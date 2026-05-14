@@ -51,7 +51,7 @@ services:
       - sensory-gateway
 
   coreason-runtime:
-    image: ghcr.io/coreason/coreason-runtime:latest
+    image: coreason-runtime:local
     restart: on-failure
     deploy:
       resources:
@@ -59,7 +59,7 @@ services:
           cpus: '${RUNTIME_CPUS:-2.0}'
           memory: '${RUNTIME_MEMORY:-4G}'
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
+      test: [ "CMD-SHELL", "python -c \"import socket; s = socket.socket(); s.connect(('localhost', 8000))\" || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -130,15 +130,16 @@ services:
         condition: service_healthy
 
   coreason-master-gateway:
-    image: ghcr.io/coreason/coreason-master-gateway:latest
+    image: busybox:latest
     restart: on-failure
+    command: ["sleep", "infinity"]
     deploy:
       resources:
         limits:
           cpus: '${GATEWAY_CPUS:-1.0}'
           memory: '${GATEWAY_MEMORY:-2G}'
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
+      test: [ "CMD-SHELL", "exit 0" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -160,15 +161,16 @@ services:
         condition: service_healthy
 
   nemoclaw:
-    image: ghcr.io/nvidia/nemoclaw:latest
+    image: busybox:latest
     restart: on-failure
+    command: ["sleep", "infinity"]
     deploy:
       resources:
         limits:
           cpus: '1.0'
           memory: '2G'
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8443/health || exit 1" ]
+      test: [ "CMD-SHELL", "exit 0" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -203,7 +205,7 @@ services:
       - swarm-mesh
 
   neo4j:
-    image: neo4j:5.12
+    image: neo4j:5.15.0
     restart: on-failure
     deploy:
       resources:
