@@ -177,6 +177,74 @@ def compute_schema_seal(schema: dict[str, Any]) -> str | dict[str, str]:
     return digest
 
 
+def verify_schema_seal(schema: dict[str, Any], seal: str | dict[str, str]) -> bool:
+    """Verify the cryptographic seal of an MCP tool schema.
+
+    Recomputes the SHA-256 digest from the canonicalized schema and, if a Vault
+    Transit signature is present, verifies it against the ``coreason-merkle-key``
+    in the Transit engine.
+
+    Args:
+        schema: The MCP tool input schema dictionary.
+        seal: Either a plain hex digest string (unsigned) or a dict with
+            ``hash`` and ``signature`` keys (Vault-signed).
+
+    Returns:
+        True if the seal is valid.
+
+    Raises:
+        ValueError: If the hash or signature verification fails.
+    """
+    canonical = _canonicalize_json(schema)
+    digest = hashlib.sha256(canonical).hexdigest()
+
+    if isinstance(seal, str):
+        # Unsigned seal — compare digests only
+        if digest != seal:
+            raise ValueError(
+                f"Schema seal mismatch: computed {digest[:16]}... "
+                f"does not match provided {seal[:16]}..."
+            )
+        return True
+
+    # Vault-signed seal — verify both hash and signature
+    if digest != seal.get("hash", ""):
+        raise ValueError(
+            f"Schema seal hash mismatch: computed {digest[:16]}... "
+            f"does not match provided {seal.get('hash', '')[:16]}..."
+        )
+
+    vault_addr = os.getenv("VAULT_ADDR")
+    vault_token = os.getenv("VAULT_TOKEN")
+
+    if not vault_addr or not vault_token:
+        logger.warning(
+            "Vault not configured — accepting seal based on hash match only."
+        )
+        return True
+
+    if hvac is None:
+        logger.warning("hvac not installed — accepting seal based on hash match only.")
+        return True
+
+    client = hvac.Client(url=vault_addr, token=vault_token)
+    encoded_payload = base64.b64encode(canonical).decode("utf-8")
+
+    verify_result = client.secrets.transit.verify_signed_data(
+        name="coreason-merkle-key",
+        hash_input=encoded_payload,
+        signature=seal["signature"],
+    )
+
+    if not verify_result["data"]["valid"]:
+        raise ValueError(
+            "Schema seal signature verification failed: "
+            "Vault Transit rejected the signature."
+        )
+
+    return True
+
+
 sse_transport = SseServerTransport("/messages")
 
 

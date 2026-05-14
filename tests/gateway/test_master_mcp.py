@@ -11,6 +11,7 @@ from coreason_ecosystem.gateway.master_mcp import (
     federated_discovery,
     registry,
     compute_schema_seal,
+    verify_schema_seal,
     _hydrate_registry,
 )
 import respx
@@ -105,6 +106,42 @@ async def test_compute_schema_seal_vault_fallback(
 
         assert isinstance(seal, str)
         assert len(seal) == 64  # Fell back to SHA-256 hex digest
+
+
+@pytest.mark.asyncio
+async def test_verify_schema_seal_unsigned() -> None:
+    """Test that verify_schema_seal accepts a valid unsigned seal."""
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+    seal = compute_schema_seal(schema)
+    assert verify_schema_seal(schema, seal) is True
+
+
+@pytest.mark.asyncio
+async def test_verify_schema_seal_unsigned_mismatch() -> None:
+    """Test that verify_schema_seal rejects a tampered unsigned seal."""
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+    with pytest.raises(ValueError, match="Schema seal mismatch"):
+        verify_schema_seal(schema, "0" * 64)
+
+
+@pytest.mark.asyncio
+async def test_verify_schema_seal_signed_hash_mismatch() -> None:
+    """Test that verify_schema_seal rejects a signed seal with wrong hash."""
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+    bad_seal = {"hash": "0" * 64, "signature": "vault:v1:fake"}
+    with pytest.raises(ValueError, match="Schema seal hash mismatch"):
+        verify_schema_seal(schema, bad_seal)
+
+
+@pytest.mark.asyncio
+async def test_verify_schema_seal_signed_no_vault() -> None:
+    """Test that verify_schema_seal accepts hash-only when Vault is not configured."""
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+    seal = compute_schema_seal(schema)
+    # Wrap the unsigned seal in a dict to simulate signed format without Vault
+    signed_seal = {"hash": seal, "signature": "vault:v1:test"}
+    # Without VAULT_ADDR/VAULT_TOKEN set, it should accept based on hash only
+    assert verify_schema_seal(schema, signed_seal) is True
 
 
 @pytest.mark.asyncio
