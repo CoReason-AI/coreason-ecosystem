@@ -80,7 +80,6 @@ jobs:
           inputs: >-
             dist/*.tar.gz
             dist/*.whl
-          release-signing-artifacts: true
           source: false
 
       - name: Upload attestations to GitHub Release

@@ -77,6 +77,7 @@ To boot the local ephemeral fleet and project the capability mesh, you must exec
 * [uv](https://github.com/astral-sh/uv) (The canonical Python dependency manager)
 * Docker Engine (For hosting local Sovereign MCPs)
 * Pulumi CLI (For thermodynamic infrastructure actuation)
+* [Pi.dev](https://pi.dev) (The standard agentic terminal harness: `npm install -g @earendil-works/pi-coding-agent`)
 
 ### The Ignition Sequence
 

@@ -177,6 +177,25 @@ def build_docs_cmd() -> None:
         console.print(f"[bold red]Documentation Pipeline Failed:[/bold red] {e}")
 
 
+@app.command(name="pi")
+def pi_terminal() -> None:
+    """Launch the pi.dev Sovereign Developer Console."""
+    import subprocess  # nosec: B404
+
+    console.print("[bold green]Launching the pi.dev Kinetic Harness...[/bold green]")
+    try:
+        # We invoke the pi.dev CLI natively using npx
+        subprocess.run(["npx", "@mariozechner/pi-coding-agent"], check=True)  # nosec: B603, B607
+    except FileNotFoundError:
+        console.print(
+            "[bold red]Error:[/bold red] Node.js and npx are required to launch pi.dev."
+        )
+    except subprocess.CalledProcessError as e:
+        console.print(
+            f"[bold red]Pi terminal exited with code {e.returncode}[/bold red]"
+        )
+
+
 def main() -> None:  # pragma: no cover
     """Entry point for the CLI."""
     app()
