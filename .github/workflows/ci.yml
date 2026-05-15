@@ -55,6 +55,7 @@ jobs:
       - name: Docs Link Validation
         uses: lycheeverse/lychee-action@master
         with:
+          lycheeVersion: v0.15.1
           args: >-
             --exclude-loopback
             --exclude scorecard.dev
