@@ -138,8 +138,9 @@ async def test_verify_schema_seal_signed_no_vault() -> None:
     """Test that verify_schema_seal accepts hash-only when Vault is not configured."""
     schema = {"type": "object", "properties": {"name": {"type": "string"}}}
     seal = compute_schema_seal(schema)
+    assert isinstance(seal, str)  # Without Vault, seal is a plain hash
     # Wrap the unsigned seal in a dict to simulate signed format without Vault
-    signed_seal = {"hash": seal, "signature": "vault:v1:test"}
+    signed_seal: dict[str, str] = {"hash": seal, "signature": "vault:v1:test"}
     # Without VAULT_ADDR/VAULT_TOKEN set, it should accept based on hash only
     assert verify_schema_seal(schema, signed_seal) is True
 
