@@ -13,36 +13,37 @@ If you are an autonomous coding agent, LLM, or web crawler ingesting this reposi
 
 # coreason-ecosystem (The Governance Plane)
 
-> **The Stateless Substrate & Macro-Orchestrator of the CoReason Tripartite Cybernetic Manifold (2026 SOTA)**
-
-[![PyPI - Version](https://img.shields.io/pypi/v/coreason_ecosystem.svg?style=flat-square)](https://pypi.org/project/coreason_ecosystem)
-[![CI](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/ci.yml/badge.svg?style=flat-square)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/ci.yml)
-![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey?style=flat-square)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/coreason_ecosystem.svg?style=flat-square)](https://pypi.org/project/coreason_ecosystem)
-[![Downloads](https://img.shields.io/pypi/dm/coreason_ecosystem.svg?style=flat-square)](https://pypi.org/project/coreason_ecosystem/)
-[![License: Prosperity 3.0](https://img.shields.io/badge/License-Prosperity_3.0-blue.svg?style=flat-square)](https://prosperitylicense.com/versions/3.0.0)
-![SOTA: 2026](https://img.shields.io/badge/Architecture-OEP_Manifold-purple.svg?style=flat-square)
+[![PyPI - Version](https://img.shields.io/pypi/v/coreason_ecosystem.svg)](https://pypi.org/project/coreason_ecosystem)
+[![CI](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/ci.yml)
+[![Documentation](https://img.shields.io/badge/docs-GitHub_Pages-blue.svg)](https://coreason-ai.github.io/coreason-ecosystem/)
+[![Deploy Docs](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/docs.yml/badge.svg)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/docs.yml)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/coreason_ecosystem.svg)](https://pypi.org/project/coreason_ecosystem)
+[![Downloads](https://img.shields.io/pypi/dm/coreason_ecosystem.svg)](https://pypi.org/project/coreason_ecosystem/)
+[![License: Prosperity 3.0](https://img.shields.io/badge/License-Prosperity_3.0-blue.svg)](https://prosperitylicense.com/versions/3.0.0)
+[![SOTA: 2026](https://img.shields.io/badge/Architecture-OEP_Manifold-purple.svg)](https://coreason.ai)
 <br>
-[![Code Coverage](https://img.shields.io/codecov/c/github/CoReason-AI/coreason-ecosystem/main.svg?style=flat-square)](https://codecov.io/gh/CoReason-AI/coreason-ecosystem)
+[![Code Coverage](https://img.shields.io/codecov/c/github/CoReason-AI/coreason-ecosystem/main.svg)](https://codecov.io/gh/CoReason-AI/coreason-ecosystem)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
-[![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json&style=flat-square)](https://github.com/astral-sh/ruff)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&style=flat-square)](https://github.com/pre-commit/pre-commit)
-[![Security: Bandit](https://img.shields.io/badge/security-bandit-yellow.svg?style=flat-square)](https://github.com/PyCQA/bandit)
+[![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://pre-commit.com/)
+[![Security: Bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
 <br>
-[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json&style=flat-square)](https://github.com/astral-sh/uv)
-[![Forks](https://img.shields.io/github/forks/CoReason-AI/coreason-ecosystem.svg?style=flat-square)](https://github.com/CoReason-AI/coreason-ecosystem/network/members)
-[![Powered By: AI](https://img.shields.io/badge/Powered%20By-CoReason%20AI-FF4500.svg?style=flat-square)](https://coreason.ai)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Forks](https://img.shields.io/github/forks/CoReason-AI/coreason-ecosystem.svg)](https://github.com/CoReason-AI/coreason-ecosystem/network/members)
+[![Powered By: AI](https://img.shields.io/badge/Powered%20By-CoReason%20AI-FF4500.svg)](https://coreason.ai)
 <br>
-[![CodeQL](https://img.shields.io/github/actions/workflow/status/CoReason-AI/coreason-ecosystem/codeql.yml?branch=main&style=flat-square&logo=github&label=CodeQL)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/CoReason-AI/coreason-ecosystem?style=flat-square&label=OpenSSF)](https://scorecard.dev/viewer/?uri=github.com/CoReason-AI/coreason-ecosystem)
-![Egress Filtered](https://img.shields.io/badge/Egress_Filtered-Step--Security-blue?style=flat-square)
-[![SLSA Level 3](https://img.shields.io/badge/SLSA-Level%203-blue?style=flat-square&logo=slsa)](https://slsa.dev/spec/v1.0/levels)
-[![Signed by Sigstore](https://img.shields.io/badge/Signed_by-Sigstore-blueviolet?style=flat-square&logo=sigstore)](https://sigstore.dev/)
-[![SBOM](https://img.shields.io/badge/SBOM-SPDX_Included-brightgreen?style=flat-square&logo=databricks)](https://spdx.dev/)
-[![Security Policy](https://img.shields.io/badge/Security-Policy-green?style=flat-square)](./SECURITY.md)
-[![Advanced Security](https://img.shields.io/github/actions/workflow/status/CoReason-AI/coreason-ecosystem/advanced-security.yml?branch=main&style=flat-square&logo=github&label=Advanced%20Security)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/advanced-security.yml)
-![OSS-Fuzz](https://img.shields.io/badge/OSS--Fuzz-Pending-lightgray?style=flat-square)
-![CII Best Practices](https://img.shields.io/badge/CII_Best_Practices-Pending-lightgray?style=flat-square)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/CoReason-AI/coreason-ecosystem/codeql.yml?branch=main&logo=github&label=CodeQL)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/CoReason-AI/coreason-ecosystem?label=OpenSSF)](https://scorecard.dev/viewer/?uri=github.com/CoReason-AI/coreason-ecosystem)
+![Egress Filtered](https://img.shields.io/badge/Egress_Filtered-Step--Security-blue)
+[![SLSA Level 3](https://img.shields.io/badge/SLSA-Level%203-blue?logo=slsa)](https://slsa.dev/spec/v1.0/levels)
+[![Signed by Sigstore](https://img.shields.io/badge/Signed_by-Sigstore-blueviolet?logo=sigstore)](https://sigstore.dev/)
+[![SBOM](https://img.shields.io/badge/SBOM-SPDX_Included-brightgreen?logo=databricks)](https://spdx.dev/)
+[![Security Policy](https://img.shields.io/badge/Security-Policy-green)](./SECURITY.md)
+[![Advanced Security](https://img.shields.io/github/actions/workflow/status/CoReason-AI/coreason-ecosystem/advanced-security.yml?branch=main&logo=github&label=Advanced%20Security)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/advanced-security.yml)
+
+**The official stateless substrate and macroscopic orchestrator of the CoReason Tripartite Cybernetic Manifold.**
+
+`coreason-ecosystem` is a State-of-the-Art (SOTA) 2026 governance plane. It implements the **Hollow Plane** doctrine, acting as a stateless router and thermodynamic actuator. It does not compute logic; it governs the deployment geometry of the reasoning mesh.
 
 ---
 
