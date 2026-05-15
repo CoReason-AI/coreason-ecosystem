@@ -203,3 +203,175 @@ class FederationAgreementState(BaseModel):
             separators=(",", ":"),
         )
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Contribution Governance (Private → Public publishing)
+# ---------------------------------------------------------------------------
+
+
+class ContributionRole(str, Enum):
+    """RBAC roles governing who may contribute capabilities to the Public mesh.
+
+    Follows enterprise-grade separation of duties: the person who
+    develops a capability cannot be the same person who approves its
+    publication to the Public network.
+    """
+
+    CONTRIBUTOR = "CONTRIBUTOR"
+    """May submit a ContributionIntent (propose a capability for publication)."""
+
+    APPROVER = "APPROVER"
+    """May approve or reject a ContributionIntent. Must hold Security Officer
+    or Data Governance Officer authority in the enterprise."""
+
+    ADMIN = "ADMIN"
+    """May modify ContributionPolicy settings (required approvals, URN scope,
+    clearance limits). Typically the enterprise CISO or platform owner."""
+
+
+class ContributionPolicy(BaseModel):
+    """Enterprise RBAC policy governing capability contributions from
+    a Private instance to the Public mesh.
+
+    Contributions are a higher-privilege operation than read-only
+    federation — they publish proprietary URN capabilities to the
+    open network. This policy enforces multi-party approval, DLP
+    scanning, clearance limits, and full audit trails.
+    """
+
+    enabled: bool = Field(
+        default=False,
+        description=(
+            "Whether contributions to the Public mesh are permitted. "
+            "Disabled by default — enterprises must explicitly opt in."
+        ),
+    )
+    required_approvals: int = Field(
+        default=2,
+        ge=1,
+        le=10,
+        description=(
+            "Number of distinct APPROVER-role signatures required before "
+            "a ContributionIntent is executed. Minimum 1, default 2 "
+            "(separation of duties)."
+        ),
+    )
+    allowed_contribution_urns: list[str] = Field(
+        default_factory=list,
+        description=(
+            "URN patterns permitted for contribution. Empty list means "
+            "NO contributions are allowed (allowlist-only model). "
+            "Supports glob-style suffix matching with '*'."
+        ),
+    )
+    max_contribution_clearance: Literal["PUBLIC"] = Field(
+        default="PUBLIC",
+        description=(
+            "Maximum data clearance level that may be contributed. "
+            "Locked to PUBLIC — CONFIDENTIAL and RESTRICTED data "
+            "can never be published to the open mesh."
+        ),
+    )
+    require_dlp_scan: bool = Field(
+        default=True,
+        description=(
+            "Whether DLP scanning is mandatory before contribution. "
+            "Non-negotiable for enterprise deployments."
+        ),
+    )
+    require_legal_attestation: bool = Field(
+        default=True,
+        description=(
+            "Whether the contributor must attest that the capability "
+            "is cleared for open-source publication under Prosperity 3.0."
+        ),
+    )
+
+    @field_validator("allowed_contribution_urns")
+    @classmethod
+    def _sort_contribution_urns(cls, v: list[str]) -> list[str]:
+        """Enforce canonical sort for deterministic hashing."""
+        return sorted(v)
+
+
+class ContributionIntent(BaseModel):
+    """A signed request to publish a capability from Private to Public.
+
+    Follows a multi-party approval workflow:
+    1. A CONTRIBUTOR submits the intent (proposed URN + metadata).
+    2. One or more APPROVERs review and sign.
+    3. Once required_approvals are met, the FederationProxy executes
+       the contribution with full DLP scanning and audit.
+
+    The intent is immutable once submitted — modifications require
+    a new intent with a new intent_id.
+    """
+
+    intent_id: str = Field(
+        description="Unique identifier for this contribution intent."
+    )
+    urn: str = Field(
+        description="The URN of the capability being contributed."
+    )
+    contributor_id: str = Field(
+        description=(
+            "SPIFFE ID or enterprise identity of the contributor "
+            "(e.g., 'spiffe://alpha.internal/ns/eng/sa/jane.doe')."
+        ),
+    )
+    contributor_role: ContributionRole = Field(
+        default=ContributionRole.CONTRIBUTOR,
+        description="The role of the submitter. Must be CONTRIBUTOR.",
+    )
+    justification: str = Field(
+        description=(
+            "Business justification for contributing this capability "
+            "to the Public mesh. Required for audit trail."
+        ),
+    )
+    legal_attestation: bool = Field(
+        default=False,
+        description=(
+            "Whether the contributor attests that this capability "
+            "contains no proprietary trade secrets, PII/PHI, or "
+            "data above PUBLIC clearance."
+        ),
+    )
+    approvals: list[str] = Field(
+        default_factory=list,
+        description=(
+            "SPIFFE IDs of APPROVERs who have signed this intent. "
+            "Must reach the required_approvals threshold before execution."
+        ),
+    )
+    submitted_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Timestamp when the intent was submitted.",
+    )
+    status: Literal["PENDING", "APPROVED", "REJECTED", "EXECUTED"] = Field(
+        default="PENDING",
+        description="Current status of the contribution intent.",
+    )
+
+    @field_validator("approvals")
+    @classmethod
+    def _sort_approvals(cls, v: list[str]) -> list[str]:
+        """Enforce canonical sort for deterministic hashing."""
+        return sorted(v)
+
+    def compute_intent_hash(self) -> str:
+        """Compute RFC 8785 canonical hash for signing."""
+        canonical = json.dumps(
+            {
+                "intent_id": self.intent_id,
+                "urn": self.urn,
+                "contributor_id": self.contributor_id,
+                "justification": self.justification,
+                "legal_attestation": self.legal_attestation,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+

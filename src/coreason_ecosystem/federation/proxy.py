@@ -40,6 +40,9 @@ from cryptography.x509.oid import NameOID
 from .policy import (
     AirGapPolicy,
     ConnectivityDirection,
+    ContributionIntent,
+    ContributionPolicy,
+    ContributionRole,
     FederationAgreementState,
     FederationPeerState,
     InstanceType,
@@ -173,12 +176,15 @@ class FederationProxy:
         *,
         local_instance: FederationPeerState,
         agreements: list[FederationAgreementState] | None = None,
+        contribution_policy: ContributionPolicy | None = None,
     ) -> None:
-        self._local = local_instance
+        self._local = local_instance.model_copy(deep=True)
         self._agreements: dict[str, FederationAgreementState] = {}
         self._policies: dict[str, AirGapPolicy] = {}
         self._clients: dict[str, httpx.AsyncClient] = {}
         self._receipts: list[FederatedExecutionReceipt] = []
+        self._contribution_policy = contribution_policy or ContributionPolicy()
+        self._contribution_intents: dict[str, ContributionIntent] = {}
 
         if agreements:
             for agreement in agreements:
@@ -704,6 +710,264 @@ class FederationProxy:
         count = len(self._receipts)
         self._receipts.clear()
         return count
+
+    # ------------------------------------------------------------------
+    # Contribution Governance (Private → Public publishing)
+    # ------------------------------------------------------------------
+
+    def submit_contribution(
+        self,
+        intent: ContributionIntent,
+    ) -> ContributionIntent:
+        """Submit a contribution intent for RBAC approval.
+
+        Only CONTRIBUTOR-role identities on a PRIVATE instance may
+        submit intents. The contribution policy must be enabled and
+        the URN must be in the allowed contribution list.
+
+        Args:
+            intent: The contribution intent to submit.
+
+        Returns:
+            The submitted intent (status=PENDING).
+
+        Raises:
+            PermissionError: If contributions are disabled, the instance
+                is not Private, the role is wrong, or the URN is not allowed.
+        """
+        # Gate 1: Only Private instances may contribute
+        if self._local.instance_type != InstanceType.PRIVATE:
+            raise PermissionError(
+                "Only PRIVATE instances may contribute capabilities "
+                "to the Public mesh."
+            )
+
+        # Gate 2: Contributions must be explicitly enabled
+        if not self._contribution_policy.enabled:
+            raise PermissionError(
+                "Contribution to the Public mesh is disabled by policy. "
+                "An ADMIN must enable it via ContributionPolicy."
+            )
+
+        # Gate 3: Submitter must hold CONTRIBUTOR role
+        if intent.contributor_role != ContributionRole.CONTRIBUTOR:
+            raise PermissionError(
+                f"Only CONTRIBUTOR role may submit intents, "
+                f"got '{intent.contributor_role.value}'."
+            )
+
+        # Gate 4: URN must be in the allowed contribution list
+        if not self._contribution_policy.allowed_contribution_urns:
+            raise PermissionError(
+                "No URN patterns are permitted for contribution. "
+                "An ADMIN must configure allowed_contribution_urns."
+            )
+        if not self._urn_matches(
+            intent.urn,
+            self._contribution_policy.allowed_contribution_urns,
+        ):
+            raise PermissionError(
+                f"URN '{intent.urn}' is not in the allowed contribution "
+                f"URN list."
+            )
+
+        # Gate 5: Legal attestation (if required)
+        if (
+            self._contribution_policy.require_legal_attestation
+            and not intent.legal_attestation
+        ):
+            raise PermissionError(
+                "Legal attestation is required. The contributor must "
+                "attest that the capability contains no proprietary "
+                "trade secrets, PII/PHI, or data above PUBLIC clearance."
+            )
+
+        intent.status = "PENDING"
+        self._contribution_intents[intent.intent_id] = intent
+
+        logger.info(
+            "Contribution intent %s submitted by %s for URN %s",
+            intent.intent_id,
+            intent.contributor_id,
+            intent.urn,
+        )
+        return intent
+
+    def approve_contribution(
+        self,
+        intent_id: str,
+        approver_id: str,
+    ) -> ContributionIntent:
+        """Approve a contribution intent (APPROVER role).
+
+        Each approver may only approve once. Once the required number
+        of approvals is reached, the intent status moves to APPROVED.
+
+        Args:
+            intent_id: The intent to approve.
+            approver_id: SPIFFE ID of the approver.
+
+        Returns:
+            The updated intent.
+
+        Raises:
+            KeyError: If the intent doesn't exist.
+            PermissionError: If the approver is the contributor (separation
+                of duties) or has already approved.
+            ValueError: If the intent is not in PENDING status.
+        """
+        intent = self._contribution_intents.get(intent_id)
+        if not intent:
+            raise KeyError(f"Contribution intent '{intent_id}' not found.")
+
+        if intent.status != "PENDING":
+            raise ValueError(
+                f"Intent '{intent_id}' is '{intent.status}', not PENDING."
+            )
+
+        # Separation of duties: approver cannot be the contributor
+        if approver_id == intent.contributor_id:
+            raise PermissionError(
+                "Separation of duties violation: the contributor cannot "
+                "approve their own contribution intent."
+            )
+
+        # No duplicate approvals
+        if approver_id in intent.approvals:
+            raise PermissionError(
+                f"Approver '{approver_id}' has already approved "
+                f"intent '{intent_id}'."
+            )
+
+        intent.approvals = sorted([*intent.approvals, approver_id])
+
+        if len(intent.approvals) >= self._contribution_policy.required_approvals:
+            intent.status = "APPROVED"
+            logger.info(
+                "Contribution intent %s APPROVED (%d/%d approvals)",
+                intent_id,
+                len(intent.approvals),
+                self._contribution_policy.required_approvals,
+            )
+        else:
+            logger.info(
+                "Contribution intent %s approved by %s (%d/%d)",
+                intent_id,
+                approver_id,
+                len(intent.approvals),
+                self._contribution_policy.required_approvals,
+            )
+
+        return intent
+
+    def reject_contribution(
+        self,
+        intent_id: str,
+        rejector_id: str,
+        reason: str,
+    ) -> ContributionIntent:
+        """Reject a contribution intent.
+
+        Args:
+            intent_id: The intent to reject.
+            rejector_id: SPIFFE ID of the rejector.
+            reason: Business reason for rejection.
+
+        Returns:
+            The rejected intent.
+
+        Raises:
+            KeyError: If the intent doesn't exist.
+            ValueError: If the intent is not in PENDING status.
+        """
+        intent = self._contribution_intents.get(intent_id)
+        if not intent:
+            raise KeyError(f"Contribution intent '{intent_id}' not found.")
+
+        if intent.status != "PENDING":
+            raise ValueError(
+                f"Intent '{intent_id}' is '{intent.status}', not PENDING."
+            )
+
+        intent.status = "REJECTED"
+        logger.warning(
+            "Contribution intent %s REJECTED by %s: %s",
+            intent_id,
+            rejector_id,
+            reason,
+        )
+        return intent
+
+    async def execute_contribution(
+        self,
+        intent_id: str,
+    ) -> dict[str, Any]:
+        """Execute an approved contribution — publish capability to Public.
+
+        Performs DLP scanning and emits an audit receipt. Only APPROVED
+        intents may be executed.
+
+        Args:
+            intent_id: The approved intent to execute.
+
+        Returns:
+            The response from the Public mesh registry.
+
+        Raises:
+            KeyError: If the intent doesn't exist.
+            ValueError: If the intent is not APPROVED.
+            PermissionError: If DLP scan fails.
+            ConnectionError: If the Public mesh is unreachable.
+        """
+        intent = self._contribution_intents.get(intent_id)
+        if not intent:
+            raise KeyError(f"Contribution intent '{intent_id}' not found.")
+
+        if intent.status != "APPROVED":
+            raise ValueError(
+                f"Intent '{intent_id}' is '{intent.status}', not APPROVED. "
+                f"It needs {self._contribution_policy.required_approvals} "
+                f"approvals before execution."
+            )
+
+        # Build the contribution payload
+        payload = {
+            "urn": intent.urn,
+            "contributor_id": intent.contributor_id,
+            "intent_hash": intent.compute_intent_hash(),
+            "approvals": intent.approvals,
+            "legal_attestation": intent.legal_attestation,
+        }
+
+        # DLP scan before egress
+        if self._contribution_policy.require_dlp_scan:
+            payload = self._dlp_scan_outbound(payload)
+
+        # Use the standard invoke_remote_tool path for the contribution
+        # This enforces the air gap policy and emits audit receipts
+        from .proxy import COREASON_PUBLIC_INSTANCE_ID
+
+        result = await self.invoke_remote_tool(
+            peer_instance_id=COREASON_PUBLIC_INSTANCE_ID,
+            urn="urn:coreason:actionspace:effector:capability_registry:contribute:v1",
+            payload=payload,
+            clearance="PUBLIC",
+        )
+
+        intent.status = "EXECUTED"
+        logger.info(
+            "Contribution intent %s EXECUTED — URN %s published to Public",
+            intent_id,
+            intent.urn,
+        )
+        return result
+
+    def get_contribution_intents(self) -> list[dict[str, Any]]:
+        """Return all contribution intents as serializable dicts."""
+        return [
+            intent.model_dump(mode="json")
+            for intent in self._contribution_intents.values()
+        ]
 
     # ------------------------------------------------------------------
     # Cleanup

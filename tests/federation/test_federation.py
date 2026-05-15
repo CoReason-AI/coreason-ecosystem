@@ -22,6 +22,9 @@ import respx
 from coreason_ecosystem.federation.policy import (
     AirGapPolicy,
     ConnectivityDirection,
+    ContributionIntent,
+    ContributionPolicy,
+    ContributionRole,
     FederationAgreementState,
     FederationPeerState,
     InstanceType,
@@ -602,3 +605,209 @@ class TestInstanceModeFlipping:
         proxy.set_instance_mode(InstanceType.PUBLIC)
         # Agreements still registered after mode flip
         assert PUBLIC_PEER.instance_id in proxy._agreements
+
+
+# ---------------------------------------------------------------------------
+# Contribution Governance tests (Private → Public publishing RBAC)
+# ---------------------------------------------------------------------------
+
+
+def _make_contribution_policy(
+    enabled: bool = True,
+    required_approvals: int = 2,
+    allowed_urns: list[str] | None = None,
+) -> ContributionPolicy:
+    return ContributionPolicy(
+        enabled=enabled,
+        required_approvals=required_approvals,
+        allowed_contribution_urns=allowed_urns or ["urn:coreason:actionspace:solver:*"],
+    )
+
+
+def _make_contribution_intent(
+    intent_id: str = "contrib-001",
+    urn: str = "urn:coreason:actionspace:solver:nlp_extractor:v1",
+    legal_attestation: bool = True,
+) -> ContributionIntent:
+    return ContributionIntent(
+        intent_id=intent_id,
+        urn=urn,
+        contributor_id="spiffe://alpha.internal/ns/eng/sa/jane.doe",
+        justification="Contributing NLP extractor for community use.",
+        legal_attestation=legal_attestation,
+    )
+
+
+class TestContributionPolicy:
+    """Tests for ContributionPolicy model defaults and validation."""
+
+    def test_disabled_by_default(self) -> None:
+        policy = ContributionPolicy()
+        assert policy.enabled is False
+        assert policy.required_approvals == 2
+        assert policy.allowed_contribution_urns == []
+        assert policy.max_contribution_clearance == "PUBLIC"
+
+    def test_urns_are_canonically_sorted(self) -> None:
+        policy = ContributionPolicy(
+            allowed_contribution_urns=[
+                "urn:coreason:z:*",
+                "urn:coreason:a:*",
+            ]
+        )
+        assert policy.allowed_contribution_urns == [
+            "urn:coreason:a:*",
+            "urn:coreason:z:*",
+        ]
+
+
+class TestContributionGovernance:
+    """Tests for the full contribution RBAC workflow."""
+
+    def test_submit_requires_private_instance(self) -> None:
+        proxy = FederationProxy(
+            local_instance=PUBLIC_PEER,
+            contribution_policy=_make_contribution_policy(),
+        )
+        intent = _make_contribution_intent()
+        with pytest.raises(PermissionError, match="PRIVATE"):
+            proxy.submit_contribution(intent)
+
+    def test_submit_requires_enabled_policy(self) -> None:
+        proxy = FederationProxy(
+            local_instance=PRIVATE_PEER,
+            contribution_policy=_make_contribution_policy(enabled=False),
+        )
+        intent = _make_contribution_intent()
+        with pytest.raises(PermissionError, match="disabled"):
+            proxy.submit_contribution(intent)
+
+    def test_submit_requires_allowed_urn(self) -> None:
+        proxy = FederationProxy(
+            local_instance=PRIVATE_PEER,
+            contribution_policy=_make_contribution_policy(
+                allowed_urns=["urn:coreason:actionspace:oracle:*"],
+            ),
+        )
+        # Solver URN does not match oracle pattern
+        intent = _make_contribution_intent()
+        with pytest.raises(PermissionError, match="not in the allowed"):
+            proxy.submit_contribution(intent)
+
+    def test_submit_requires_legal_attestation(self) -> None:
+        proxy = FederationProxy(
+            local_instance=PRIVATE_PEER,
+            contribution_policy=_make_contribution_policy(),
+        )
+        intent = _make_contribution_intent(legal_attestation=False)
+        with pytest.raises(PermissionError, match="Legal attestation"):
+            proxy.submit_contribution(intent)
+
+    def test_submit_succeeds_with_valid_intent(self) -> None:
+        proxy = FederationProxy(
+            local_instance=PRIVATE_PEER,
+            contribution_policy=_make_contribution_policy(),
+        )
+        intent = _make_contribution_intent()
+        result = proxy.submit_contribution(intent)
+        assert result.status == "PENDING"
+        assert len(proxy.get_contribution_intents()) == 1
+
+    def test_approve_enforces_separation_of_duties(self) -> None:
+        proxy = FederationProxy(
+            local_instance=PRIVATE_PEER,
+            contribution_policy=_make_contribution_policy(),
+        )
+        intent = _make_contribution_intent()
+        proxy.submit_contribution(intent)
+
+        # Contributor cannot approve their own intent
+        with pytest.raises(PermissionError, match="Separation of duties"):
+            proxy.approve_contribution(
+                "contrib-001",
+                "spiffe://alpha.internal/ns/eng/sa/jane.doe",
+            )
+
+    def test_approve_prevents_duplicate(self) -> None:
+        proxy = FederationProxy(
+            local_instance=PRIVATE_PEER,
+            contribution_policy=_make_contribution_policy(),
+        )
+        intent = _make_contribution_intent()
+        proxy.submit_contribution(intent)
+
+        approver = "spiffe://alpha.internal/ns/security/sa/bob.smith"
+        proxy.approve_contribution("contrib-001", approver)
+
+        with pytest.raises(PermissionError, match="already approved"):
+            proxy.approve_contribution("contrib-001", approver)
+
+    def test_multi_party_approval_workflow(self) -> None:
+        proxy = FederationProxy(
+            local_instance=PRIVATE_PEER,
+            contribution_policy=_make_contribution_policy(required_approvals=2),
+        )
+        intent = _make_contribution_intent()
+        proxy.submit_contribution(intent)
+
+        # First approval — still PENDING
+        result = proxy.approve_contribution(
+            "contrib-001",
+            "spiffe://alpha.internal/ns/security/sa/bob.smith",
+        )
+        assert result.status == "PENDING"
+
+        # Second approval — now APPROVED
+        result = proxy.approve_contribution(
+            "contrib-001",
+            "spiffe://alpha.internal/ns/governance/sa/alice.jones",
+        )
+        assert result.status == "APPROVED"
+        assert len(result.approvals) == 2
+
+    def test_rejection_workflow(self) -> None:
+        proxy = FederationProxy(
+            local_instance=PRIVATE_PEER,
+            contribution_policy=_make_contribution_policy(),
+        )
+        intent = _make_contribution_intent()
+        proxy.submit_contribution(intent)
+
+        result = proxy.reject_contribution(
+            "contrib-001",
+            "spiffe://alpha.internal/ns/security/sa/bob.smith",
+            "Contains references to internal patient IDs.",
+        )
+        assert result.status == "REJECTED"
+
+    @pytest.mark.asyncio
+    async def test_execute_requires_approved_status(self) -> None:
+        proxy = FederationProxy(
+            local_instance=PRIVATE_PEER,
+            contribution_policy=_make_contribution_policy(),
+        )
+        intent = _make_contribution_intent()
+        proxy.submit_contribution(intent)
+
+        with pytest.raises(ValueError, match="not APPROVED"):
+            await proxy.execute_contribution("contrib-001")
+
+    def test_intent_hash_is_deterministic(self) -> None:
+        intent = _make_contribution_intent()
+        h1 = intent.compute_intent_hash()
+        h2 = intent.compute_intent_hash()
+        assert h1 == h2
+        assert len(h1) == 64
+
+    def test_empty_allowed_urns_blocks_all(self) -> None:
+        proxy = FederationProxy(
+            local_instance=PRIVATE_PEER,
+            contribution_policy=ContributionPolicy(
+                enabled=True,
+                allowed_contribution_urns=[],
+            ),
+        )
+        intent = _make_contribution_intent()
+        with pytest.raises(PermissionError, match="No URN patterns"):
+            proxy.submit_contribution(intent)
+
