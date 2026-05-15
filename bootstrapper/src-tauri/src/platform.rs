@@ -260,6 +260,16 @@ pub fn onboard_nemoclaw(app: tauri::AppHandle, intent: NemoClawOnboardIntent) ->
     }
 }
 
+// ─── Hardware Detection ───────────────────────────────────────────────────────
+
+fn has_nvidia_gpu() -> bool {
+    // Attempt to run nvidia-smi. If it succeeds, the system likely has an active NVIDIA GPU.
+    match Command::new("nvidia-smi").stdout(Stdio::null()).stderr(Stdio::null()).status() {
+        Ok(status) => status.success(),
+        Err(_) => false,
+    }
+}
+
 // ─── Swarm Ignition ───────────────────────────────────────────────────────────
 
 pub fn ignite_swarm(app: tauri::AppHandle, intent: SwarmIgnitionIntent) -> SwarmIgnitionReceipt {
@@ -298,6 +308,16 @@ pub fn ignite_swarm(app: tauri::AppHandle, intent: SwarmIgnitionIntent) -> Swarm
         "0x0000000000000000000000000000000000000000",
     );
 
+    let runtime_image = if has_nvidia_gpu() {
+        let _ = app.emit("boot-log", "[Hardware] NVIDIA GPU Detected. Pulling coreason-runtime:latest-gpu (11GB)...");
+        "ghcr.io/coreason-ai/coreason-runtime:latest-gpu"
+    } else {
+        let _ = app.emit("boot-log", "[Hardware] No NVIDIA GPU Detected. Pulling coreason-runtime:latest-cpu (1.5GB)...");
+        "ghcr.io/coreason-ai/coreason-runtime:latest-cpu"
+    };
+
+    command.env("COREASON_RUNTIME_IMAGE", runtime_image);
+
     command.stdout(Stdio::piped());
     command.stderr(Stdio::piped());
 
@@ -322,11 +342,15 @@ pub fn ignite_swarm(app: tauri::AppHandle, intent: SwarmIgnitionIntent) -> Swarm
         }
     });
 
+    // We will buffer stderr to include it in the error message if something fails
+    let (tx_err, rx_err) = std::sync::mpsc::channel();
     let app_clone2 = app.clone();
+    
     thread::spawn(move || {
         let reader = BufReader::new(stderr);
         for line in reader.lines().flatten() {
-            let _ = app_clone2.emit("boot-log", line);
+            let _ = app_clone2.emit("boot-log", line.clone());
+            let _ = tx_err.send(line);
         }
     });
 
@@ -336,9 +360,26 @@ pub fn ignite_swarm(app: tauri::AppHandle, intent: SwarmIgnitionIntent) -> Swarm
             message: "Swarm ignited successfully. Sensory Command Center is coming online."
                 .to_string(),
         },
-        Ok(_) => SwarmIgnitionReceipt {
-            status: "FAILURE".to_string(),
-            message: "Docker Compose failed to start containers.".to_string(),
+        Ok(_) => {
+            // Collect the captured stderr to show the exact docker compose error to the user
+            let mut error_logs = String::new();
+            for line in rx_err {
+                error_logs.push_str(&line);
+                error_logs.push('\n');
+            }
+            // Truncate if it's too long for the UI
+            let display_err = if error_logs.is_empty() {
+                "Unknown error.".to_string()
+            } else if error_logs.len() > 500 {
+                format!("{}...", &error_logs[error_logs.len() - 500..])
+            } else {
+                error_logs
+            };
+
+            SwarmIgnitionReceipt {
+                status: "FAILURE".to_string(),
+                message: format!("Docker Compose failed to start containers.\n\nLogs:\n{}", display_err),
+            }
         },
         Err(e) => SwarmIgnitionReceipt {
             status: "FAILURE".to_string(),

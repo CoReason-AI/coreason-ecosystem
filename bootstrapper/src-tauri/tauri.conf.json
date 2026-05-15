@@ -32,8 +32,7 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "../../infrastructure/local/compose.yaml",
-      "../../infrastructure/local/envoy.yaml"
+      "../../infrastructure/local/*"
     ]
   }
 }
