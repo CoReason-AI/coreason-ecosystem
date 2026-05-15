@@ -302,6 +302,23 @@ async def list_actuators() -> list[types.Tool]:
         )
     )
 
+    actuator_manifests.append(
+        types.Tool(
+            name="urn:coreason:actionspace:effector:capability_registry:contribute:v1",
+            description="Contribution Endpoint: Accepts remote URN contributions from authenticated Private mesh instances and absorbs them into the Public registry.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "urn": {"type": "string"},
+                    "legal_attestation": {"type": "object"},
+                    "intent_hash": {"type": "string"},
+                    "provider_instance": {"type": "string"}
+                },
+                "required": ["urn", "legal_attestation", "intent_hash"]
+            },
+        )
+    )
+
     return actuator_manifests
 
 
@@ -345,6 +362,63 @@ async def invoke_actuator(
                 type="text", text="deploy_cognitive_swarm executed successfully"
             )
         ]
+
+    if name == "urn:coreason:actionspace:effector:capability_registry:contribute:v1":
+        nemoclaw_url = os.getenv("NEMOCLAW_URL", "https://nemoclaw:8443").rstrip("/")
+        client = NemoClawBridgeClient(nemoclaw_url)
+        
+        try:
+            # Full-payload deep-packet inspection of the absorbed URN definitions
+            await client.call_tool(
+                "urn:coreason:actionspace:solver:dlp_scanner:v1",
+                "scan_contribution_payload",
+                {"payload": arguments},
+                spiffe_id=spiffe_id
+            )
+        except RuntimeError as e:
+            logger.error(f"NemoClaw DLP scan rejected the contribution payload: {e}")
+            raise PermissionError("Contribution rejected: NemoClaw DLP scanning failed.")
+            
+        provider_instance = arguments.get("provider_instance")
+        if not provider_instance:
+            provider_instance = spiffe_id.split("/")[2] if "://" in spiffe_id else spiffe_id
+            
+        from coreason_ecosystem.federation.proxy import FederationProxy
+        from coreason_ecosystem.federation.policy import FederationPeerState, InstanceType, FederationAgreementState, AirGapPolicy, ConnectivityDirection
+        
+        public_local = FederationPeerState(
+            instance_id="mesh.coreason.ai",
+            instance_type=InstanceType.PUBLIC,
+            spiffe_trust_domain="spiffe://mesh.coreason.ai",
+            gateway_endpoint="https://gateway.mesh.coreason.ai",
+            tenant_cid="889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531"
+        )
+        proxy = FederationProxy(local_instance=public_local)
+        
+        private_peer = FederationPeerState(
+            instance_id=provider_instance,
+            instance_type=InstanceType.PRIVATE,
+            spiffe_trust_domain=spiffe_id,
+            gateway_endpoint=f"https://gateway.{provider_instance}:8443",
+            tenant_cid=payload_tenant
+        )
+        agreement = FederationAgreementState(
+            agreement_id=f"auto-absorption-{provider_instance}",
+            initiator=private_peer,
+            responder=public_local,
+            initiator_policy=AirGapPolicy(
+                peer_instance_id="mesh.coreason.ai",
+                direction=ConnectivityDirection.OUTBOUND_ONLY,
+                max_clearance="PUBLIC",
+            ),
+            responder_policy=None,
+            signed_by_initiator=True,
+            signed_by_responder=True
+        )
+        proxy.register_agreement(agreement)
+        
+        result = await proxy.absorb_remote_capability(provider_instance, arguments)
+        return [types.TextContent(type="text", text=json.dumps(result))]
 
     try:
         target_urn = await registry.resolve_urn(name)

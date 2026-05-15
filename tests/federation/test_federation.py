@@ -24,7 +24,6 @@ from coreason_ecosystem.federation.policy import (
     ConnectivityDirection,
     ContributionIntent,
     ContributionPolicy,
-    ContributionRole,
     FederationAgreementState,
     FederationPeerState,
     InstanceType,
@@ -810,4 +809,42 @@ class TestContributionGovernance:
         intent = _make_contribution_intent()
         with pytest.raises(PermissionError, match="No URN patterns"):
             proxy.submit_contribution(intent)
+
+    @pytest.mark.asyncio
+    async def test_absorb_remote_capability_public_mesh_only(self) -> None:
+        # Cannot absorb if Private
+        proxy_private = FederationProxy(local_instance=PRIVATE_PEER)
+        with pytest.raises(PermissionError, match="can only be executed by a PUBLIC"):
+            await proxy_private.absorb_remote_capability("peer-123", {})
+            
+        # Can absorb if Public
+        proxy_public = FederationProxy(local_instance=PUBLIC_PEER)
+        # Add a mock private peer to the registry so handshake passes
+        agreement = _make_private_to_public_agreement()
+        proxy_public.register_agreement(agreement)
+        
+        payload = {
+            "urn": "urn:coreason:actionspace:solver:test_solver:v1",
+            "legal_attestation": {"agrees_to_public_release": True},
+            "intent_hash": "mockhash"
+        }
+        
+        result = await proxy_public.absorb_remote_capability(PRIVATE_PEER.instance_id, payload)
+        assert result["status"] == "absorbed"
+        assert result["urn"] == "urn:coreason:actionspace:solver:test_solver:v1"
+        assert result["provider_instance"] == PRIVATE_PEER.instance_id
+
+    @pytest.mark.asyncio
+    async def test_absorb_remote_capability_rejects_missing_attestation(self) -> None:
+        proxy_public = FederationProxy(local_instance=PUBLIC_PEER)
+        agreement = _make_private_to_public_agreement()
+        proxy_public.register_agreement(agreement)
+        
+        payload = {
+            "urn": "urn:coreason:actionspace:solver:test_solver:v1",
+            "legal_attestation": {"agrees_to_public_release": False},
+        }
+        
+        with pytest.raises(PermissionError, match="Missing legal attestation"):
+            await proxy_public.absorb_remote_capability(PRIVATE_PEER.instance_id, payload)
 

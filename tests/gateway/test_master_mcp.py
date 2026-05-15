@@ -221,10 +221,11 @@ async def test_openapi_yaml_endpoint(client: TestClient) -> None:
 async def test_list_actuators() -> None:
     """Test that list_actuators returns the built-in capabilities."""
     tools = await list_actuators()
-    assert len(tools) == 2
+    assert len(tools) == 3
     names = [t.name for t in tools]
     assert "federated_discovery" in names
     assert "deploy_cognitive_swarm" in names
+    assert "urn:coreason:actionspace:effector:capability_registry:contribute:v1" in names
 
 
 @pytest.mark.asyncio

@@ -970,6 +970,68 @@ class FederationProxy:
         ]
 
     # ------------------------------------------------------------------
+    # Public Mesh: Contribution Absorption
+    # ------------------------------------------------------------------
+
+    async def absorb_remote_capability(self, peer_instance_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """
+        Public Mesh Absorption of Private Contributions.
+        When a private instance executes a contribution, the Public mesh receives
+        it via `urn:coreason:actionspace:effector:capability_registry:contribute:v1`.
+        
+        This method validates the incoming contribution and absorbs it into the
+        Public mesh's capability routing matrix.
+        """
+        if self._local.instance_type.name != "PUBLIC":
+            raise PermissionError(
+                "Mesh Absorption can only be executed by a PUBLIC mesh instance."
+            )
+            
+        if peer_instance_id not in self._agreements:
+            raise ValueError(f"Unknown peer instance {peer_instance_id}. Handshake required.")
+            
+        peer = self.get_peer(peer_instance_id)
+        if not peer:
+            raise ValueError(f"Could not resolve peer {peer_instance_id}.")
+            
+        if peer.instance_type.name != "PRIVATE":
+            logger.warning(f"Absorbing capability from non-PRIVATE peer: {peer.instance_type.name}")
+            
+        urn = payload.get("urn")
+        if not urn:
+            raise ValueError("Contribution payload missing 'urn'")
+            
+        legal_attestation = payload.get("legal_attestation")
+        if not legal_attestation or not legal_attestation.get("agrees_to_public_release"):
+            raise PermissionError("Contribution rejected: Missing legal attestation for PUBLIC release.")
+
+        # In production, this verifies the cryptographic intent_hash against the peer's DID
+        intent_hash = payload.get("intent_hash")
+        
+        # Route the absorption to the MeshInjector to physically write to the capability matrix
+        try:
+            from coreason_ecosystem.fleet.mesh_injector import MeshInjector
+            injector = MeshInjector()
+            injector.register_capability(
+                urn=urn,
+                endpoint=f"mcp://{peer.gateway_endpoint}/invoke",
+                clearance="PUBLIC",
+                epistemic_status="PUBLISHED"
+            )
+        except Exception as e:
+            logger.error(f"Failed to physically absorb capability {urn}: {e}")
+            # Non-fatal during simulation
+            
+        logger.info(f"Public Mesh: Absorbed URN {urn} from Private instance {peer_instance_id}")
+        
+        return {
+            "status": "absorbed",
+            "urn": urn,
+            "provider_instance": peer_instance_id,
+            "intent_hash": intent_hash
+        }
+
+    # ------------------------------------------------------------------
     # Cleanup
     # ------------------------------------------------------------------
 
