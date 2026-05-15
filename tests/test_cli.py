@@ -31,45 +31,24 @@ def test_version_callback_false() -> None:
 
 
 @patch("coreason_ecosystem.cli.execute_up", new_callable=AsyncMock)
-@patch("coreason_ecosystem.utils.telemetry.start_otlp_background_worker")
-@patch(
-    "coreason_ecosystem.utils.telemetry.stop_otlp_background_worker",
-    new_callable=AsyncMock,
-)
-def test_cli_up(mock_stop: Any, mock_start: Any, mock_execute_up: Any) -> None:
+def test_cli_up(mock_execute_up: Any) -> None:
     result = runner.invoke(app, ["up"])
     assert result.exit_code == 0
-    mock_start.assert_called_once()
     mock_execute_up.assert_called_once()
-    mock_stop.assert_called_once()
 
 
 @patch("coreason_ecosystem.cli.execute_oracle_diagnostic", new_callable=AsyncMock)
-@patch("coreason_ecosystem.utils.telemetry.start_otlp_background_worker")
-@patch(
-    "coreason_ecosystem.utils.telemetry.stop_otlp_background_worker",
-    new_callable=AsyncMock,
-)
-def test_cli_doctor(mock_stop: Any, mock_start: Any, mock_execute_oracle: Any) -> None:
+def test_cli_doctor(mock_execute_oracle: Any) -> None:
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code == 0
-    mock_start.assert_called_once()
     mock_execute_oracle.assert_called_once()
-    mock_stop.assert_called_once()
 
 
 @patch("coreason_ecosystem.cli.execute_sync", new_callable=AsyncMock)
-@patch("coreason_ecosystem.utils.telemetry.start_otlp_background_worker")
-@patch(
-    "coreason_ecosystem.utils.telemetry.stop_otlp_background_worker",
-    new_callable=AsyncMock,
-)
-def test_cli_sync(mock_stop: Any, mock_start: Any, mock_execute_sync: Any) -> None:
+def test_cli_sync(mock_execute_sync: Any) -> None:
     result = runner.invoke(app, ["sync"])
     assert result.exit_code == 0
-    mock_start.assert_called_once()
     mock_execute_sync.assert_called_once()
-    mock_stop.assert_called_once()
 
 
 @patch("coreason_ecosystem.docs_generator.generate_dynamic_docs")

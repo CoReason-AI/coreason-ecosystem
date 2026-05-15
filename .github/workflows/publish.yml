@@ -11,7 +11,7 @@ permissions:
   contents: write
   id-token: write
   pages: write
-  # attestations: write # Requires Enterprise Cloud or public repo for SLSA provenance
+  attestations: write # Requires Enterprise Cloud or public repo for SLSA provenance
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -60,11 +60,17 @@ jobs:
 
 
 
+      - name: Generate SLSA Provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/*.whl
+            dist/*.tar.gz
+
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1 # release/v1
         with:
           skip-existing: true
-          attestations: false # Requires Enterprise Cloud or public repo
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
@@ -80,7 +86,6 @@ jobs:
           inputs: >-
             dist/*.tar.gz
             dist/*.whl
-          release-signing-artifacts: true
           source: false
 
       - name: Upload attestations to GitHub Release
@@ -105,3 +110,67 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  publish-container:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/coreason-ai/coreason-ecosystem
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Generate SBOM for Container
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/coreason-ai/coreason-ecosystem@${{ steps.build-and-push.outputs.digest }}
+          format: spdx-json
+          output-file: sbom-container.spdx.json
+          upload-release-assets: false
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.5.0
+
+      - name: Sign the image with Cosign
+        run: cosign sign --yes ghcr.io/coreason-ai/coreason-ecosystem@${{ steps.build-and-push.outputs.digest }}
+
+      - name: Generate SLSA Provenance for Container
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/coreason-ai/coreason-ecosystem
+          subject-digest: ${{ steps.build-and-push.outputs.digest }}
+          push-to-registry: true

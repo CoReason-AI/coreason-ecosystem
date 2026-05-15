@@ -11,6 +11,7 @@ from coreason_ecosystem.gateway.master_mcp import (
     federated_discovery,
     registry,
     compute_schema_seal,
+    verify_schema_seal,
     _hydrate_registry,
 )
 import respx
@@ -21,19 +22,19 @@ from hypothesis import given, settings, strategies as st
 def _seed_registry() -> None:
     """Seed the registry with test capabilities for the test suite."""
     registry._mock_state = {  # type: ignore[attr-defined]
-        "urn:coreason:oracle:clinical_extractor": {
+        "urn:coreason:actionspace:solver:clinical_extractor:v1": {
             "endpoint": "http://svc-pubmed-mcp.internal:8000",
             "clearance": "PUBLIC",
         },
-        "urn:coreason:oracle:mathematics": {
+        "urn:coreason:actionspace:solver:mathematics:v1": {
             "endpoint": "http://svc-math-mcp.internal:8000",
             "clearance": "CONFIDENTIAL",
         },
-        "urn:coreason:oracle:milvus": {
+        "urn:coreason:actionspace:oracle:milvus:v1": {
             "endpoint": "http://coreason-milvus-mcp:8000",
             "clearance": "CONFIDENTIAL",
         },
-        "urn:coreason:oracle:neo4j": {
+        "urn:coreason:actionspace:oracle:neo4j:v1": {
             "endpoint": "http://coreason-neo4j-mcp:8000",
             "clearance": "CONFIDENTIAL",
         },
@@ -61,6 +62,87 @@ async def test_compute_schema_seal() -> None:
     seal2 = compute_schema_seal(schema)
     assert seal1 == seal2
     assert len(seal1) == 64  # SHA-256 hex digest
+
+
+@pytest.mark.asyncio
+async def test_compute_schema_seal_vault_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that schema sealing integrates with Vault transit engine."""
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+
+    monkeypatch.setenv("VAULT_ADDR", "http://vault:8200")
+    monkeypatch.setenv("VAULT_TOKEN", "test-token")
+
+    with patch("hvac.Client") as mock_vault_class:
+        mock_client = mock_vault_class.return_value
+        mock_client.secrets.transit.sign_data.return_value = {
+            "data": {"signature": "vault:v1:test-signature"}
+        }
+
+        seal = compute_schema_seal(schema)
+
+        assert isinstance(seal, dict)
+        assert "hash" in seal
+        assert seal["signature"] == "vault:v1:test-signature"
+        mock_client.secrets.transit.sign_data.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_compute_schema_seal_vault_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that schema sealing falls back to local hash if Vault fails."""
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+
+    monkeypatch.setenv("VAULT_ADDR", "http://vault:8200")
+    monkeypatch.setenv("VAULT_TOKEN", "test-token")
+
+    with patch("hvac.Client") as mock_vault_class:
+        mock_client = mock_vault_class.return_value
+        mock_client.secrets.transit.sign_data.side_effect = Exception("Vault down")
+
+        seal = compute_schema_seal(schema)
+
+        assert isinstance(seal, str)
+        assert len(seal) == 64  # Fell back to SHA-256 hex digest
+
+
+@pytest.mark.asyncio
+async def test_verify_schema_seal_unsigned() -> None:
+    """Test that verify_schema_seal accepts a valid unsigned seal."""
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+    seal = compute_schema_seal(schema)
+    assert verify_schema_seal(schema, seal) is True
+
+
+@pytest.mark.asyncio
+async def test_verify_schema_seal_unsigned_mismatch() -> None:
+    """Test that verify_schema_seal rejects a tampered unsigned seal."""
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+    with pytest.raises(ValueError, match="Schema seal mismatch"):
+        verify_schema_seal(schema, "0" * 64)
+
+
+@pytest.mark.asyncio
+async def test_verify_schema_seal_signed_hash_mismatch() -> None:
+    """Test that verify_schema_seal rejects a signed seal with wrong hash."""
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+    bad_seal = {"hash": "0" * 64, "signature": "vault:v1:fake"}
+    with pytest.raises(ValueError, match="Schema seal hash mismatch"):
+        verify_schema_seal(schema, bad_seal)
+
+
+@pytest.mark.asyncio
+async def test_verify_schema_seal_signed_no_vault() -> None:
+    """Test that verify_schema_seal accepts hash-only when Vault is not configured."""
+    schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+    seal = compute_schema_seal(schema)
+    assert isinstance(seal, str)  # Without Vault, seal is a plain hash
+    # Wrap the unsigned seal in a dict to simulate signed format without Vault
+    signed_seal: dict[str, str] = {"hash": seal, "signature": "vault:v1:test"}
+    # Without VAULT_ADDR/VAULT_TOKEN set, it should accept based on hash only
+    assert verify_schema_seal(schema, signed_seal) is True
 
 
 @pytest.mark.asyncio
@@ -127,13 +209,25 @@ async def test_messages_endpoint_direct() -> None:
 
 
 @pytest.mark.asyncio
+async def test_openapi_yaml_endpoint(client: TestClient) -> None:
+    """Test the dynamic OpenAPI 3.1 YAML projection endpoint."""
+    response = client.get("/openapi.yaml")
+    assert response.status_code == 200
+    assert "openapi:" in response.text
+    assert "info:" in response.text
+
+
+@pytest.mark.asyncio
 async def test_list_actuators() -> None:
     """Test that list_actuators returns the built-in capabilities."""
     tools = await list_actuators()
-    assert len(tools) == 2
+    assert len(tools) == 3
     names = [t.name for t in tools]
     assert "federated_discovery" in names
     assert "deploy_cognitive_swarm" in names
+    assert (
+        "urn:coreason:actionspace:effector:capability_registry:contribute:v1" in names
+    )
 
 
 @pytest.mark.asyncio
@@ -145,6 +239,19 @@ async def test_the_guillotine() -> None:
 
     with pytest.raises(ValueError, match="Geometrical topology fault"):
         await invoke_actuator(name=unregistered_tool, arguments=arguments)
+
+
+@pytest.mark.asyncio
+async def test_invoke_actuator_tenant_mismatch() -> None:
+    """Test that a mismatch between JWT tenant_cid and payload tenant_cid raises a ValueError."""
+    from coreason_ecosystem.gateway.master_mcp import invoke_actuator
+
+    # We set the jwt_tenant via ContextVar logic (or rely on default if unchanged)
+    # The default is "889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531"
+    arguments = {"tenant_cid": "invalid_tenant_12345", "query": "test"}
+
+    with pytest.raises(ValueError, match="Hard Multi-Tenancy Breach"):
+        await invoke_actuator(name="deploy_cognitive_swarm", arguments=arguments)
 
 
 @pytest.mark.asyncio
@@ -298,23 +405,22 @@ async def test_hydrate_registry() -> None:
             new_callable=AsyncMock,
         ),
         patch(
-            "coreason_ecosystem.gateway.master_mcp.registry.hydrate_from_matrix",
+            "coreason_ecosystem.gateway.master_mcp.registry.hydrate_from_compiled_matrix",
             new_callable=AsyncMock,
-        ) as mock_hydrate_yaml,
+        ) as mock_hydrate_json,
         patch(
             "coreason_ecosystem.gateway.master_mcp.registry.scan_action_space_modules",
             new_callable=AsyncMock,
         ),
     ):
-        # Scenario 1: Fallback exists (primary=False, fallback=True)
-        # exists() is called twice if primary is False
-        mock_exists.side_effect = [False, True]
+        # Scenario 1: Primary exists
+        mock_exists.return_value = True
 
         await _hydrate_registry()
-        mock_hydrate_yaml.assert_called_once()
+        mock_hydrate_json.assert_called_once()
 
-        # Scenario 2: Neither exists -> Exception
-        mock_exists.side_effect = [False, False]
+        # Scenario 2: Missing -> Exception
+        mock_exists.return_value = False
 
         with pytest.raises(RuntimeError, match="Epistemic routing table missing."):
             await _hydrate_registry()

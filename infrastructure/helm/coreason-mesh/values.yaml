@@ -1,0 +1,20 @@
+# Default values for coreason-mesh.
+replicaCount: 3
+
+image:
+  repository: ghcr.io/coreason-ai/coreason-ecosystem
+  pullPolicy: IfNotPresent
+  tag: "0.60.0"
+
+service:
+  type: ClusterIP
+  port: 8000
+
+env:
+  # Epistemic Firewall Configuration (Phase 2.2)
+  OPA_URL: "http://opa.coreason-system:8181/v1/data/coreason/authz/allow"
+  # Universal Object Storage (Phase 3.2)
+  S3_ENDPOINT_URL: ""
+  COREASON_S3_BUCKET: "coreason-mesh-state"
+  # Telemetry (Phase 1.2)
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.coreason-system:4317"

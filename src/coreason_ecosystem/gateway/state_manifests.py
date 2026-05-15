@@ -36,7 +36,7 @@ class SubstrateCapabilityProfile(BaseModel):
         Field(
             default="PUBLIC",
             description=(
-                "The LBAC network perimeter that this Substrate physically "
+                "The SPIFFE/SPIRE network perimeter that this Substrate physically "
                 "guarantees for tenant data isolation."
             ),
         )
@@ -75,7 +75,13 @@ class CapabilityEntry(BaseModel):
         default="RESTRICTED", description="The required security clearance."
     )
     epistemic_status: Literal[
-        "DRAFT", "SRB_APPROVED", "CLIENT_APPROVED", "PUBLISHED"
+        "DRAFT",
+        "SRB_APPROVED",
+        "CLIENT_APPROVED",
+        "PUBLISHED",
+        "DEPRECATED",
+        "QUARANTINED",
+        "RETRACTED",
     ] = Field(default="DRAFT", description="The node's SRB governance lifecycle phase.")
 
 

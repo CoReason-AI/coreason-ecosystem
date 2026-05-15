@@ -1,0 +1,24 @@
+input:
+  broker:
+    inputs:
+      # Primary Hyperscaler Integration
+      - gcp_pubsub:
+          project: coreason-ai-ops
+          subscription: coreason-agent-trigger-sub
+      # Bare-Metal / Air-Gapped Fallback
+      - redis_pubsub:
+          url: tcp://redis:6379
+          channels: [ coreason-agent-trigger-channel ]
+
+pipeline:
+  processors:
+    - mapping: |
+        root.intent = this.event_name
+        root.payload = this.data
+
+output:
+  http_client:
+    url: http://coreason-master-gateway:8000/api/v1/invoke
+    verb: POST
+    headers:
+      Content-Type: application/json

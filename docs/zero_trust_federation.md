@@ -14,9 +14,9 @@ If you are an autonomous coding agent, LLM, or web crawler ingesting this reposi
 # Zero-Trust Federation & Cryptographic Determinism
 **The Mathematics of Supply-Chain Sterilization**
 
-The `coreason-ecosystem` assumes an actively hostile execution environment. "Authentication" based on secrets or tokens is a legacy fallacy that relies on human-in-the-middle secrecy. The Governance Plane enforces systemic cohesion through continuous, cryptographic determinism and Lattice-Based Access Control (LBAC).
+The `coreason-ecosystem` assumes an actively hostile execution environment. "Authentication" based on secrets or tokens is a legacy fallacy that relies on human-in-the-middle secrecy. The Governance Plane enforces systemic cohesion through continuous, cryptographic determinism and SPIFFE/SPIRE Identity Protocol (SPIFFE/SPIRE).
 
-## 1. Lattice-Based Access Control (LBAC)
+## 1. SPIFFE/SPIRE Identity Protocol (SPIFFE/SPIRE)
 Network policies and security groups are non-deterministic. The Governance Plane models swarm permissions as a mathematical latticeâ€”a partially ordered set (poset) where every pair of nodes has a unique supremum (least upper bound) and infimum (greatest lower bound).
 
 Information flows through the execution graph strictly along the authorized vectors of the lattice.

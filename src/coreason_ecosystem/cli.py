@@ -108,17 +108,9 @@ def fleet_start(
 @app.command(name="up")
 def up() -> None:
     """Implement Idempotent DAG Resolution for the Swarm infrastructure."""
-    from coreason_ecosystem.utils.telemetry import (
-        start_otlp_background_worker,
-        stop_otlp_background_worker,
-    )
 
     async def _run() -> None:  # pragma: no cover
-        start_otlp_background_worker()
-        try:
-            await execute_up()
-        finally:
-            await stop_otlp_background_worker()
+        await execute_up()
 
     asyncio.run(_run())
 
@@ -126,17 +118,9 @@ def up() -> None:
 @app.command(name="doctor")
 def doctor() -> None:
     """Prove Ontological Isomorphism across the Tripartite Manifold."""
-    from coreason_ecosystem.utils.telemetry import (
-        start_otlp_background_worker,
-        stop_otlp_background_worker,
-    )
 
     async def _run() -> None:
-        start_otlp_background_worker()
-        try:
-            await execute_oracle_diagnostic()
-        finally:
-            await stop_otlp_background_worker()
+        await execute_oracle_diagnostic()
 
     asyncio.run(_run())
 
@@ -147,17 +131,9 @@ def doctor() -> None:
 )
 def sync() -> None:
     """Autonomically heal Ontological Drift."""
-    from coreason_ecosystem.utils.telemetry import (
-        start_otlp_background_worker,
-        stop_otlp_background_worker,
-    )
 
     async def _run() -> None:
-        start_otlp_background_worker()
-        try:
-            await execute_sync()
-        finally:
-            await stop_otlp_background_worker()
+        await execute_sync()
 
     asyncio.run(_run())
 
@@ -175,6 +151,25 @@ def build_docs_cmd() -> None:
         generate_dynamic_docs()
     except Exception as e:
         console.print(f"[bold red]Documentation Pipeline Failed:[/bold red] {e}")
+
+
+@app.command(name="pi")
+def pi_terminal() -> None:
+    """Launch the pi.dev Sovereign Developer Console."""
+    import subprocess  # nosec: B404
+
+    console.print("[bold green]Launching the pi.dev Kinetic Harness...[/bold green]")
+    try:
+        # We invoke the pi.dev CLI natively using npx
+        subprocess.run(["npx", "@mariozechner/pi-coding-agent"], check=True)  # nosec: B603, B607
+    except FileNotFoundError:
+        console.print(
+            "[bold red]Error:[/bold red] Node.js and npx are required to launch pi.dev."
+        )
+    except subprocess.CalledProcessError as e:
+        console.print(
+            f"[bold red]Pi terminal exited with code {e.returncode}[/bold red]"
+        )
 
 
 def main() -> None:  # pragma: no cover

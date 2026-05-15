@@ -19,7 +19,7 @@ No URN-to-endpoint mappings are hardcoded.
 
 Each capability entry tracks:
   - ``endpoint``: Physical network URI of the deployed action space.
-  - ``clearance``: LBAC clearance level (PUBLIC / CONFIDENTIAL / RESTRICTED).
+  - ``clearance``: SPIFFE/SPIRE clearance level (PUBLIC / CONFIDENTIAL / RESTRICTED).
   - ``epistemic_status``: SRB governance lifecycle phase
     (DRAFT / SRB_APPROVED / CLIENT_APPROVED / PUBLISHED).
 
@@ -32,7 +32,6 @@ from __future__ import annotations
 import ast
 import asyncio
 import re
-import warnings
 from pathlib import Path
 from typing import Any, cast
 
@@ -43,14 +42,6 @@ from temporalio.client import Client
 from temporalio.common import WorkflowIDReusePolicy
 from temporalio.exceptions import WorkflowAlreadyStartedError
 from temporalio.worker import Worker
-
-_LEGACY_URN_PREFIXES = ("urn:coreason:oracle:", "urn:coreason:state:")
-_ARCHETYPE_PREFIXES = (
-    "urn:coreason:archetype_a:storage:",
-    "urn:coreason:archetype_b:tools:",
-    "urn:coreason:archetype_c:sensory:",
-    "urn:coreason:archetype_d:state:",
-)
 
 # Canonical URN regex — synchronized with ActionSpaceURNState in
 # coreason_manifest.spec.ontology.  Supports federated namespace
@@ -107,8 +98,8 @@ class RegistryStateWorkflow:
 class SovereignMCPRegistry:
     """Dynamic routing table linking URN boundaries to deployed action spaces.
 
-    Initializes empty and must be hydrated via ``hydrate_from_matrix()``
-    (reading a ``capabilities.matrix.yaml``) or ``hydrate_from_discovery_port()``
+    Initializes empty and must be hydrated via ``hydrate_from_compiled_matrix()``
+    (reading a compiled JSON matrix) or ``hydrate_from_discovery_port()``
     (querying an upstream discovery endpoint) before operation.
     """
 
@@ -191,54 +182,6 @@ class SovereignMCPRegistry:
         handle = self._client.get_workflow_handle(self._workflow_id)
         return await handle.query(RegistryStateWorkflow.get_state)
 
-    async def hydrate_from_matrix(self, matrix_path: Path | None = None) -> None:
-        """Hydrate the URN routing table from a ``capabilities.matrix.yaml`` file.
-
-        Args:
-            matrix_path: Path to the YAML matrix file. Defaults to
-                ``./capabilities.matrix.yaml`` relative to the current
-                working directory.
-
-        Raises:
-            FileNotFoundError: If the matrix file does not exist.
-        """
-        import yaml
-
-        if matrix_path is None:
-            matrix_path = Path.cwd() / "capabilities.matrix.yaml"  # pragma: no cover
-
-        if not matrix_path.exists():  # pragma: no cover
-            logger.warning(
-                f"Capability matrix not found at {matrix_path}. "
-                "Registry remains empty — operating in discovery-only mode."
-            )
-            return
-
-        raw = yaml.safe_load(matrix_path.read_text(encoding="utf-8"))
-        capabilities: list[dict[str, Any]] = raw.get("capabilities", [])
-
-        count = 0
-        for entry in capabilities:
-            urn = entry.get("urn", "")
-            clearance = entry.get("clearance", "RESTRICTED")
-            epistemic_status = entry.get("epistemic_status", "DRAFT")
-            if urn:
-                match urn.split(":"):
-                    case ["urn", "coreason", "oracle" | "state", *_]:
-                        warnings.warn(
-                            f"Legacy URN prefix detected: '{urn}'. "
-                            "'oracle:' and 'state:' are deprecated in favor of 'archetype_*'.",
-                            DeprecationWarning,
-                            stacklevel=2,
-                        )
-                    case _:
-                        pass
-
-                await self._update_urn(urn, clearance, epistemic_status)
-                count += 1
-
-        logger.info(f"Hydrated {count} capabilities from {matrix_path.name}")
-
     async def hydrate_from_compiled_matrix(
         self, json_path: Path
     ) -> None:  # pragma: no cover
@@ -300,30 +243,11 @@ class SovereignMCPRegistry:
             # We now use the raw metadata dictionary.
             clearance = str(metadata.get("required_clearance", "RESTRICTED")).upper()
 
-            if _ACTIONSPACE_URN_PATTERN.match(urn):
-                pass  # Modern multi-authority actionspace URN
-            else:
-                match urn.split(":"):
-                    case [
-                        "urn",
-                        "coreason",
-                        "archetype_a"
-                        | "archetype_b"
-                        | "archetype_c"
-                        | "archetype_d"
-                        | "oracle"
-                        | "state",
-                        *_,
-                    ]:
-                        warnings.warn(
-                            f"Legacy URN prefix detected: '{urn}'. "
-                            "This format is deprecated. Use "
-                            "'urn:{{authority}}:actionspace:{{category}}:{{name}}:v{{version}}'.",
-                            DeprecationWarning,
-                            stacklevel=2,
-                        )
-                    case _:
-                        pass
+            if not _ACTIONSPACE_URN_PATTERN.match(urn):
+                raise ValueError(
+                    f"URN Topology Breach: '{urn}' does not conform to the "
+                    "modern actionspace taxonomy. Rejecting capability."
+                )
 
             await self._update_urn(
                 urn,
@@ -367,16 +291,12 @@ class SovereignMCPRegistry:
                 clearance = entry.get("clearance", "RESTRICTED")
                 epistemic_status = entry.get("epistemic_status", "DRAFT")
                 if urn:
-                    match urn.split(":"):
-                        case ["urn", "coreason", "oracle" | "state", *_]:
-                            warnings.warn(
-                                f"Legacy URN prefix detected: '{urn}'. "
-                                "'oracle:' and 'state:' are deprecated in favor of 'archetype_*'.",
-                                DeprecationWarning,
-                                stacklevel=2,
-                            )
-                        case _:
-                            pass
+                    if not _ACTIONSPACE_URN_PATTERN.match(urn):
+                        logger.warning(
+                            f"Discovery Port Violation: '{urn}' does not conform to "
+                            "modern actionspace taxonomy. Skipping."
+                        )
+                        continue
                     await self._update_urn(urn, clearance, epistemic_status)
 
             logger.info(
@@ -478,41 +398,13 @@ class SovereignMCPRegistry:
 
         Validates the modern multi-authority actionspace taxonomy via the
         canonical regex pattern synchronized with ``ActionSpaceURNState``
-        in ``coreason-manifest``.  Supports federated namespace authorities
-        (e.g. ``coreason``, ``nlm``, ``ohdsi``).
-
-        Retains legacy archetype/oracle/state prefixes under a deprecation
-        warning to prevent immediate topology severance of older containers.
+        in ``coreason-manifest``.
         """
-        if _ACTIONSPACE_URN_PATTERN.match(urn):
-            return  # Modern multi-authority actionspace URN — valid
-
-        # Legacy prefix check for backward compatibility
-        match urn.split(":"):
-            case [
-                "urn",
-                "coreason",
-                "archetype_a"
-                | "archetype_b"
-                | "archetype_c"
-                | "archetype_d"
-                | "oracle"
-                | "state",
-                *_,
-            ]:
-                warnings.warn(  # pragma: no cover
-                    f"Legacy URN prefix detected: '{urn}'. "
-                    "This format is deprecated. Use "
-                    "'urn:{{authority}}:actionspace:{{category}}:{{name}}:v{{version}}'.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-            case _:
-                raise ValueError(
-                    f"URN Topology Breach: '{urn}' does not conform to the "
-                    f"modern actionspace taxonomy or legacy bounds. "
-                    "Rejecting hallucinated capability."
-                )  # pragma: no cover
+        if not _ACTIONSPACE_URN_PATTERN.match(urn):
+            raise ValueError(
+                f"URN Topology Breach: '{urn}' does not conform to the "
+                "modern actionspace taxonomy. Rejecting capability."
+            )
 
     async def scan_action_space_modules(
         self, scan_dirs: list[Path] | None = None

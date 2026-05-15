@@ -8,9 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-import asyncio
 import logging
-import queue
 import sys
 import time
 from functools import lru_cache
@@ -25,15 +23,13 @@ from pydantic import BaseModel, ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 if TYPE_CHECKING:
-    from loguru import Message
+    pass
 
 __all__ = [
     "ObservabilitySettings",
     "get_observability_settings",
     "TelemetryModel",
     "setup_telemetry_mesh",
-    "start_otlp_background_worker",
-    "stop_otlp_background_worker",
     "emit_span_event",
     "logger",
 ]
@@ -62,124 +58,6 @@ def get_observability_settings() -> ObservabilitySettings:
     synchronous disk I/O and environment parsing on high-frequency paths.
     """
     return ObservabilitySettings()
-
-
-# Global queue and task for OTLP export
-_otlp_queue: queue.SimpleQueue[dict[str, Any]] | None = None
-_otlp_task: asyncio.Task[None] | None = None
-
-
-async def _otlp_worker(endpoint: str) -> None:
-    """
-    Background worker that flushes logs to OTLP strictly asynchronously.
-
-    Note: We bypass the official `opentelemetry-sdk` log exporter (which uses standard
-    Python `threading.Thread`) in favor of manual REST. Under Python 3.14t (Free-Threading
-    / `nogil`), relying on legacy threading models can introduce unpredictable GIL-related
-    contention during heavy WASM AOT compilation. Using pure `asyncio.Task` + `httpx`
-    bypasses the OS threading layer entirely, ensuring PEP-703 free-threading safety.
-    """
-    import httpx  # pragma: no cover
-
-    async with httpx.AsyncClient() as client:
-        while _otlp_queue is not None:
-            try:
-                # Poll the lock-free queue (non-blocking in async context using a short sleep)
-                try:
-                    record = _otlp_queue.get_nowait()
-                except queue.Empty:
-                    await asyncio.sleep(0.01)
-                    continue  # pragma: no cover
-
-                # Use the actual log generation timestamp, not current processing time
-                log_time_ns = int(record["time"].timestamp() * 1e9)
-
-                payload = {
-                    "resourceLogs": [
-                        {
-                            "scopeLogs": [
-                                {
-                                    "logRecords": [
-                                        {
-                                            "timeUnixNano": log_time_ns,
-                                            "severityText": record["level"]["name"],
-                                            "body": {"stringValue": record["message"]},
-                                            "attributes": [
-                                                {
-                                                    "key": k,
-                                                    "value": {"stringValue": str(v)},
-                                                }
-                                                for k, v in record["extra"].items()
-                                            ],
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
-                try:
-                    await client.post(endpoint, json=payload, timeout=2.0)
-                except httpx.RequestError as e:  # pragma: no cover
-                    logger.warning(f"Telemetry emission failed (RequestError): {e}")
-            except asyncio.CancelledError:
-                break
-            except Exception as e:  # nosec B110 - pragma: no cover
-                logger.warning(f"Telemetry emission failed: {e}")
-
-
-def otlp_log_sink(message: "Message") -> None:
-    """
-    Custom loguru sink that routes records to the SimpleQueue lock-free queue.
-    """
-    if _otlp_queue is not None:
-        try:
-            _otlp_queue.put_nowait(dict(message.record))
-        except Exception:  # nosec B110 - pragma: no cover
-            pass
-
-
-def start_otlp_background_worker() -> None:
-    """
-    Initializes the OTLP async worker task. Call this after the event loop starts.
-    """
-    global _otlp_queue, _otlp_task
-    try:
-        loop = asyncio.get_running_loop()
-        if _otlp_queue is None:
-            _otlp_queue = queue.SimpleQueue()
-        _otlp_task = loop.create_task(
-            _otlp_worker(get_observability_settings().otlp_endpoint)
-        )
-    except RuntimeError:
-        logger.warning("Failed to start OTLP worker: No running event loop.")
-
-
-async def stop_otlp_background_worker() -> None:
-    """Gracefully flush the queue and shut down the OTLP worker with a strict timeout."""
-    global _otlp_queue, _otlp_task
-
-    if _otlp_queue is not None:
-        try:
-
-            async def _wait_for_queue() -> None:
-                while not _otlp_queue.empty():
-                    await asyncio.sleep(0.05)
-
-            # Give the worker a maximum of 3 seconds to flush pending telemetry
-            await asyncio.wait_for(_wait_for_queue(), timeout=3.0)
-        except asyncio.TimeoutError:
-            # If the network is degraded, abandon the remaining logs rather than hanging the CLI
-            logger.warning(
-                "OTLP flush timed out. Abandoning remaining logs."
-            )  # pragma: no cover
-
-    if _otlp_task is not None:
-        _otlp_task.cancel()
-        try:
-            await _otlp_task
-        except asyncio.CancelledError:
-            logger.warning("OTLP worker task was cancelled during shutdown.")
 
 
 class TelemetryModel(BaseModel):
@@ -287,9 +165,27 @@ def setup_telemetry_mesh() -> None:
 
     logger.configure(patcher=_patch_record)
 
-    # Note: the background worker and sink must be started after event loop spins up.
-    # However we add the sink now, but wrap in enqueue=True to bridge OS threads
-    logger.add(otlp_log_sink, level=settings.log_level, enqueue=True)
+    # Setup OpenTelemetry Native Log Exporter
+    try:
+        from opentelemetry._logs import set_logger_provider
+        from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+        from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+        from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+
+        logger_provider = LoggerProvider()
+        set_logger_provider(logger_provider)
+
+        otlp_log_exporter = OTLPLogExporter(endpoint=settings.otlp_endpoint)
+        logger_provider.add_log_record_processor(
+            BatchLogRecordProcessor(otlp_log_exporter)
+        )
+
+        otlp_handler = LoggingHandler(level=0, logger_provider=logger_provider)
+        logger.add(otlp_handler, level=settings.log_level)
+    except ImportError:
+        logger.warning(
+            "OpenTelemetry log exporter not found. Skipping native OTLP logs setup."
+        )
 
     # Route standard logging to loguru
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)

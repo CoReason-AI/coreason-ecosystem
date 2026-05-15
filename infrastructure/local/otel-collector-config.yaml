@@ -1,0 +1,35 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  # Primary Hyperscaler Integrations
+  googlecloud:
+    project: coreason-ai-ops
+  awsxray:
+    region: us-east-1
+  # Bare-Metal / Air-Gapped Fallback
+  otlp/jaeger:
+    endpoint: "jaeger:4317"
+    tls:
+      insecure: true
+  logging:
+    verbosity: detailed
+
+processors:
+  batch:
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging, awsxray, googlecloud, otlp/jaeger]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging, googlecloud]

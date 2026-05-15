@@ -8,10 +8,9 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
-import asyncio
 import logging
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
@@ -21,11 +20,7 @@ from coreason_ecosystem.utils.logger import (
     _patch_record,
     bind_epistemic_context,
 )
-from coreason_ecosystem.utils.telemetry import (
-    TelemetryModel,
-    _otlp_worker,
-    otlp_log_sink,
-)
+from coreason_ecosystem.utils.telemetry import TelemetryModel
 
 
 def test_bind_epistemic_context() -> None:
@@ -101,114 +96,6 @@ def test_redaction_filter_prod() -> None:
     assert "<REDACTED_SSN>" in record["message"]
 
 
-@pytest.mark.asyncio
-async def test_otlp_worker() -> None:
-    import queue
-    from datetime import datetime
-
-    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
-    q.put_nowait(
-        {
-            "level": {"name": "INFO"},
-            "message": "test",
-            "extra": {"key": "value"},
-            "time": datetime.now(),
-        }
-    )
-
-    with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
-        patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post,
-    ):
-        worker_task = asyncio.create_task(_otlp_worker("http://test"))
-        await asyncio.sleep(0.1)
-        worker_task.cancel()
-        mock_post.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_otlp_worker_exception() -> None:
-    import queue
-    from datetime import datetime
-
-    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
-    q.put_nowait(
-        {
-            "level": {"name": "INFO"},
-            "message": "test",
-            "extra": {"key": "value"},
-            "time": datetime.now(),
-        }
-    )
-
-    with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
-        patch("httpx.AsyncClient.post", side_effect=Exception("error")) as mock_post,
-    ):
-        worker_task = asyncio.create_task(_otlp_worker("http://test"))
-        await asyncio.sleep(0.1)
-        worker_task.cancel()
-        mock_post.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_otlp_worker_request_error() -> None:
-    import httpx
-    import queue
-    from datetime import datetime
-
-    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
-    q.put_nowait(
-        {
-            "level": {"name": "INFO"},
-            "message": "test",
-            "extra": {"key": "value"},
-            "time": datetime.now(),
-        }
-    )
-
-    with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
-        patch(
-            "httpx.AsyncClient.post", side_effect=httpx.RequestError("error")
-        ) as mock_post,
-    ):
-        worker_task = asyncio.create_task(_otlp_worker("http://test"))
-        await asyncio.sleep(0.1)
-        worker_task.cancel()
-        mock_post.assert_called_once()
-
-
-def test_otlp_log_sink() -> None:
-    import queue
-
-    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
-
-    class MockMessage:
-        record = {"test": "data"}
-
-    with patch("coreason_ecosystem.utils.telemetry._otlp_queue", q):
-        otlp_log_sink(MockMessage())  # type: ignore[arg-type]
-
-    assert q.get_nowait() == {"test": "data"}
-
-
-def test_otlp_log_sink_exception() -> None:
-    import queue
-
-    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
-
-    class MockMessage:
-        @property
-        def record(self) -> Any:
-            raise Exception("error")
-
-    with patch("coreason_ecosystem.utils.telemetry._otlp_queue", q):
-        otlp_log_sink(MockMessage())  # type: ignore[arg-type]
-
-    assert q.empty()
-
-
 def test_telemetry_model_success() -> None:
     class TestModel(TelemetryModel):
         name: str
@@ -220,85 +107,6 @@ def test_telemetry_model_success() -> None:
         assert (
             mock_get_tracer.return_value.start_as_current_span.call_count == 1
         )  # Called in validate_with_telemetry
-
-
-@pytest.mark.asyncio
-async def test_stop_otlp_background_worker() -> None:
-    import queue
-
-    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
-    loop = asyncio.get_running_loop()
-
-    async def mock_coro() -> None:
-        pass
-
-    mock_task = loop.create_task(mock_coro())
-
-    with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
-        patch("coreason_ecosystem.utils.telemetry._otlp_task", mock_task),
-    ):
-        from coreason_ecosystem.utils.telemetry import stop_otlp_background_worker
-
-        await stop_otlp_background_worker()
-        assert mock_task.cancelled()
-
-
-@pytest.mark.asyncio
-async def test_stop_otlp_background_worker_cancelled() -> None:
-    import queue
-
-    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
-    loop = asyncio.get_running_loop()
-
-    async def mock_coro() -> None:
-        await asyncio.sleep(1)
-
-    mock_task = loop.create_task(mock_coro())
-    mock_task.cancel()
-
-    with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
-        patch("coreason_ecosystem.utils.telemetry._otlp_task", mock_task),
-    ):
-        from coreason_ecosystem.utils.telemetry import stop_otlp_background_worker
-
-        # It shouldn't raise CancelledError because we catch it in stop_otlp_background_worker
-        await stop_otlp_background_worker()
-
-
-@pytest.mark.asyncio
-async def test_stop_otlp_background_worker_timeout() -> None:
-    import queue
-
-    q: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
-    q.put_nowait({"level": {"name": "INFO"}, "message": "test", "extra": {}})
-    loop = asyncio.get_running_loop()
-
-    async def mock_coro() -> None:
-        await asyncio.sleep(1)
-
-    mock_task = loop.create_task(mock_coro())
-
-    with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
-        patch("coreason_ecosystem.utils.telemetry._otlp_task", mock_task),
-        patch("asyncio.wait_for", side_effect=asyncio.TimeoutError),
-    ):
-        from coreason_ecosystem.utils.telemetry import stop_otlp_background_worker
-
-        # To hit the inner loop, let's just trigger it manually! Wait, wait_for is patched. Let's unpatch it.
-        pass
-
-    with (
-        patch("coreason_ecosystem.utils.telemetry._otlp_queue", q),
-        patch("coreason_ecosystem.utils.telemetry._otlp_task", mock_task),
-        patch("asyncio.sleep", AsyncMock(side_effect=asyncio.TimeoutError)),
-    ):
-        from coreason_ecosystem.utils.telemetry import stop_otlp_background_worker
-
-        await stop_otlp_background_worker()
-        assert mock_task.cancelled()
 
 
 @patch("coreason_ecosystem.utils.telemetry.get_observability_settings")
@@ -321,31 +129,6 @@ def test_telemetry_model_failure_no_diagnostics(mock_get_settings: Any) -> None:
 
     with pytest.raises(ValidationError), patch("opentelemetry.trace.get_tracer"):
         TestModel.validate_with_telemetry({"name": 123})
-
-
-@patch("asyncio.get_running_loop")
-def test_start_otlp_background_worker(mock_get_running_loop: Any) -> None:
-    from unittest.mock import MagicMock
-
-    mock_loop = MagicMock()
-    mock_get_running_loop.return_value = mock_loop
-
-    # We must patch _otlp_worker to prevent it from returning an unawaited coroutine in the test
-    with patch(
-        "coreason_ecosystem.utils.telemetry._otlp_worker",
-        new=MagicMock(return_value="dummy_coro"),
-    ):
-        from coreason_ecosystem.utils.telemetry import start_otlp_background_worker
-
-        start_otlp_background_worker()
-        mock_loop.create_task.assert_called_once_with("dummy_coro")
-
-
-@patch("asyncio.get_running_loop", side_effect=RuntimeError)
-def test_start_otlp_background_worker_no_loop(mock_get_running_loop: Any) -> None:
-    from coreason_ecosystem.utils.telemetry import start_otlp_background_worker
-
-    start_otlp_background_worker()
 
 
 def test_logger_patch_record_none() -> None:

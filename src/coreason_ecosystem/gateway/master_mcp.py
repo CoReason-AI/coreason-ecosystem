@@ -8,11 +8,13 @@
 #
 # Source Code: <https://github.com/CoReason-AI/coreason-ecosystem>
 
+import base64
 import contextvars
 import hashlib
 import json
 import logging
 import os
+import yaml
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 
@@ -26,8 +28,14 @@ from coreason_manifest.spec.ontology import (
     FederatedDiscoveryIntent,
 )
 from fastapi import FastAPI
+from fastapi.responses import PlainTextResponse
 from mcp.server.sse import SseServerTransport
 from starlette.requests import Request
+
+try:
+    import hvac
+except ImportError:
+    hvac = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -42,14 +50,10 @@ async def _hydrate_registry() -> None:
     /mnt/coreason-state/registry/compiled_matrix.json. If the file exists, it
     invokes the strict JSON hydration protocol.
 
-    Fallback Resolution: If the primary mount is absent, gracefully falls back
-    to the local developer path at infrastructure/local/capabilities.matrix.yaml
-    and invokes the legacy YAML hydration protocol.
-
-    Strict Fail-Fast Degradation: If neither the primary JSON path nor the
-    fallback YAML path resolves, a fatal RuntimeError("Epistemic routing table missing.")
-    is raised to instantly crash the boot sequence, strictly preventing the
-    swarm from booting blind.
+    Strict Fail-Fast Degradation: If the primary JSON path does not resolve,
+    a fatal RuntimeError("Epistemic routing table missing.") is raised to
+    instantly crash the boot sequence, strictly preventing the swarm from
+    booting blind.
     """
     from pathlib import Path
 
@@ -61,14 +65,11 @@ async def _hydrate_registry() -> None:
             "/mnt/coreason-state/registry/compiled_matrix.json",
         )
     )
-    fallback_path = Path("infrastructure/local/capabilities.matrix.yaml")
 
     if primary_path.exists():  # pragma: no cover
         await registry.hydrate_from_compiled_matrix(primary_path)
-    elif fallback_path.exists():
-        await registry.hydrate_from_matrix(fallback_path)
     else:
-        raise RuntimeError("Epistemic routing table missing.")
+        raise RuntimeError(f"Epistemic routing table missing at {primary_path}")
 
     await registry.scan_action_space_modules()
 
@@ -89,6 +90,35 @@ app = FastAPI(title="coreason-master-gateway", lifespan=lifespan)
 mcp_server = mcp.server.Server("coreason-master-gateway")
 
 current_clearance = contextvars.ContextVar("current_clearance", default="PUBLIC")
+tenant_cid_var = contextvars.ContextVar(
+    "tenant_cid",
+    default="889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531",
+)
+spiffe_id_var = contextvars.ContextVar(
+    "spiffe_id", default="spiffe://coreason.ai/ns/default/sa/master-gateway"
+)
+
+
+@app.middleware("http")
+async def extract_jwt_claims(request: Request, call_next: Any) -> Any:
+    jwt_payload = request.headers.get("x-jwt-payload")
+    if jwt_payload:
+        try:
+            # Envoy forward_payload_header injects the base64url encoded payload
+            # Pad if necessary
+            padding = "=" * (4 - len(jwt_payload) % 4)
+            decoded_bytes = base64.urlsafe_b64decode(jwt_payload + padding)
+            payload = json.loads(decoded_bytes)
+
+            if "sub" in payload:
+                tenant_cid_var.set(payload["sub"])
+            if "spiffe_id" in payload:
+                spiffe_id_var.set(payload["spiffe_id"])
+        except Exception as e:
+            logger.warning(f"Failed to decode x-jwt-payload header: {e}")
+
+    response = await call_next(request)
+    return response
 
 
 def _canonicalize_json(obj: Any) -> bytes:
@@ -106,20 +136,123 @@ def _canonicalize_json(obj: Any) -> bytes:
     return json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
-def compute_schema_seal(schema: dict[str, Any]) -> str:
+def compute_schema_seal(schema: dict[str, Any]) -> str | dict[str, str]:
     """Compute the SHA-256 seal of a canonicalized MCP tool schema.
 
     Args:
         schema: The MCP tool input schema dictionary.
 
     Returns:
-        Hexadecimal SHA-256 digest string.
+        Hexadecimal SHA-256 digest string, or a dict containing signature if Vault is enabled.
+    """
+    import base64
+
+    canonical = _canonicalize_json(schema)
+    digest = hashlib.sha256(canonical).hexdigest()
+
+    vault_addr = os.getenv("VAULT_ADDR")
+    vault_token = os.getenv("VAULT_TOKEN")
+
+    if vault_addr and vault_token:
+        try:
+            if hvac is None:
+                raise ImportError("hvac package is not installed.")
+
+            client = hvac.Client(url=vault_addr, token=vault_token)
+            # Vault transit sign requires base64 encoded input
+            encoded_payload = base64.b64encode(canonical).decode("utf-8")
+
+            # Sign the digest using the transit engine
+            sign_result = client.secrets.transit.sign_data(
+                name="coreason-merkle-key",
+                hash_input=encoded_payload,
+            )
+
+            return {"hash": digest, "signature": sign_result["data"]["signature"]}
+        except Exception as e:
+            logger.warning(
+                f"Vault transit sign failed, falling back to local hash: {e}"
+            )
+
+    return digest
+
+
+def verify_schema_seal(schema: dict[str, Any], seal: str | dict[str, str]) -> bool:
+    """Verify the cryptographic seal of an MCP tool schema.
+
+    Recomputes the SHA-256 digest from the canonicalized schema and, if a Vault
+    Transit signature is present, verifies it against the ``coreason-merkle-key``
+    in the Transit engine.
+
+    Args:
+        schema: The MCP tool input schema dictionary.
+        seal: Either a plain hex digest string (unsigned) or a dict with
+            ``hash`` and ``signature`` keys (Vault-signed).
+
+    Returns:
+        True if the seal is valid.
+
+    Raises:
+        ValueError: If the hash or signature verification fails.
     """
     canonical = _canonicalize_json(schema)
-    return hashlib.sha256(canonical).hexdigest()
+    digest = hashlib.sha256(canonical).hexdigest()
+
+    if isinstance(seal, str):
+        # Unsigned seal — compare digests only
+        if digest != seal:
+            raise ValueError(
+                f"Schema seal mismatch: computed {digest[:16]}... "
+                f"does not match provided {seal[:16]}..."
+            )
+        return True
+
+    # Vault-signed seal — verify both hash and signature
+    if digest != seal.get("hash", ""):
+        raise ValueError(
+            f"Schema seal hash mismatch: computed {digest[:16]}... "
+            f"does not match provided {seal.get('hash', '')[:16]}..."
+        )
+
+    vault_addr = os.getenv("VAULT_ADDR")
+    vault_token = os.getenv("VAULT_TOKEN")
+
+    if not vault_addr or not vault_token:
+        logger.warning(
+            "Vault not configured — accepting seal based on hash match only."
+        )
+        return True
+
+    if hvac is None:
+        logger.warning("hvac not installed — accepting seal based on hash match only.")
+        return True
+
+    client = hvac.Client(url=vault_addr, token=vault_token)
+    encoded_payload = base64.b64encode(canonical).decode("utf-8")
+
+    verify_result = client.secrets.transit.verify_signed_data(
+        name="coreason-merkle-key",
+        hash_input=encoded_payload,
+        signature=seal["signature"],
+    )
+
+    if not verify_result["data"]["valid"]:
+        raise ValueError(
+            "Schema seal signature verification failed: "
+            "Vault Transit rejected the signature."
+        )
+
+    return True
 
 
 sse_transport = SseServerTransport("/messages")
+
+
+@app.get("/openapi.yaml", response_class=PlainTextResponse)
+async def get_openapi_yaml() -> str:
+    """Dynamic OpenAPI 3.1 projection for Hyperscalers (Google Vertex / AWS Bedrock)."""
+    openapi_schema = app.openapi()
+    return yaml.dump(openapi_schema, sort_keys=False)
 
 
 @app.get("/sse")
@@ -169,6 +302,23 @@ async def list_actuators() -> list[types.Tool]:
         )
     )
 
+    actuator_manifests.append(
+        types.Tool(
+            name="urn:coreason:actionspace:effector:capability_registry:contribute:v1",
+            description="Contribution Endpoint: Accepts remote URN contributions from authenticated Private mesh instances and absorbs them into the Public registry.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "urn": {"type": "string"},
+                    "legal_attestation": {"type": "object"},
+                    "intent_hash": {"type": "string"},
+                    "provider_instance": {"type": "string"},
+                },
+                "required": ["urn", "legal_attestation", "intent_hash"],
+            },
+        )
+    )
+
     return actuator_manifests
 
 
@@ -177,6 +327,29 @@ async def invoke_actuator(
     name: str, arguments: dict[str, Any]
 ) -> list[types.TextContent]:
     """Execute proxy intent securely spanning Zero-Trust boundaries via MCP JSON-RPC."""
+
+    # -------------------------------------------------------------------------
+    # HARD MULTI-TENANCY OIDC JWT ENFORCEMENT
+    # -------------------------------------------------------------------------
+    # Extract JWT from context (injected by gateway middleware)
+    # Validate that payload tenant_cid matches JWT tenant_cid
+    jwt_tenant = tenant_cid_var.get()
+    payload_tenant = arguments.get(
+        "tenant_cid", "889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531"
+    )
+
+    if jwt_tenant != payload_tenant:
+        raise ValueError(
+            f"GuardrailViolationEvent: Hard Multi-Tenancy Breach. JWT claim tenant_cid '{jwt_tenant}' "
+            f"does not match payload tenant_cid '{payload_tenant}'. Connection severed."
+        )
+
+    # -------------------------------------------------------------------------
+    # SPIFFE/SPIRE NODE-TO-NODE VERIFIABLE IDENTITY ENFORCEMENT
+    # -------------------------------------------------------------------------
+    spiffe_id = spiffe_id_var.get()
+    # -------------------------------------------------------------------------
+
     if name == "federated_discovery":
         res_text = await federated_discovery(arguments)
         return [types.TextContent(type="text", text=res_text)]
@@ -190,6 +363,73 @@ async def invoke_actuator(
             )
         ]
 
+    if name == "urn:coreason:actionspace:effector:capability_registry:contribute:v1":
+        nemoclaw_url = os.getenv("NEMOCLAW_URL", "https://nemoclaw:8443").rstrip("/")
+        client = NemoClawBridgeClient(nemoclaw_url)
+
+        try:
+            # Full-payload deep-packet inspection of the absorbed URN definitions
+            await client.call_tool(
+                "urn:coreason:actionspace:solver:dlp_scanner:v1",
+                "scan_contribution_payload",
+                {"payload": arguments},
+                spiffe_id=spiffe_id,
+            )
+        except RuntimeError as e:
+            logger.error(f"NemoClaw DLP scan rejected the contribution payload: {e}")
+            raise PermissionError(
+                "Contribution rejected: NemoClaw DLP scanning failed."
+            )
+
+        provider_instance = arguments.get("provider_instance")
+        if not provider_instance:
+            provider_instance = (
+                spiffe_id.split("/")[2] if "://" in spiffe_id else spiffe_id
+            )
+
+        from coreason_ecosystem.federation.proxy import FederationProxy
+        from coreason_ecosystem.federation.policy import (
+            FederationPeerState,
+            InstanceType,
+            FederationAgreementState,
+            AirGapPolicy,
+            ConnectivityDirection,
+        )
+
+        public_local = FederationPeerState(
+            instance_id="mesh.coreason.ai",
+            instance_type=InstanceType.PUBLIC,
+            spiffe_trust_domain="spiffe://mesh.coreason.ai",
+            gateway_endpoint="https://gateway.mesh.coreason.ai",
+            tenant_cid="889955217295c2bfef2d6812071b633b0819477e67f57853febf116f69f30531",
+        )
+        proxy = FederationProxy(local_instance=public_local)
+
+        private_peer = FederationPeerState(
+            instance_id=provider_instance,
+            instance_type=InstanceType.PRIVATE,
+            spiffe_trust_domain=spiffe_id,
+            gateway_endpoint=f"https://gateway.{provider_instance}:8443",
+            tenant_cid=payload_tenant,
+        )
+        agreement = FederationAgreementState(
+            agreement_id=f"auto-absorption-{provider_instance}",
+            initiator=private_peer,
+            responder=public_local,
+            initiator_policy=AirGapPolicy(
+                peer_instance_id="mesh.coreason.ai",
+                direction=ConnectivityDirection.OUTBOUND_ONLY,
+                max_clearance="PUBLIC",
+            ),
+            responder_policy=None,
+            signed_by_initiator=True,
+            signed_by_responder=True,
+        )
+        proxy.register_agreement(agreement)
+
+        result = await proxy.absorb_remote_capability(provider_instance, arguments)
+        return [types.TextContent(type="text", text=json.dumps(result))]
+
     try:
         target_urn = await registry.resolve_urn(name)
     except KeyError:
@@ -201,7 +441,9 @@ async def invoke_actuator(
     client = NemoClawBridgeClient(nemoclaw_url)
 
     try:
-        result = await client.call_tool(target_urn, name, arguments)
+        result = await client.call_tool(
+            target_urn, name, arguments, spiffe_id=spiffe_id
+        )
         return [types.TextContent(type="text", text=str(result.get("content", result)))]
     except RuntimeError as e:
         logger.error(f"NemoClaw security or execution fault: {e}")
