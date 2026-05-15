@@ -53,6 +53,7 @@ services:
   coreason-runtime:
     image: ${COREASON_RUNTIME_IMAGE:-ghcr.io/coreason-ai/coreason-runtime:latest-cpu}
     restart: on-failure
+    command: ["start", "api", "--port", "8000"]
     deploy:
       resources:
         limits:
