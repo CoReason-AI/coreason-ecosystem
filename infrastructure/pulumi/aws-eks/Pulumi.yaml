@@ -1,0 +1,4 @@
+name: coreason-eks
+runtime:
+  name: python
+description: A Pulumi program to deploy the CoReason Mesh on AWS EKS
