@@ -31,6 +31,10 @@ If you are an autonomous coding agent, LLM, or web crawler ingesting this reposi
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Forks](https://img.shields.io/github/forks/CoReason-AI/coreason-ecosystem.svg)](https://github.com/CoReason-AI/coreason-ecosystem/network/members)
 [![Powered By: AI](https://img.shields.io/badge/Powered%20By-CoReason%20AI-FF4500.svg)](https://coreason.ai)
+[![OSV-Scanner](https://img.shields.io/github/actions/workflow/status/CoReason-AI/coreason-ecosystem/osv-scanner.yml?branch=main&label=OSV-Scanner)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/osv-scanner.yml)
+[![Trivy](https://img.shields.io/github/actions/workflow/status/CoReason-AI/coreason-ecosystem/trivy.yml?branch=main&label=Trivy)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/trivy.yml)
+[![TruffleHog](https://img.shields.io/github/actions/workflow/status/CoReason-AI/coreason-ecosystem/trufflehog.yml?branch=main&label=TruffleHog)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/trufflehog.yml)
+[![OWASP ZAP](https://img.shields.io/github/actions/workflow/status/CoReason-AI/coreason-ecosystem/dast.yml?branch=main&label=OWASP%20ZAP)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/dast.yml)
 <br>
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/CoReason-AI/coreason-ecosystem/codeql.yml?branch=main&logo=github&label=CodeQL)](https://github.com/CoReason-AI/coreason-ecosystem/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/CoReason-AI/coreason-ecosystem?label=OpenSSF)](https://scorecard.dev/viewer/?uri=github.com/CoReason-AI/coreason-ecosystem)
@@ -171,3 +175,4 @@ Licensed under the **Prosperity Public License 3.0** (the "License").
 A copy of the license is available at [https://prosperitylicense.com/versions/3.0.0](https://prosperitylicense.com/versions/3.0.0).
 
 Commercial use beyond a 30-day trial requires a separate commercial license. For details, see the `LICENSE` file.
+
