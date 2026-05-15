@@ -41,6 +41,7 @@ type BootState =
   | "InstallingNemoclaw"
   | "NeedNgcKey"
   | "OnboardingNemoclaw"
+  | "NeedGhcrAuth"
   | "Booting"
   | "Active"
   | "Error";
@@ -54,6 +55,9 @@ function App() {
   const [logs, setLogs] = useState<string[]>([]);
   const [ngcApiKey, setNgcApiKey] = useState<string>("");
   const [ngcKeyError, setNgcKeyError] = useState<string>("");
+  const [ghcrUser, setGhcrUser] = useState<string>("");
+  const [ghcrPat, setGhcrPat] = useState<string>("");
+  const [ghcrError, setGhcrError] = useState<string>("");
   const logsEndRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll log console
@@ -102,9 +106,8 @@ function App() {
         return;
       }
 
-      // All good — proceed to ignite
-      setBootState("Booting");
-      await runIgnition();
+      // All good — proceed to GHCR Auth
+      setBootState("NeedGhcrAuth");
     } catch (error) {
       setErrorMessage(String(error));
       setBootState("Error");
@@ -148,8 +151,7 @@ function App() {
       });
 
       if (result.status === "SUCCESS") {
-        setBootState("Booting");
-        await runIgnition();
+        setBootState("NeedGhcrAuth");
       } else {
         setErrorMessage(result.message);
         setBootState("Error");
@@ -162,10 +164,21 @@ function App() {
 
   // ─── Step 4: Ignite Docker Swarm ─────────────────────────────────────────
 
-  async function runIgnition() {
+  async function runIgnition(skipGhcr: boolean = false) {
+    if (!skipGhcr && (!ghcrUser.trim() || !ghcrPat.trim())) {
+      setGhcrError("Both Username and PAT are required, or click Skip.");
+      return;
+    }
+    setGhcrError("");
+    setBootState("Booting");
+
     try {
       const ignResult: SwarmIgnitionReceipt = await invoke("ignite_swarm", {
-        intent: { forceRebuild: false },
+        intent: { 
+          forceRebuild: false,
+          githubUser: skipGhcr ? null : ghcrUser.trim() || null,
+          githubPat: skipGhcr ? null : ghcrPat.trim() || null
+        },
       });
 
       if (ignResult.status === "SUCCESS") {
@@ -306,6 +319,51 @@ function App() {
         </div>
       )}
 
+      {/* ── GHCR AUTH ── */}
+      {bootState === "NeedGhcrAuth" && (
+        <div style={styles.card}>
+          <h2 style={styles.cardTitle}>🔐 GHCR Authentication (Optional)</h2>
+          <p style={styles.cardText}>
+            To pull private Docker images from GitHub Container Registry (GHCR), you must provide your GitHub Username and a Personal Access Token (PAT) with the <code>read:packages</code> scope. If the images are public or already downloaded locally, you can skip this step.
+          </p>
+
+          <div style={styles.inputGroup}>
+            <label style={styles.label} htmlFor="ghcr-user-input">GitHub Username</label>
+            <input
+              id="ghcr-user-input"
+              type="text"
+              value={ghcrUser}
+              onChange={(e) => setGhcrUser(e.target.value)}
+              placeholder="octocat"
+              style={{ ...styles.input, borderColor: ghcrError ? "#f44336" : "#444" }}
+            />
+          </div>
+
+          <div style={styles.inputGroup}>
+            <label style={styles.label} htmlFor="ghcr-pat-input">Personal Access Token (PAT)</label>
+            <input
+              id="ghcr-pat-input"
+              type="password"
+              value={ghcrPat}
+              onChange={(e) => setGhcrPat(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && runIgnition(false)}
+              placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              style={{ ...styles.input, borderColor: ghcrError ? "#f44336" : "#444" }}
+            />
+            {ghcrError && <p style={styles.fieldError}>{ghcrError}</p>}
+          </div>
+
+          <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem" }}>
+            <button style={styles.primaryButton} onClick={() => runIgnition(false)}>
+              Authenticate & Ignite
+            </button>
+            <button style={styles.secondaryButton} onClick={() => runIgnition(true)}>
+              Skip
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── BOOTING DOCKER SWARM ── */}
       {bootState === "Booting" && (
         <div style={styles.card}>
@@ -377,6 +435,7 @@ function StepIndicator({ bootState }: { bootState: BootState }) {
     { id: "InstallingNemoclaw", label: "Install" },
     { id: "NeedNgcKey", label: "Configure" },
     { id: "OnboardingNemoclaw", label: "Onboard" },
+    { id: "NeedGhcrAuth", label: "Auth" },
     { id: "Booting", label: "Ignite" },
     { id: "Active", label: "Active" },
   ];

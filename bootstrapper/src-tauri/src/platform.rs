@@ -290,6 +290,32 @@ pub fn ignite_swarm(app: tauri::AppHandle, intent: SwarmIgnitionIntent) -> Swarm
 
     let compose_path_str = compose_file_path.to_string_lossy().to_string();
 
+    // Automatically log into GHCR if the user provided credentials in the intent
+    if let (Some(token), Some(user)) = (intent.github_pat, intent.github_user) {
+        let _ = app.emit("boot-log", &format!("[Auth] Received GHCR credentials for user {}. Authenticating...", user));
+        
+        // Use docker login with --password-stdin
+        use std::io::Write;
+        let login_cmd = Command::new("docker")
+            .arg("login")
+            .arg("ghcr.io")
+            .arg("-u")
+            .arg(&user)
+            .arg("--password-stdin")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn();
+            
+        if let Ok(mut child) = login_cmd {
+            if let Some(mut stdin) = child.stdin.take() {
+                let _ = stdin.write_all(token.as_bytes());
+            }
+            let _ = child.wait();
+            let _ = app.emit("boot-log", "[Auth] GHCR Authentication complete.");
+        }
+    }
+
     let mut command = Command::new("docker");
     command.arg("compose").arg("-f").arg(&compose_path_str);
 
@@ -310,10 +336,10 @@ pub fn ignite_swarm(app: tauri::AppHandle, intent: SwarmIgnitionIntent) -> Swarm
 
     let runtime_image = if has_nvidia_gpu() {
         let _ = app.emit("boot-log", "[Hardware] NVIDIA GPU Detected. Pulling coreason-runtime:latest-gpu (11GB)...");
-        "ghcr.io/coreason-ai/coreason-runtime:latest-gpu"
+        "ghcr.io/coreason-ai/coreason-runtime:20260515_docker_build_fix-gpu"
     } else {
         let _ = app.emit("boot-log", "[Hardware] No NVIDIA GPU Detected. Pulling coreason-runtime:latest-cpu (1.5GB)...");
-        "ghcr.io/coreason-ai/coreason-runtime:latest-cpu"
+        "ghcr.io/coreason-ai/coreason-runtime:20260515_docker_build_fix-cpu"
     };
 
     command.env("COREASON_RUNTIME_IMAGE", runtime_image);

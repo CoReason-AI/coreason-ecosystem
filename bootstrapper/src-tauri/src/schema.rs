@@ -44,6 +44,8 @@ pub struct NemoClawOnboardReceipt {
 #[serde(rename_all = "camelCase")]
 pub struct SwarmIgnitionIntent {
     pub force_rebuild: bool,
+    pub github_user: Option<String>,
+    pub github_pat: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
