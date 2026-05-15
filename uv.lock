@@ -496,7 +496,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.1.7" },
-    { name = "coreason-manifest", specifier = ">=0.73.0" },
+    { name = "coreason-manifest", specifier = ">=0.74.0" },
     { name = "cryptography", specifier = ">=44.0.0" },
     { name = "fastapi", specifier = ">=0.135.3" },
     { name = "httpx", specifier = ">=0.27.0" },
@@ -551,7 +551,7 @@ dev = [
 
 [[package]]
 name = "coreason-manifest"
-version = "0.73.0"
+version = "0.74.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "canonicaljson" },
@@ -561,9 +561,9 @@ dependencies = [
     { name = "pycrdt" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7e/73/376c10931ea2027190acdcd453b0efb081fec0eef604562cc5edbd3f1f56/coreason_manifest-0.73.0.tar.gz", hash = "sha256:3fad278ab83c5f6b2ba2c212d15033e3e0c8d1489c4166519ab392c4cbccd559", size = 896179, upload-time = "2026-05-15T18:19:28.577Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c8/26/efbe05ccdeaa245106caaddab94770743df86adef2cee7bcfc750898aaef/coreason_manifest-0.74.0.tar.gz", hash = "sha256:66fff73080a41e25957900faaa3799b418cce8f69f2c6dd20aede19bca64d8eb", size = 896300, upload-time = "2026-05-15T20:37:24.949Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/20/4a/a06b904353a74ad7617d0c787af0d7915088ff0160c2f10b73d42c1dda63/coreason_manifest-0.73.0-py3-none-any.whl", hash = "sha256:ffdaaee1f278e9aebe04d302bb3f64239d2e28ec20244727fbabf661fceef814", size = 201699, upload-time = "2026-05-15T18:19:26.907Z" },
+    { url = "https://files.pythonhosted.org/packages/87/99/2fe60f8d06476d5df6f18d9e6ec3826995bfd5958dcb2f1cb70f277b3212/coreason_manifest-0.74.0-py3-none-any.whl", hash = "sha256:baf8693739dd28294b23c897bb5e8cfd4c75539f43618d7c62ae7defcc6cdb82", size = 201949, upload-time = "2026-05-15T20:37:23.579Z" },
 ]
 
 [[package]]
