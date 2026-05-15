@@ -13,6 +13,7 @@ COPY uv.lock .
 COPY src/ ./src/
 COPY README.md .
 COPY LICENSE .
+COPY .git ./.git
 
 # Install dependencies and build the wheel
 RUN --mount=type=cache,target=/root/.cache/uv \
