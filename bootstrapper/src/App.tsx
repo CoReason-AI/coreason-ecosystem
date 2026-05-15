@@ -390,9 +390,19 @@ function App() {
         <div style={{ ...styles.card, borderColor: "#f44336" }}>
           <h2 style={{ ...styles.cardTitle, color: "#f44336" }}>❌ Boot Failed</h2>
           <p style={styles.cardText}>{errorMessage}</p>
-          <button style={{ ...styles.primaryButton, background: "#555" }} onClick={() => setBootState("Idle")}>
-            Try Again
-          </button>
+          
+          {logs.length > 0 && (
+            <>
+              <h3 style={{ marginTop: "1rem", marginBottom: "0.5rem", fontSize: "0.9rem", color: "#bbb" }}>Diagnostic Logs</h3>
+              <LogConsole logs={logs} logsEndRef={logsEndRef} />
+            </>
+          )}
+
+          <div style={{ marginTop: "1rem" }}>
+            <button style={{ ...styles.primaryButton, background: "#555" }} onClick={() => setBootState("Idle")}>
+              Try Again
+            </button>
+          </div>
         </div>
       )}
 
