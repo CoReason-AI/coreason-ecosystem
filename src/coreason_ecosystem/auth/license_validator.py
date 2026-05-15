@@ -9,8 +9,10 @@
 # Source Code: <https://github.com/CoReason-AI/coreason-ecosystem>
 
 import os
+from typing import Any
 
 import hvac
+import hvac.exceptions
 import jwt
 
 # SOTA: In a true deployment, this would be retrieved dynamically via SPIRE Workload API.
@@ -18,7 +20,7 @@ import jwt
 COREASON_ROOT_CA = "coreason_root_ca_public_key_placeholder"
 
 
-def verify_token_signature(jwt_string: str) -> dict:
+def verify_token_signature(jwt_string: str) -> dict[str, Any]:
     """
     Mathematically verifies the Ed25519 signature of the JWT using PyJWT (SOTA).
     Returns the decoded payload if valid.

@@ -1,6 +1,7 @@
 import os
 
 import hvac
+import hvac.exceptions
 
 
 def get_vault_client() -> hvac.Client:
@@ -32,7 +33,10 @@ def get_identity() -> dict[str, str] | None:
             path="coreason/identity", raise_on_deleted_version=False
         )
         if response and "data" in response and "data" in response["data"]:
-            return response["data"]["data"]
+            data = response["data"]["data"]
+            if isinstance(data, dict):
+                return data
+            return None
         return None
     except Exception:
         return None

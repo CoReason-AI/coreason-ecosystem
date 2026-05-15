@@ -64,18 +64,18 @@ build {
       "sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin",
       "sudo usermod -aG docker ubuntu",
       "sudo systemctl enable docker",
-      
+
       "echo 'Pulling CoReason Container Images...'",
       "sudo docker pull ghcr.io/coreason-ai/coreason-ecosystem:latest",
       "sudo docker pull ghcr.io/coreason-ai/coreason-runtime:latest"
     ]
   }
-  
+
   provisioner "file" {
     source      = "../../../local/compose.yaml"
     destination = "/home/ubuntu/compose.yaml"
   }
-  
+
   provisioner "shell" {
     inline = [
       "echo 'Setting up Cold Start Kit Service...'",
@@ -91,7 +91,7 @@ build {
       "echo 'ExecStop=/usr/bin/docker compose down' | sudo tee -a /etc/systemd/system/coreason-swarm.service",
       "echo '[Install]' | sudo tee -a /etc/systemd/system/coreason-swarm.service",
       "echo 'WantedBy=multi-user.target' | sudo tee -a /etc/systemd/system/coreason-swarm.service",
-      
+
       "sudo systemctl enable coreason-swarm.service"
     ]
   }
