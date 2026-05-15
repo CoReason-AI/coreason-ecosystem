@@ -86,7 +86,6 @@ jobs:
           inputs: >-
             dist/*.tar.gz
             dist/*.whl
-          source: false
 
       - name: Upload attestations to GitHub Release
         uses: softprops/action-gh-release@v2
