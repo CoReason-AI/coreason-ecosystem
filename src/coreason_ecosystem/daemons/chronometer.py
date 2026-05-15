@@ -67,7 +67,7 @@ def _has_valid_commercial_license() -> bool:
         )
         if opa_resp.status_code == 200:
             result = opa_resp.json()
-            return result.get("result", False)
+            return bool(result.get("result", False))
         return False
     except requests.exceptions.RequestException:
         # Fallback if OPA daemon is offline
