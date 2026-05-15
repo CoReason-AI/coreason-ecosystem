@@ -198,6 +198,7 @@ pub fn onboard_nemoclaw(app: tauri::AppHandle, intent: NemoClawOnboardIntent) ->
         .env("NGC_API_KEY", &intent.ngc_api_key)
         .env("NVIDIA_API_KEY", &intent.ngc_api_key)
         .env("NEMOCLAW_GATEWAY_PORT", "8088")
+        .env("NEMOCLAW_RECREATE_SANDBOX", "1")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
