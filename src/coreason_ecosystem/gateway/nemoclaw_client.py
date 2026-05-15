@@ -37,17 +37,26 @@ class NemoClawBridgeClient:
         self.base_url = base_url.rstrip("/")
 
     async def call_tool(
-        self, target_urn: str, name: str, arguments: dict[str, Any]
+        self,
+        target_urn: str,
+        name: str,
+        arguments: dict[str, Any],
+        spiffe_id: str | None = None,
     ) -> dict[str, Any]:
         url = f"{self.base_url}/v1/mcp/{target_urn}/tools/call"
         payload = {
             "name": name,
             "arguments": arguments,
         }
+        headers = {}
+        if spiffe_id:
+            headers["X-SPIFFE-ID"] = spiffe_id
 
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.post(url, json=payload, timeout=30.0)
+                response = await client.post(
+                    url, json=payload, headers=headers, timeout=30.0
+                )
 
                 if 400 <= response.status_code < 500:
                     # Emit GuardrailViolationEvent telemetry
@@ -64,6 +73,7 @@ class NemoClawBridgeClient:
                             "target_urn": target_urn,
                             "tool_name": name,
                             "raw_response": response.text,
+                            "spiffe_id": spiffe_id,
                         },
                     )
                     # In ecosystem, we might not have the same log_event as runtime,

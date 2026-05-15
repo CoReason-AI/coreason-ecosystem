@@ -51,7 +51,7 @@ def test_capability_entry_invalid_epistemic_status() -> None:
             epistemic_status="APPROVED",
         )
     assert (
-        "Input should be 'DRAFT', 'SRB_APPROVED', 'CLIENT_APPROVED' or 'PUBLISHED'"
+        "Input should be 'DRAFT', 'SRB_APPROVED', 'CLIENT_APPROVED', 'PUBLISHED', 'DEPRECATED', 'QUARANTINED' or 'RETRACTED'"
         in str(exc_info.value)
     )
 

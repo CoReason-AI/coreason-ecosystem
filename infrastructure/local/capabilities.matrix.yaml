@@ -1,45 +1,26 @@
-# capabilities.matrix.yaml — Sovereign MCP Routing Table
-#
-# This file is the physical bridge between the Infrastructure-as-Code layer
-# and the Master MCP Gateway.  Pulumi/Docker provisioning dynamically generates
-# this file so the Master MCP knows exactly where sovereign nodes live on the
-# internal VPC/Docker network.
-#
-# Each entry maps a URN to:
-#   - endpoint:          Physical network URI of the deployed action space.
-#   - clearance:         SPIFFE/SPIRE clearance level (PUBLIC / CONFIDENTIAL / RESTRICTED).
-#   - epistemic_status:  SRB governance lifecycle phase
-#                        (DRAFT / SRB_APPROVED / CLIENT_APPROVED / PUBLISHED).
-#
-# The Governance Plane is domain-blind — it routes URNs without inspecting
-# semantic payloads.
-
 capabilities:
-  # ── Sovereign Storage Substrates ─────────────────────────────────────
-  - urn: "urn:coreason:actionspace:oracle:medical_kg"
-    endpoint: "http://neo4j:7474"
-    clearance: "PUBLIC"
-    epistemic_status: "PUBLISHED"
-
-  - urn: "urn:coreason:actionspace:oracle:clinical_vector"
-    endpoint: "http://milvus:19530"
-    clearance: "CONFIDENTIAL"
-    epistemic_status: "PUBLISHED"
-
-  # ── Sovereign Treasury ───────────────────────────────────────────────
-  - urn: "urn:coreason:actionspace:substrate:treasury"
-    endpoint: "http://coreason-master-gateway:8000"
-    clearance: "RESTRICTED"
-    epistemic_status: "CLIENT_APPROVED"
-
-  # ── Combinatorial Oracle (Lean4 Prover) ──────────────────────────────
-  - urn: "urn:coreason:actionspace:oracle:combinatorial_prover"
-    endpoint: "http://lean4-prover:8000"
-    clearance: "RESTRICTED"
-    epistemic_status: "SRB_APPROVED"
-
-  # ── Chaos Mesh Effector ──────────────────────────────────────────────
-  - urn: "urn:coreason:actionspace:effector:chaos_mesh:v1"
-    endpoint: "http://chaos-mesh-effector:8000"
-    clearance: "RESTRICTED"
-    epistemic_status: "SRB_APPROVED"
+- urn: urn:coreason:actionspace:oracle:medical_kg
+  endpoint: http://neo4j:7474
+  clearance: PUBLIC
+  epistemic_status: PUBLISHED
+- urn: urn:coreason:actionspace:oracle:clinical_vector
+  endpoint: http://milvus:19530
+  clearance: CONFIDENTIAL
+  epistemic_status: PUBLISHED
+- urn: urn:coreason:actionspace:substrate:treasury
+  endpoint: http://coreason-master-gateway:8000
+  clearance: RESTRICTED
+  epistemic_status: CLIENT_APPROVED
+- urn: urn:coreason:actionspace:oracle:combinatorial_prover
+  endpoint: http://lean4-prover:8000
+  clearance: RESTRICTED
+  epistemic_status: SRB_APPROVED
+- urn: urn:coreason:actionspace:effector:chaos_mesh:v1
+  endpoint: http://chaos-mesh-effector:8000
+  clearance: RESTRICTED
+  epistemic_status: SRB_APPROVED
+  callback_url: https://api.svix.com/v1/app/app_xxx/msg/
+- urn: urn:coreason:actionspace:solver:test_solver:v1
+  endpoint: mcp://https://gateway.alpha.internal:8443/invoke
+  clearance: PUBLIC
+  epistemic_status: PUBLISHED

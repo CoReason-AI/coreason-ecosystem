@@ -15,9 +15,16 @@ This boundary governs federated capability discovery and routes the JSON-RPC
 requests to sub-MCP backends based on Epistemic Intents.
 """
 
-from .semantic_router import SemanticRouter, IntentWeighting
+from .semantic_router import (
+    SemanticRouter,
+    IntentWeighting,
+    HybridWeighting,
+    ScoreCalibration,
+)
 
 __all__ = [
     "SemanticRouter",
     "IntentWeighting",
+    "HybridWeighting",
+    "ScoreCalibration",
 ]

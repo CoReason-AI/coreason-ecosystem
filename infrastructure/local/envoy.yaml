@@ -41,6 +41,25 @@ static_resources:
                 route:
                   cluster: coreason_master_gateway
           http_filters:
+          - name: envoy.filters.http.jwt_authn
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
+              providers:
+                dex_provider:
+                  issuer: http://127.0.0.1:5556/dex
+                  remote_jwks:
+                    http_uri:
+                      uri: http://dex:5556/dex/keys
+                      cluster: dex_cluster
+                      timeout: 1s
+                    cache_duration:
+                      seconds: 300
+                  forward_payload_header: x-jwt-payload
+              rules:
+              - match:
+                  prefix: "/"
+                requires:
+                  provider_name: dex_provider
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
@@ -58,3 +77,16 @@ static_resources:
               socket_address:
                 address: coreason-master-gateway
                 port_value: 8000
+  - name: dex_cluster
+    connect_timeout: 0.25s
+    type: STRICT_DNS
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: dex_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: dex
+                port_value: 5556
