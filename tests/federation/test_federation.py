@@ -579,10 +579,10 @@ class TestInstanceModeFlipping:
         proxy.set_instance_mode(InstanceType.PUBLIC)
         assert proxy.instance_mode == InstanceType.PUBLIC
 
-    def test_flip_public_to_private(self) -> None:
+    def test_flip_public_to_private_is_prohibited(self) -> None:
         proxy = FederationProxy(local_instance=PUBLIC_PEER)
-        proxy.set_instance_mode(InstanceType.PRIVATE)
-        assert proxy.instance_mode == InstanceType.PRIVATE
+        with pytest.raises(ValueError, match="PUBLIC to PRIVATE"):
+            proxy.set_instance_mode(InstanceType.PRIVATE)
 
     def test_flip_clears_cached_clients(self) -> None:
         proxy = FederationProxy(local_instance=PRIVATE_PEER)

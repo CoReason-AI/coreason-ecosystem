@@ -194,16 +194,28 @@ class FederationProxy:
         return self._local.instance_type
 
     def set_instance_mode(self, mode: InstanceType) -> None:
-        """Flip this instance between PRIVATE and PUBLIC mode.
+        """Flip this instance's deployment mode.
 
-        When flipping to PUBLIC, the instance adopts the canonical
-        CoReason Public identity anchors. When flipping to PRIVATE,
-        it retains its original identity but changes mode.
+        Only Private → Public flipping is permitted. The canonical
+        Public network (mesh.coreason.ai) can never flip to Private —
+        it is the permanent anchor of the open mesh.
 
         All existing clients are closed and agreements are preserved
         (they will be re-evaluated against the new mode on next use).
+
+        Raises:
+            ValueError: If a Public instance attempts to flip to Private.
         """
         old_mode = self._local.instance_type
+
+        # The canonical Public network can never become Private.
+        if old_mode == InstanceType.PUBLIC and mode == InstanceType.PRIVATE:
+            raise ValueError(
+                f"Cannot flip instance '{self._local.instance_id}' from "
+                f"PUBLIC to PRIVATE. The canonical Public network is the "
+                f"permanent anchor of the mesh and cannot be demoted."
+            )
+
         self._local.instance_type = mode
 
         # Invalidate cached clients (SSL contexts may differ)
