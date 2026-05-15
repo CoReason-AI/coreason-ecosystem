@@ -140,15 +140,15 @@ pub fn install_nemoclaw(app: tauri::AppHandle) -> NemoClawInstallReceipt {
         }
     });
 
-    let _ = child.wait();
+    let status = child.wait();
 
     let check_child = Command::new("sh")
         .arg("-c")
-        .arg("[ -x ~/.local/bin/nemoclaw ]")
+        .arg("command -v nemoclaw >/dev/null || [ -x ~/.local/bin/nemoclaw ]")
         .status();
 
-    if let Ok(status) = check_child {
-        if status.success() {
+    if let Ok(check_status) = check_child {
+        if check_status.success() {
             let _ = app.emit("boot-log", "[NemoClaw] ✅ Binary installed successfully.");
             return NemoClawInstallReceipt {
                 status: "SUCCESS".to_string(),
@@ -158,9 +158,14 @@ pub fn install_nemoclaw(app: tauri::AppHandle) -> NemoClawInstallReceipt {
         }
     }
 
+    let exit_code_msg = match status {
+        Ok(s) => format!("Installer exited with code {}", s.code().unwrap_or(-1)),
+        Err(_) => "Installer process failed to complete".to_string(),
+    };
+
     NemoClawInstallReceipt {
         status: "FAILURE".to_string(),
-        message: "Installer exited and ~/.local/bin/nemoclaw was not found. Please check your internet connection.".to_string(),
+        message: format!("Boot Failed. {}. The 'nemoclaw' executable was not found on PATH or in ~/.local/bin. Please check the Diagnostic Logs below.", exit_code_msg),
     }
 }
 
