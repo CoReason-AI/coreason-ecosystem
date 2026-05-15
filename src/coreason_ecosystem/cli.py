@@ -141,6 +141,53 @@ def sync() -> None:
 docs_app = typer.Typer(help="Epistemic Documentation Pipeline")
 app.add_typer(docs_app, name="docs")
 
+license_app = typer.Typer(help="Sovereign Commercial License Management")
+app.add_typer(license_app, name="license")
+
+identity_app = typer.Typer(help="Sovereign Identity Management")
+app.add_typer(identity_app, name="identity")
+
+
+@license_app.command("install")
+def license_install(
+    jwt_string: str = typer.Argument(
+        ..., help="The cryptographically signed JWT License Token."
+    ),
+) -> None:
+    """Install and mathematically verify a Commercial License JWT."""
+    from coreason_ecosystem.auth.license_validator import install_license
+
+    try:
+        install_license(jwt_string)
+        console.print(
+            "[bold green]✓ Commercial License installed and mathematically verified.[/bold green]"
+        )
+    except Exception as e:
+        console.print(f"[bold red]✗ License Installation Failed:[/bold red] {e}")
+
+
+@identity_app.command("set")
+def identity_set(
+    tenant_cid: str = typer.Option(
+        ..., "--tenant-cid", help="The cryptographically unique tenant identifier."
+    ),
+    legal_name: str = typer.Option(
+        ...,
+        "--legal-name",
+        help="The legally recognized text string describing the tenant.",
+    ),
+) -> None:
+    """Sets the local private tenant identity securely in Vault for CLA and URN assigning."""
+    from coreason_ecosystem.auth.identity_manager import set_identity
+
+    try:
+        set_identity(tenant_cid, legal_name)
+        console.print(
+            "[bold green]✓ Sovereign Identity configured securely.[/bold green]"
+        )
+    except Exception as e:
+        console.print(f"[bold red]✗ Identity Configuration Failed:[/bold red] {e}")
+
 
 @docs_app.command(name="build")
 def build_docs_cmd() -> None:
