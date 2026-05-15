@@ -57,7 +57,7 @@ async def test_provision_node_with_hardware(
 
     await actuator.provision_node(target)
 
-    mock_sky.Resources.assert_called_with(accelerators="H100:1", use_spot=False)
+    mock_sky.Resources.assert_called_with(cloud=None, accelerators="H100:1", use_spot=False)
 
 
 @pytest.mark.asyncio

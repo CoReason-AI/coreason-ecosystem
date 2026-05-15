@@ -53,8 +53,10 @@ class SkyPilotActuator:
     async def provision_node(self, target: SkyPilotTarget) -> dict[str, Any]:
         """Execute physical instantiation via SkyPilot managed clusters."""
 
-        # 1. Hardware Mapping
+        # 1. Hardware Mapping & Security Guillotine
         accelerators = None
+        allowed_clouds: Any = None
+
         if target.hardware_profile:
             accel_type = target.hardware_profile.accelerator_type or "A100"
             if accel_type.startswith("urn:coreason:accelerator:"):
@@ -62,7 +64,37 @@ class SkyPilotActuator:
             accel_count = 1  # Default to 1
             accelerators = f"{accel_type}:{accel_count}"
 
+            # Enforce Epistemic Security Provider Constraints
+            allowed_providers = set(target.provider_whitelist or target.hardware_profile.provider_whitelist)
+            if target.security_profile and target.security_profile.epistemic_security in {"CONFIDENTIAL", "RESTRICTED"}:
+                trusted_hyperscalers = {"aws", "gcp", "azure", "oci"}
+                untrusted = allowed_providers - trusted_hyperscalers
+                if untrusted:
+                    logger.warning(
+                        f"[SkyPilotActuator] Security Guillotine: Rejecting untrusted P2P providers {untrusted} "
+                        "for CONFIDENTIAL execution. Forcing Sovereign Hyperscaler boundaries."
+                    )
+                    allowed_providers = allowed_providers.intersection(trusted_hyperscalers)
+
+                if not allowed_providers:
+                    raise ValueError(
+                        "Security Guillotine: No trusted hyperscalers available for CONFIDENTIAL execution."
+                    )
+            
+            # Map to specific SkyPilot cloud if strictly requested (fallback to automatic if multiple)
+            if len(allowed_providers) == 1:
+                provider = list(allowed_providers)[0].lower()
+                if provider == "aws":
+                    allowed_clouds = sky.AWS()
+                elif provider == "gcp":
+                    allowed_clouds = sky.GCP()
+                elif provider == "azure":
+                    allowed_clouds = sky.Azure()
+                elif provider == "oci":
+                    allowed_clouds = sky.OCI()
+
         resources = sky.Resources(
+            cloud=allowed_clouds,
             accelerators=accelerators,
             use_spot=target.use_spot,
         )
