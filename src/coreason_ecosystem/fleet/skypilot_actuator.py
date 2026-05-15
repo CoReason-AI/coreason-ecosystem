@@ -23,7 +23,10 @@ from coreason_manifest.spec.ontology import (
     EpistemicSecurityProfile as SecurityProfile,
 )
 from coreason_ecosystem.fleet.mesh_injector import MeshInjector
+from mcp.server.fastmcp import FastMCP
 
+mcp = FastMCP("SubstrateActuator")
+__action_space_urn__ = "urn:coreason:actionspace:substrate:skypilot:v1"
 
 class SkyPilotTarget(BaseModel):
     """Encapsulates spatial hardware configuration objectives targeting SkyPilot orchestration."""
@@ -251,3 +254,29 @@ async def assess_thermodynamic_expenditure(
         vfe_divergence=vfe_divergence,
         threshold_breached=breached,
     )
+
+
+# --- FastMCP Tool Bindings ---
+_actuator_instance = SkyPilotActuator()
+
+@mcp.tool()
+async def mcp_provision_node(target: SkyPilotTarget) -> dict[str, Any]:
+    """MCP endpoint: Execute physical instantiation via SkyPilot managed clusters."""
+    return await _actuator_instance.provision_node(target)
+
+@mcp.tool()
+async def mcp_destroy_node(cluster_name: str) -> str:
+    """MCP endpoint: Terminate a SkyPilot cluster and free all cloud resources."""
+    await _actuator_instance.destroy_node(cluster_name)
+    return f"Terminated {cluster_name}"
+
+@mcp.tool()
+async def mcp_reconcile_state() -> list[dict[str, Any]]:
+    """MCP endpoint: List and summarize all active SkyPilot clusters."""
+    return await _actuator_instance.reconcile_state()
+
+@mcp.tool()
+async def mcp_execute_thermodynamic_guillotine(threshold_breached: bool) -> str:
+    """MCP endpoint: Sever all SkyPilot nodes if the thermodynamic threshold is breached."""
+    await _actuator_instance.execute_thermodynamic_guillotine(threshold_breached)
+    return "Guillotine evaluation complete."
