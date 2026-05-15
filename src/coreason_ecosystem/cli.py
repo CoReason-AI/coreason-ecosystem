@@ -141,6 +141,27 @@ def sync() -> None:
 docs_app = typer.Typer(help="Epistemic Documentation Pipeline")
 app.add_typer(docs_app, name="docs")
 
+license_app = typer.Typer(help="Sovereign Commercial License Management")
+app.add_typer(license_app, name="license")
+
+
+@license_app.command("install")
+def license_install(
+    jwt_string: str = typer.Argument(
+        ..., help="The cryptographically signed JWT License Token."
+    ),
+) -> None:
+    """Install and mathematically verify a Commercial License JWT."""
+    from coreason_ecosystem.auth.license_validator import install_license
+
+    try:
+        install_license(jwt_string)
+        console.print(
+            "[bold green]✓ Commercial License installed and mathematically verified.[/bold green]"
+        )
+    except Exception as e:
+        console.print(f"[bold red]✗ License Installation Failed:[/bold red] {e}")
+
 
 @docs_app.command(name="build")
 def build_docs_cmd() -> None:

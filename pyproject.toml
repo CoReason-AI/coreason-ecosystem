@@ -35,6 +35,8 @@ dependencies = [
     "numpy>=2.4.4",
     "skypilot>=0.6.2",
     "hvac>=2.4.0",
+    "pyjwt>=2.12.1",
+    "requests>=2.34.0",
 ]
 
 license = { file = "LICENSE" }
