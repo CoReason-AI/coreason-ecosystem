@@ -116,20 +116,31 @@ async def execute_up() -> None:
         console=console,
         transient=False,
     ) as progress:
+        # ── NemoClaw Sandbox Ignition ────────────────────────────────
         task_sandbox = progress.add_task(
             "[cyan]Igniting NemoClaw Sandbox...[/cyan]", total=None
         )
+        compose_file = str(project_path / "infrastructure" / "local" / "compose.yaml")
         proc = await asyncio.create_subprocess_exec(
+            "docker",
+            "compose",
+            "-f",
+            compose_file,
+            "up",
+            "-d",
             "nemoclaw",
-            "sandbox",
-            "start",
-            "--empty",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            console.print()
+            logger.error(
+                f"[NemoClaw] Sandbox ignition failed (exit {proc.returncode}): "
+                f"{stderr.decode('utf-8', errors='replace')}"
+            )
+            console.print(
+                f"[bold red]✗ NemoClaw sandbox failed (exit {proc.returncode})[/bold red]"
+            )
             raise typer.Exit(1)
         progress.update(
             task_sandbox,
@@ -137,11 +148,12 @@ async def execute_up() -> None:
             completed=True,
         )
 
+        # ── Sovereign MCP Gateway Injection ──────────────────────────
         task_injection = progress.add_task(
             "[cyan]Injecting Sovereign MCP Gateway...[/cyan]", total=None
         )
         logger.info(
-            "[Gateway] Connecting to NemoClaw via mTLS and registering MCP tools..."
+            "[Gateway] Initializing Sovereign MCP Registry and scanning action space modules..."
         )
         registry = SovereignMCPRegistry()
         await registry.initialize()

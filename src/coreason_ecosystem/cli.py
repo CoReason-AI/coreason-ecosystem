@@ -72,10 +72,6 @@ def cli_callback(
 # but to avoid circular dependencies where submodules import 'console'
 # from cli.py, 'console' is defined above first.
 from pathlib import Path  # noqa: E402
-from coreason_ecosystem.orchestration.isomorphism_probe import execute_oracle_diagnostic  # noqa: E402
-from coreason_ecosystem.orchestration.sync import execute_sync  # noqa: E402
-from coreason_ecosystem.orchestration.up import execute_up  # noqa: E402
-from coreason_ecosystem.fleet.daemon import AutonomicFleetManager  # noqa: E402
 
 fleet_app = typer.Typer()
 app.add_typer(
@@ -95,6 +91,7 @@ def fleet_start(
     polling_interval: int = typer.Option(10, help="Polling interval in seconds"),
 ) -> None:  # pragma: no cover
     templates_path = Path.cwd() / "infrastructure" / "ephemeral"
+    from coreason_ecosystem.fleet.daemon import AutonomicFleetManager
     manager = AutonomicFleetManager(
         max_budget_hr=max_budget_hr,
         polling_interval_sec=polling_interval,
@@ -110,6 +107,7 @@ def up() -> None:
     """Implement Idempotent DAG Resolution for the Swarm infrastructure."""
 
     async def _run() -> None:  # pragma: no cover
+        from coreason_ecosystem.orchestration.up import execute_up
         await execute_up()
 
     asyncio.run(_run())
@@ -120,6 +118,7 @@ def doctor() -> None:
     """Prove Ontological Isomorphism across the Tripartite Manifold."""
 
     async def _run() -> None:
+        from coreason_ecosystem.orchestration.isomorphism_probe import execute_oracle_diagnostic
         await execute_oracle_diagnostic()
 
     asyncio.run(_run())
@@ -133,6 +132,7 @@ def sync() -> None:
     """Autonomically heal Ontological Drift."""
 
     async def _run() -> None:
+        from coreason_ecosystem.orchestration.sync import execute_sync
         await execute_sync()
 
     asyncio.run(_run())

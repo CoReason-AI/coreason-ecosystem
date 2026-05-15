@@ -22,7 +22,6 @@ import mcp.server
 import mcp.types as types
 from coreason_ecosystem.gateway.nemoclaw_client import NemoClawBridgeClient
 from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
-from coreason_ecosystem.orchestration import up
 from coreason_manifest.spec.ontology import (
     CognitiveSwarmDeploymentManifest,
     FederatedDiscoveryIntent,
@@ -355,6 +354,7 @@ async def invoke_actuator(
         return [types.TextContent(type="text", text=res_text)]
 
     if name == "deploy_cognitive_swarm":
+        from coreason_ecosystem.orchestration import up
         manifest_swarm = CognitiveSwarmDeploymentManifest.model_validate(arguments)
         await up.provision_swarm_topology(manifest_swarm)
         return [

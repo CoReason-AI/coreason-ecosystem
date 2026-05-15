@@ -51,7 +51,9 @@ services:
       - sensory-gateway
 
   coreason-runtime:
-    image: ghcr.io/coreason/coreason-runtime:latest
+    build:
+      context: ../../../coreason-runtime
+      dockerfile: Dockerfile
     restart: on-failure
     deploy:
       resources:
@@ -206,7 +208,9 @@ services:
       - sensory-gateway
 
   coreason-master-gateway:
-    image: ghcr.io/coreason/coreason-master-gateway:latest
+    build:
+      context: ../../
+      dockerfile: Dockerfile
     restart: on-failure
     deploy:
       resources:
@@ -255,6 +259,7 @@ services:
       retries: 5
     ports:
       - "8443:8443"
+    command: ["node", "/usr/local/lib/node_modules/openclaw/openclaw.mjs", "gateway", "run", "--port", "8443", "--bind", "auto", "--allow-unconfigured", "--auth", "token", "--token", "coreason"]
     networks:
       - swarm-mesh
       - sensory-gateway

@@ -35,13 +35,15 @@ import re
 from pathlib import Path
 from typing import Any, cast
 
-import httpx
-from loguru import logger
 from temporalio import workflow
 from temporalio.client import Client
 from temporalio.common import WorkflowIDReusePolicy
 from temporalio.exceptions import WorkflowAlreadyStartedError
 from temporalio.worker import Worker
+
+with workflow.unsafe.imports_passed_through():
+    import httpx
+    from loguru import logger
 
 # Canonical URN regex — synchronized with ActionSpaceURNState in
 # coreason_manifest.spec.ontology.  Supports federated namespace
