@@ -235,7 +235,7 @@ spec:
             canonical = json.dumps(
                 parsed, sort_keys=True, separators=(",", ":")
             ).encode("utf-8")
-        except (json.JSONDecodeError, UnicodeDecodeError):
+        except json.JSONDecodeError, UnicodeDecodeError:
             # Binary WASM payload — hash raw bytes
             canonical = payload_bytes
 
