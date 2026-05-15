@@ -255,7 +255,13 @@ spec:
         endpoint: str,
         clearance: Literal["PUBLIC", "CONFIDENTIAL", "RESTRICTED"],
         epistemic_status: Literal[
-            "DRAFT", "SRB_APPROVED", "CLIENT_APPROVED", "PUBLISHED", "DEPRECATED", "QUARANTINED", "RETRACTED"
+            "DRAFT",
+            "SRB_APPROVED",
+            "CLIENT_APPROVED",
+            "PUBLISHED",
+            "DEPRECATED",
+            "QUARANTINED",
+            "RETRACTED",
         ],
     ) -> None:  # pragma: no cover
         """Autonomously monitor the external capability registry and dynamically

@@ -75,7 +75,13 @@ class CapabilityEntry(BaseModel):
         default="RESTRICTED", description="The required security clearance."
     )
     epistemic_status: Literal[
-        "DRAFT", "SRB_APPROVED", "CLIENT_APPROVED", "PUBLISHED", "DEPRECATED", "QUARANTINED", "RETRACTED"
+        "DRAFT",
+        "SRB_APPROVED",
+        "CLIENT_APPROVED",
+        "PUBLISHED",
+        "DEPRECATED",
+        "QUARANTINED",
+        "RETRACTED",
     ] = Field(default="DRAFT", description="The node's SRB governance lifecycle phase.")
 
 

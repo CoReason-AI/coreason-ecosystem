@@ -2,7 +2,6 @@
 # Licensed under the Prosperity Public License 3.0
 
 import pulumi
-import pulumi_aws as aws
 import pulumi_eks as eks
 
 # 1. Create an EKS cluster for the CoReason Mesh

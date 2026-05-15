@@ -738,8 +738,7 @@ class FederationProxy:
         # Gate 1: Only Private instances may contribute
         if self._local.instance_type != InstanceType.PRIVATE:
             raise PermissionError(
-                "Only PRIVATE instances may contribute capabilities "
-                "to the Public mesh."
+                "Only PRIVATE instances may contribute capabilities to the Public mesh."
             )
 
         # Gate 2: Contributions must be explicitly enabled
@@ -767,8 +766,7 @@ class FederationProxy:
             self._contribution_policy.allowed_contribution_urns,
         ):
             raise PermissionError(
-                f"URN '{intent.urn}' is not in the allowed contribution "
-                f"URN list."
+                f"URN '{intent.urn}' is not in the allowed contribution URN list."
             )
 
         # Gate 5: Legal attestation (if required)
@@ -821,9 +819,7 @@ class FederationProxy:
             raise KeyError(f"Contribution intent '{intent_id}' not found.")
 
         if intent.status != "PENDING":
-            raise ValueError(
-                f"Intent '{intent_id}' is '{intent.status}', not PENDING."
-            )
+            raise ValueError(f"Intent '{intent_id}' is '{intent.status}', not PENDING.")
 
         # Separation of duties: approver cannot be the contributor
         if approver_id == intent.contributor_id:
@@ -835,8 +831,7 @@ class FederationProxy:
         # No duplicate approvals
         if approver_id in intent.approvals:
             raise PermissionError(
-                f"Approver '{approver_id}' has already approved "
-                f"intent '{intent_id}'."
+                f"Approver '{approver_id}' has already approved intent '{intent_id}'."
             )
 
         intent.approvals = sorted([*intent.approvals, approver_id])
@@ -885,9 +880,7 @@ class FederationProxy:
             raise KeyError(f"Contribution intent '{intent_id}' not found.")
 
         if intent.status != "PENDING":
-            raise ValueError(
-                f"Intent '{intent_id}' is '{intent.status}', not PENDING."
-            )
+            raise ValueError(f"Intent '{intent_id}' is '{intent.status}', not PENDING.")
 
         intent.status = "REJECTED"
         logger.warning(
@@ -973,12 +966,14 @@ class FederationProxy:
     # Public Mesh: Contribution Absorption
     # ------------------------------------------------------------------
 
-    async def absorb_remote_capability(self, peer_instance_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    async def absorb_remote_capability(
+        self, peer_instance_id: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Public Mesh Absorption of Private Contributions.
         When a private instance executes a contribution, the Public mesh receives
         it via `urn:coreason:actionspace:effector:capability_registry:contribute:v1`.
-        
+
         This method validates the incoming contribution and absorbs it into the
         Public mesh's capability routing matrix.
         """
@@ -986,49 +981,60 @@ class FederationProxy:
             raise PermissionError(
                 "Mesh Absorption can only be executed by a PUBLIC mesh instance."
             )
-            
+
         if peer_instance_id not in self._agreements:
-            raise ValueError(f"Unknown peer instance {peer_instance_id}. Handshake required.")
-            
+            raise ValueError(
+                f"Unknown peer instance {peer_instance_id}. Handshake required."
+            )
+
         peer = self.get_peer(peer_instance_id)
         if not peer:
             raise ValueError(f"Could not resolve peer {peer_instance_id}.")
-            
+
         if peer.instance_type.name != "PRIVATE":
-            logger.warning(f"Absorbing capability from non-PRIVATE peer: {peer.instance_type.name}")
-            
+            logger.warning(
+                f"Absorbing capability from non-PRIVATE peer: {peer.instance_type.name}"
+            )
+
         urn = payload.get("urn")
         if not urn:
             raise ValueError("Contribution payload missing 'urn'")
-            
+
         legal_attestation = payload.get("legal_attestation")
-        if not legal_attestation or not legal_attestation.get("agrees_to_public_release"):
-            raise PermissionError("Contribution rejected: Missing legal attestation for PUBLIC release.")
+        if not legal_attestation or not legal_attestation.get(
+            "agrees_to_public_release"
+        ):
+            raise PermissionError(
+                "Contribution rejected: Missing legal attestation for PUBLIC release."
+            )
 
         # In production, this verifies the cryptographic intent_hash against the peer's DID
         intent_hash = payload.get("intent_hash")
-        
+
         # Route the absorption to the MeshInjector to physically write to the capability matrix
         try:
             from coreason_ecosystem.fleet.mesh_injector import MeshInjector
+
             injector = MeshInjector()
             injector.register_capability(
                 urn=urn,
                 endpoint=f"mcp://{peer.gateway_endpoint}/invoke",
                 clearance="PUBLIC",
-                epistemic_status="PUBLISHED"
+                epistemic_status="PUBLISHED",
             )
         except Exception as e:
             logger.error(f"Failed to physically absorb capability {urn}: {e}")
             # Non-fatal during simulation
-            
-        logger.info(f"Public Mesh: Absorbed URN {urn} from Private instance {peer_instance_id}")
-        
+
+        logger.info(
+            f"Public Mesh: Absorbed URN {urn} from Private instance {peer_instance_id}"
+        )
+
         return {
             "status": "absorbed",
             "urn": urn,
             "provider_instance": peer_instance_id,
-            "intent_hash": intent_hash
+            "intent_hash": intent_hash,
         }
 
     # ------------------------------------------------------------------

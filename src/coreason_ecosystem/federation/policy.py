@@ -311,9 +311,7 @@ class ContributionIntent(BaseModel):
     intent_id: str = Field(
         description="Unique identifier for this contribution intent."
     )
-    urn: str = Field(
-        description="The URN of the capability being contributed."
-    )
+    urn: str = Field(description="The URN of the capability being contributed.")
     contributor_id: str = Field(
         description=(
             "SPIFFE ID or enterprise identity of the contributor "
@@ -374,4 +372,3 @@ class ContributionIntent(BaseModel):
             separators=(",", ":"),
         )
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-

@@ -225,7 +225,9 @@ async def test_list_actuators() -> None:
     names = [t.name for t in tools]
     assert "federated_discovery" in names
     assert "deploy_cognitive_swarm" in names
-    assert "urn:coreason:actionspace:effector:capability_registry:contribute:v1" in names
+    assert (
+        "urn:coreason:actionspace:effector:capability_registry:contribute:v1" in names
+    )
 
 
 @pytest.mark.asyncio

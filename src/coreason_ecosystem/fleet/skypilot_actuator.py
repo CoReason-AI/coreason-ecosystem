@@ -28,6 +28,7 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP("SubstrateActuator")
 __action_space_urn__ = "urn:coreason:actionspace:substrate:skypilot:v1"
 
+
 class SkyPilotTarget(BaseModel):
     """Encapsulates spatial hardware configuration objectives targeting SkyPilot orchestration."""
 
@@ -68,8 +69,14 @@ class SkyPilotActuator:
             accelerators = f"{accel_type}:{accel_count}"
 
             # Enforce Epistemic Security Provider Constraints
-            allowed_providers = set(target.provider_whitelist or target.hardware_profile.provider_whitelist)
-            if target.security_profile and target.security_profile.epistemic_security in {"CONFIDENTIAL", "RESTRICTED"}:
+            allowed_providers = set(
+                target.provider_whitelist or target.hardware_profile.provider_whitelist
+            )
+            if (
+                target.security_profile
+                and target.security_profile.epistemic_security
+                in {"CONFIDENTIAL", "RESTRICTED"}
+            ):
                 trusted_hyperscalers = {"aws", "gcp", "azure", "oci"}
                 untrusted = allowed_providers - trusted_hyperscalers
                 if untrusted:
@@ -77,13 +84,15 @@ class SkyPilotActuator:
                         f"[SkyPilotActuator] Security Guillotine: Rejecting untrusted P2P providers {untrusted} "
                         "for CONFIDENTIAL execution. Forcing Sovereign Hyperscaler boundaries."
                     )
-                    allowed_providers = allowed_providers.intersection(trusted_hyperscalers)
+                    allowed_providers = allowed_providers.intersection(
+                        trusted_hyperscalers
+                    )
 
                 if not allowed_providers:
                     raise ValueError(
                         "Security Guillotine: No trusted hyperscalers available for CONFIDENTIAL execution."
                     )
-            
+
             # Map to specific SkyPilot cloud if strictly requested (fallback to automatic if multiple)
             if len(allowed_providers) == 1:
                 provider = list(allowed_providers)[0].lower()
@@ -259,10 +268,12 @@ async def assess_thermodynamic_expenditure(
 # --- FastMCP Tool Bindings ---
 _actuator_instance = SkyPilotActuator()
 
+
 @mcp.tool()
 async def mcp_provision_node(target: SkyPilotTarget) -> dict[str, Any]:
     """MCP endpoint: Execute physical instantiation via SkyPilot managed clusters."""
     return await _actuator_instance.provision_node(target)
+
 
 @mcp.tool()
 async def mcp_destroy_node(cluster_name: str) -> str:
@@ -270,10 +281,12 @@ async def mcp_destroy_node(cluster_name: str) -> str:
     await _actuator_instance.destroy_node(cluster_name)
     return f"Terminated {cluster_name}"
 
+
 @mcp.tool()
 async def mcp_reconcile_state() -> list[dict[str, Any]]:
     """MCP endpoint: List and summarize all active SkyPilot clusters."""
     return await _actuator_instance.reconcile_state()
+
 
 @mcp.tool()
 async def mcp_execute_thermodynamic_guillotine(threshold_breached: bool) -> str:
