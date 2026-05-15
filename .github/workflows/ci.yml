@@ -53,9 +53,8 @@ jobs:
         run: uv run deptry src/
         shell: bash
       - name: Docs Link Validation
-        uses: lycheeverse/lychee-action@v2
+        uses: lycheeverse/lychee-action@master
         with:
-          lycheeVersion: v0.24.1
           args: >-
             --exclude-loopback
             --exclude scorecard.dev
