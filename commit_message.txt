@@ -1,7 +1,0 @@
-refactor: strip proprietary vector math and integrate RouteLLM and Envoy configuration
-
-- Replaced `sentence-transformers`, `semantic-router`, and `numpy` dependencies with `routellm`.
-- Gutted the proprietary semantic boundary detection and distance calculations from `semantic_router.py`.
-- Rewrote `SemanticRouter` to act as an Envoy and RouteLLM Control Plane Configurator.
-- Ensured tests have been correctly rewritten and passing.
-- Adhered strictly to the Anti-CRUD and Zero-Waste architecture directives.

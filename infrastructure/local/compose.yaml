@@ -1,4 +1,4 @@
-version: '3.9'
+
 
 services:
   postgres:
@@ -192,7 +192,7 @@ services:
       - swarm-mesh
 
   redpanda-connect:
-    image: redpandadata/connect:4.30.0
+    image: redpandadata/connect:4
     restart: on-failure
     deploy:
       resources:
