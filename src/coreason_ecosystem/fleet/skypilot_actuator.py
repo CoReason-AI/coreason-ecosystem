@@ -38,8 +38,6 @@ class SkyPilotTarget(BaseModel):
     autostop_idle_minutes: int = 10
     hardware_profile: HardwareProfile | None = None
     security_profile: SecurityProfile | None = None
-    mesh_auth_key: str | None = None
-    temporal_mesh_ip: str | None = None
     escrow_policy: EscrowPolicy | None = None
 
 
@@ -48,8 +46,7 @@ class SkyPilotActuator:
 
     Structural Rationale:
     SkyPilot abstracts the multi-cloud spot market (AWS, GCP, Azure, Vast.ai) and provides
-    managed recovery for preempted instances. This actuator replaces the custom Pulumi-based
-    provisioning logic, adhering to the 'Borrow Do Not Build' architectural mandate.
+    managed recovery for preempted instances.
     """
 
     def __init__(self) -> None:
@@ -119,8 +116,6 @@ class SkyPilotActuator:
         if (
             target.hardware_profile
             and target.security_profile
-            and target.mesh_auth_key
-            and target.temporal_mesh_ip
         ):
             # Generate NATS-native bootstrap payload (replaces MeshInjector)
             bootstrap_payload = json.dumps(

@@ -85,12 +85,6 @@ app.add_typer(
 
 @fleet_app.command("start")
 def fleet_start(
-    mesh_auth_key: str = typer.Option(
-        ..., help="The ephemeral Tailscale/Headscale auth key"
-    ),
-    temporal_mesh_ip: str = typer.Option(
-        ..., help="The internal 10.x.x.x IP of the Medallion State Engine"
-    ),
     max_budget_hr: float = typer.Option(5.0, help="Max budget per hour"),
     polling_interval: int = typer.Option(10, help="Polling interval in seconds"),
 ) -> None:  # pragma: no cover
@@ -99,8 +93,6 @@ def fleet_start(
         max_budget_hr=max_budget_hr,
         polling_interval_sec=polling_interval,
         templates_path=templates_path.resolve(),
-        mesh_auth_key=mesh_auth_key,
-        temporal_mesh_ip=temporal_mesh_ip,
     )
     asyncio.run(manager.start())
 
@@ -144,9 +136,6 @@ app.add_typer(docs_app, name="docs")
 license_app = typer.Typer(help="Sovereign Commercial License Management")
 app.add_typer(license_app, name="license")
 
-identity_app = typer.Typer(help="Sovereign Identity Management")
-app.add_typer(identity_app, name="identity")
-
 
 @license_app.command("install")
 def license_install(
@@ -164,29 +153,6 @@ def license_install(
         )
     except Exception as e:
         console.print(f"[bold red]✗ License Installation Failed:[/bold red] {e}")
-
-
-@identity_app.command("set")
-def identity_set(
-    tenant_cid: str = typer.Option(
-        ..., "--tenant-cid", help="The cryptographically unique tenant identifier."
-    ),
-    legal_name: str = typer.Option(
-        ...,
-        "--legal-name",
-        help="The legally recognized text string describing the tenant.",
-    ),
-) -> None:
-    """Sets the local private tenant identity securely in Vault for CLA and URN assigning."""
-    from coreason_ecosystem.auth.identity_manager import set_identity
-
-    try:
-        set_identity(tenant_cid, legal_name)
-        console.print(
-            "[bold green]✓ Sovereign Identity configured securely.[/bold green]"
-        )
-    except Exception as e:
-        console.print(f"[bold red]✗ Identity Configuration Failed:[/bold red] {e}")
 
 
 @docs_app.command(name="build")
