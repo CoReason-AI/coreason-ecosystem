@@ -51,7 +51,7 @@ def _check_nats_available() -> bool:
         sock = socket.create_connection(("localhost", 4222), timeout=1)
         sock.close()
         return True
-    except (ConnectionRefusedError, OSError, TimeoutError):
+    except ConnectionRefusedError, OSError, TimeoutError:
         return False
 
 
