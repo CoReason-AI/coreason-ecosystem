@@ -109,7 +109,7 @@ jobs:
         shell: bash
 
       - name: Install Temporal CLI
-        uses: temporalio/setup-temporal@6cd47893699066468798086055bc5153cfc5c765 # v0.3.0
+        uses: temporalio/setup-temporal@1059a504f87e7fa2f385e3fa40d1aa7e62f1c6ca # v0
 
       - name: Create Ephemeral Temporal Namespace
         run: |
@@ -128,7 +128,7 @@ jobs:
           TEMPORAL_NAMESPACE: ${{ env.TEMPORAL_CI_NAMESPACE }}
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@1e68e0611db2136730979cd394747063d8985160 # v6.0.1
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
