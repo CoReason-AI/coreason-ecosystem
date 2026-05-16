@@ -497,7 +497,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.1.7" },
-    { name = "coreason-manifest", git = "https://github.com/CoReason-AI/coreason-manifest.git?rev=v0.75.0" },
+    { name = "coreason-manifest", git = "https://github.com/CoReason-AI/coreason-manifest.git?rev=v0.77.0" },
     { name = "cryptography", specifier = ">=44.0.0" },
     { name = "fastapi", specifier = ">=0.135.3" },
     { name = "httpx", specifier = ">=0.27.0" },
@@ -553,8 +553,8 @@ dev = [
 
 [[package]]
 name = "coreason-manifest"
-version = "0.75.0"
-source = { git = "https://github.com/CoReason-AI/coreason-manifest.git?rev=v0.75.0#a53c2b1ef3373eeb1186606c18a3f07b41b1cd00" }
+version = "0.77.0"
+source = { git = "https://github.com/CoReason-AI/coreason-manifest.git?rev=v0.77.0#e69e8e65d928ed23d95752a072f022f522a48b26" }
 dependencies = [
     { name = "canonicaljson" },
     { name = "jsonpatch" },
