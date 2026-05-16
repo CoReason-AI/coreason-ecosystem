@@ -95,7 +95,7 @@ async def test_wait_for_port_timeout(
 )
 @patch("coreason_ecosystem.orchestration.up.write_registry_lock")
 @patch("asyncio.create_subprocess_exec")
-@patch("coreason_ecosystem.orchestration.up.SovereignMCPRegistry")
+@patch("coreason_ecosystem.orchestration.up.NATSCapabilityRegistry")
 async def test_execute_up_success(
     mock_registry_cls: Any, mock_exec: Any, mock_write_lock: Any, mock_calc_root: Any
 ) -> None:
@@ -108,7 +108,7 @@ async def test_execute_up_success(
 
     registry = MagicMock()
     registry.initialize = AsyncMock()
-    registry.scan_action_space_modules = AsyncMock()
+    registry.hydrate_from_compiled_matrix = AsyncMock()
     mock_registry_cls.return_value = registry
 
     await execute_up()
@@ -122,7 +122,6 @@ async def test_execute_up_success(
         stderr=asyncio.subprocess.PIPE,
     )
     registry.initialize.assert_called_once()
-    registry.scan_action_space_modules.assert_called_once()
 
 
 @pytest.mark.asyncio

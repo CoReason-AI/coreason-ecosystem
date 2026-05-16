@@ -9,7 +9,14 @@
 # Source Code: https://github.com/CoReason-AI/coreason-ecosystem
 
 """
-The CoReason AI Swarm Ecosystem Integration Wrapper and Execution Plane
+coreason-ecosystem: The Governance Plane.
+
+This package provides the stateless substrate and macroscopic orchestrator for the
+CoReason Tripartite Cybernetic Manifold. It implements the Hollow Plane doctrine,
+governing cryptographic identity (SPIFFE/SPIRE), epistemic risk quarantine, and
+thermodynamic infrastructure actuation (Pulumi).
+
+Part of the CoReason Tripartite Cybernetic Manifold.
 """
 
 __version__ = "0.11.1"

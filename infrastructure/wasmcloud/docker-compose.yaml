@@ -1,0 +1,125 @@
+# wasmCloud Local Development Environment
+#
+# Boots the CNCF wasmCloud stack alongside the existing coreason-ecosystem
+# infrastructure. This is the Phase 1 coexistence layer — both old and new
+# systems run simultaneously during the migration.
+#
+# Services:
+#   - NATS: Self-forming mesh lattice (replaces custom httpx P2P networking)
+#   - wasmCloud Host: Stateless component runtime (replaces master_mcp.py)
+#   - wadm: Application Deployment Manager (replaces SovereignMCPRegistry)
+#
+# Usage:
+#   docker compose -f infrastructure/wasmcloud/docker-compose.yaml up -d
+#
+# Copyright (c) 2026 CoReason, Inc. Licensed under the Prosperity Public License 3.0.
+
+services:
+  # -----------------------------------------------------------------
+  # NATS Server (The Lattice Backbone)
+  # -----------------------------------------------------------------
+  # Replaces:
+  #   - Custom httpx point-to-point federation (proxy.py)
+  #   - Manual SSL context building (_build_ssl_context)
+  #   - Air-gap federation via FederationProxy
+  nats:
+    image: nats:2.11-alpine
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '512M'
+    command:
+      - "--config"
+      - "/etc/nats/nats-server.conf"
+    volumes:
+      - ./nats-server.conf:/etc/nats/nats-server.conf:ro
+      - nats_data:/data/jetstream
+    ports:
+      - "4222:4222"   # Client connections
+      - "8222:8222"   # HTTP monitoring
+      - "7422:7422"   # Leaf node connections (federation)
+    networks:
+      - wasmcloud-lattice
+    healthcheck:
+      test: ["CMD", "nats-server", "--signal", "ldm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -----------------------------------------------------------------
+  # wasmCloud Host (The Hollow Plane Runtime)
+  # -----------------------------------------------------------------
+  # Replaces:
+  #   - master_mcp.py (custom MCP gateway server)
+  #   - daemon.py (custom fleet daemon)
+  #   - mesh_injector.py (custom cloud-init injection)
+  wasmcloud:
+    image: ghcr.io/wasmcloud/wasmcloud:1.4
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: '1G'
+    depends_on:
+      nats:
+        condition: service_healthy
+    environment:
+      WASMCLOUD_NATS_HOST: nats
+      WASMCLOUD_NATS_PORT: 4222
+      WASMCLOUD_LATTICE: coreason
+      WASMCLOUD_CLUSTER_SEED: ${WASMCLOUD_CLUSTER_SEED:-}
+      WASMCLOUD_LOG_LEVEL: info
+      # Label this host for capability placement
+      WASMCLOUD_LABEL_coreason_role: governance-plane
+      WASMCLOUD_LABEL_coreason_env: local
+    ports:
+      - "4000:4000"   # wasmCloud dashboard / wash API
+    networks:
+      - wasmcloud-lattice
+    healthcheck:
+      test: ["CMD", "wash", "get", "hosts"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  # -----------------------------------------------------------------
+  # wadm (Application Deployment Manager)
+  # -----------------------------------------------------------------
+  # Replaces:
+  #   - SovereignMCPRegistry (capability routing table)
+  #   - RegistryStateWorkflow (Temporal-backed registry state)
+  #   - expansion_loop.py (manual scaling logic)
+  #
+  # wadm performs declarative desired-state reconciliation:
+  #   - Reads application manifests (wadm/*.yaml)
+  #   - Automatically starts/stops components to match desired state
+  #   - Handles health monitoring and self-healing
+  wadm:
+    image: ghcr.io/wasmcloud/wadm:0.18
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '512M'
+    depends_on:
+      nats:
+        condition: service_healthy
+    environment:
+      WADM_NATS_HOST: nats
+      WADM_NATS_PORT: 4222
+    networks:
+      - wasmcloud-lattice
+
+networks:
+  wasmcloud-lattice:
+    # Shared with the existing swarm-mesh network when running
+    # alongside infrastructure/local/compose.yaml
+    driver: bridge
+
+volumes:
+  nats_data:

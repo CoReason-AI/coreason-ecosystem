@@ -1,0 +1,35 @@
+name: Bandit Security Scan
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '0 0 * * *'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  bandit:
+    name: Bandit Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: "Install Bandit"
+        run: pip install bandit[sarif]
+
+      - name: "Run Bandit"
+        run: bandit -r src -f sarif -o bandit-results.sarif || true
+
+      - name: "Upload Bandit results"
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.28.8
+        with:
+          sarif_file: 'bandit-results.sarif'
+
+

@@ -7,8 +7,7 @@ on:
       - develop
   pull_request:
 
-permissions:
-  contents: read
+permissions: read-all
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -19,8 +18,10 @@ concurrency:
 
 jobs:
   lint-and-audit:
-    runs-on: [self-hosted, hetzner, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     env:
       TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
@@ -31,11 +32,26 @@ jobs:
       - name: Pre-Flight Workspace Purity
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
+        shell: bash
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Dynamic Ecosystem Sync
         run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14.3 --all-extras --dev; fi
+        shell: bash
+      - name: Install Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
         shell: bash
       - name: Provision Ephemeral Orchestration Isolation
         run: temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE || true
@@ -53,7 +69,7 @@ jobs:
         run: uv run deptry src/
         shell: bash
       - name: Docs Link Validation
-        uses: lycheeverse/lychee-action@master
+        uses: lycheeverse/lychee-action@f81112d0d2814ded911bd23e3beaa9dda9093915 # v2.1.0
         with:
           lycheeVersion: v0.15.1
           args: >-
@@ -73,8 +89,10 @@ jobs:
         shell: bash
 
   security-sast:
-    runs-on: [self-hosted, hetzner, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     env:
       TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
@@ -85,7 +103,17 @@ jobs:
       - name: Pre-Flight Workspace Purity
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
+        shell: bash
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Dynamic Ecosystem Sync
@@ -98,8 +126,10 @@ jobs:
   test-ubuntu:
     needs: [lint-and-audit, security-sast]
     if: always() && needs.lint-and-audit.result == 'success' && needs.security-sast.result == 'success'
-    runs-on: [self-hosted, hetzner, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -114,7 +144,17 @@ jobs:
       - name: Pre-Flight Workspace Purity
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
+        shell: bash
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Install System Dependencies
@@ -148,7 +188,7 @@ jobs:
         run: uv run zensical build
         shell: bash
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@1e68e0611db2136730979cd394747063d8985160 # v6.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
@@ -161,8 +201,10 @@ jobs:
   test-extended:
     needs: [lint-and-audit, security-sast]
     if: always() && needs.lint-and-audit.result == 'success' && needs.security-sast.result == 'success'
-    runs-on: [self-hosted, hetzner, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -177,7 +219,17 @@ jobs:
       - name: Pre-Flight Workspace Purity
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
+        shell: bash
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Install System Dependencies
@@ -209,8 +261,10 @@ jobs:
   reproducible-builds:
     name: Reproducible Builds (Determinism Verification)
     needs: [test-ubuntu, test-extended]
-    runs-on: [self-hosted, hetzner, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     env:
       TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
       COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
@@ -221,7 +275,17 @@ jobs:
       - name: Pre-Flight Workspace Purity
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
+        shell: bash
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Build wheel (attempt 1)
@@ -248,3 +312,5 @@ jobs:
           fi
           echo "✅ Deterministic build verified. SHA256: $HASH1"
         shell: bash
+
+
