@@ -105,7 +105,7 @@ jobs:
 
       - name: Set up Docker Compose
         run: |
-          docker compose up -d
+          docker compose -f infrastructure/local/compose.yaml up -d
         shell: bash
 
       - name: Install Temporal CLI
@@ -140,8 +140,8 @@ jobs:
           if command -v temporal >/dev/null 2>&1; then
             temporal operator namespace delete -n $TEMPORAL_CI_NAMESPACE --address 127.0.0.1:7233 --yes || true
           fi
-          if [ -f "compose.yaml" ]; then
-            docker compose down -v || true
+          if [ -f "infrastructure/local/compose.yaml" ]; then
+            docker compose -f infrastructure/local/compose.yaml down -v || true
           fi
           sudo chown -R $(whoami):$(whoami) ${{ github.workspace }}
         shell: bash
@@ -243,8 +243,8 @@ jobs:
           if command -v temporal >/dev/null 2>&1; then
             temporal operator namespace delete -n $TEMPORAL_CI_NAMESPACE --address 127.0.0.1:7233 --yes || true
           fi
-          if [ -f "compose.yaml" ]; then
-            docker compose down -v || true
+          if [ -f "infrastructure/local/compose.yaml" ]; then
+            docker compose -f infrastructure/local/compose.yaml down -v || true
           fi
           sudo chown -R $(whoami):$(whoami) ${{ github.workspace }}
         shell: bash
