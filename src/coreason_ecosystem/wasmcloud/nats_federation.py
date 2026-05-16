@@ -248,9 +248,7 @@ class NATSFederationProxy:
             The JSON response from the remote capability provider.
         """
         if not self._nc or not self._nc.is_connected:
-            raise RuntimeError(
-                "Federation proxy not connected. Call connect() first."
-            )
+            raise RuntimeError("Federation proxy not connected. Call connect() first.")
 
         # Step 1: DLP scanning (if required)
         if self._require_dlp:
@@ -288,9 +286,7 @@ class NATSFederationProxy:
         )
 
         try:
-            response = await self._nc.request(
-                subject, payload_bytes, timeout=timeout
-            )
+            response = await self._nc.request(subject, payload_bytes, timeout=timeout)
         except Exception as e:
             # Emit failure receipt
             await self._emit_receipt(
@@ -305,9 +301,7 @@ class NATSFederationProxy:
                     f"Remote instance '{target_instance_id}' did not respond "
                     f"within {timeout}s for URN '{urn}'"
                 ) from e
-            raise RuntimeError(
-                f"Federation request failed: {e}"
-            ) from e
+            raise RuntimeError(f"Federation request failed: {e}") from e
 
         # Step 4: Emit success receipt
         await self._emit_receipt(
@@ -337,11 +331,13 @@ class NATSFederationProxy:
         if not self._nc:
             raise RuntimeError("Not connected")
 
-        scan_request = json.dumps({
-            "urn": urn,
-            "payload": arguments,
-            "scan_type": "FEDERATION_EGRESS",
-        }).encode("utf-8")
+        scan_request = json.dumps(
+            {
+                "urn": urn,
+                "payload": arguments,
+                "scan_type": "FEDERATION_EGRESS",
+            }
+        ).encode("utf-8")
 
         try:
             response = await self._nc.request(
@@ -398,7 +394,7 @@ class NATSFederationProxy:
     @staticmethod
     def _compute_request_id(arguments: dict[str, Any]) -> str:
         """Compute a deterministic request ID from the payload."""
-        canonical = json.dumps(
-            arguments, sort_keys=True, separators=(",", ":")
-        ).encode("utf-8")
+        canonical = json.dumps(arguments, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
         return hashlib.sha256(canonical).hexdigest()[:16]

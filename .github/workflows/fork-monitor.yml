@@ -69,5 +69,3 @@ jobs:
             echo "✅ No new forks detected."
           fi
         shell: bash
-
-

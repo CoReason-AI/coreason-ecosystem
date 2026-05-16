@@ -144,9 +144,7 @@ class NATSGatewayProvider:
             ValueError: If the payload exceeds the 10MB limit.
         """
         if not self._nc or not self._nc.is_connected:
-            raise RuntimeError(
-                "NATS connection not established. Call connect() first."
-            )
+            raise RuntimeError("NATS connection not established. Call connect() first.")
 
         # Build the JSON-RPC request envelope
         rpc_request = {
@@ -198,9 +196,7 @@ class NATSGatewayProvider:
                     f"Capability provider for '{urn}' did not respond "
                     f"within {timeout}s on subject '{subject}'"
                 ) from e
-            raise RuntimeError(
-                f"NATS request failed for '{urn}': {e}"
-            ) from e
+            raise RuntimeError(f"NATS request failed for '{urn}': {e}") from e
 
         # Parse the response
         try:
@@ -227,9 +223,7 @@ class NATSGatewayProvider:
             List of capability descriptors from responding providers.
         """
         if not self._nc or not self._nc.is_connected:
-            raise RuntimeError(
-                "NATS connection not established. Call connect() first."
-            )
+            raise RuntimeError("NATS connection not established. Call connect() first.")
 
         capabilities: list[dict[str, Any]] = []
         inbox = self._nc.new_inbox()
@@ -244,12 +238,13 @@ class NATSGatewayProvider:
 
         # Collect responses until timeout
         import asyncio
+
         try:
             async for msg in sub.messages:
                 try:
                     cap = json.loads(msg.data.decode("utf-8"))
                     capabilities.append(cap)
-                except (json.JSONDecodeError, UnicodeDecodeError):
+                except json.JSONDecodeError, UnicodeDecodeError:
                     logger.warning("Invalid discovery response received")
 
                 # Use a short timeout between messages
@@ -272,7 +267,7 @@ class NATSGatewayProvider:
         Uses SHA-256 truncated to 16 hex characters, matching the
         existing behavior in master_mcp.py.
         """
-        canonical = json.dumps(
-            arguments, sort_keys=True, separators=(",", ":")
-        ).encode("utf-8")
+        canonical = json.dumps(arguments, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
         return hashlib.sha256(canonical).hexdigest()[:16]

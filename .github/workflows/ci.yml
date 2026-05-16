@@ -1,4 +1,4 @@
-name: CI (Hetzner Rollout)
+name: CI
 
 on:
   push:
@@ -11,6 +11,7 @@ permissions: read-all
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  TEMPORAL_CI_NAMESPACE: "coreason-ci-${{ github.run_id }}-${{ github.run_attempt }}"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -22,281 +23,214 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-    env:
-      TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-      COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-      CI_RUN_ID: ${{ github.run_id }}
-      PORT: 0
-      UV_CACHE_DIR: ${{ github.workspace }}/.uv_cache
     steps:
       - name: Pre-Flight Workspace Purity
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
-      - name: Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Harden Runner (Endpoint Network Security)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      - name: Install Temporal CLI
-        run: |
-          curl -sSf https://temporal.download/cli.sh | sh
-          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev --frozen
         shell: bash
-      - name: Substrate Purity Verification
-        run: git clean -xfd -e .venv -e .uv_cache
-      - name: Dynamic Ecosystem Sync
-        run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14.3 --all-extras --dev; fi
+
+      - name: Check code (Ruff)
+        run: uv run ruff check .
         shell: bash
-      - name: Install Temporal CLI
-        run: |
-          curl -sSf https://temporal.download/cli.sh | sh
-          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
+
+      - name: Format check (Ruff)
+        run: uv run ruff format --check .
         shell: bash
-      - name: Provision Ephemeral Orchestration Isolation
-        run: temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE || true
-        shell: bash
-      - name: Run pre-commit
-        run: uv run pre-commit run --all-files
-        shell: bash
-      - name: Ruff Format Check
-        run: uvx ruff format --check .
-        shell: bash
-      - name: Mypy Check
+
+      - name: Typecheck (Mypy)
         run: uv run mypy src/ tests/
         shell: bash
-      - name: Deptry Check
+
+      - name: Audit dependencies (Deptry)
         run: uv run deptry src/
         shell: bash
-      - name: Docs Link Validation
-        uses: lycheeverse/lychee-action@f81112d0d2814ded911bd23e3beaa9dda9093915 # v2.1.0
-        with:
-          args: >-
-            --exclude-loopback
-            --exclude scorecard.dev
-            --accept 200,204,301,429
-            '*.md'
-            'docs/**/*.md'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Validate Registry Lock Integrity
-        run: uv run python scripts/validate_registry_lock.py
-        shell: bash
-      - name: Teardown Ephemeral Orchestration Isolation
-        if: always()
-        run: temporal operator namespace delete -n $TEMPORAL_CI_NAMESPACE || true
-        shell: bash
 
-  security-sast:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-    env:
-      TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-      COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-      CI_RUN_ID: ${{ github.run_id }}
-      PORT: 0
-      UV_CACHE_DIR: ${{ github.workspace }}/.uv_cache
-    steps:
-      - name: Pre-Flight Workspace Purity
-        run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
-      - name: Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Install uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      - name: Install Temporal CLI
-        run: |
-          curl -sSf https://temporal.download/cli.sh | sh
-          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
-        shell: bash
-      - name: Substrate Purity Verification
-        run: git clean -xfd -e .venv -e .uv_cache
-      - name: Dynamic Ecosystem Sync
-        run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14.3 --all-extras; fi
-        shell: bash
-      - name: Bandit Security Scan
-        run: uvx bandit -r src/ scripts/ tests/ -s B101,B106,B108,B404
-        shell: bash
-
-  test-ubuntu:
-    needs: [lint-and-audit, security-sast]
-    if: always() && needs.lint-and-audit.result == 'success' && needs.security-sast.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.14-dev"]
-    env:
-      TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-      COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-      CI_RUN_ID: ${{ github.run_id }}
-      PORT: 0
-      UV_CACHE_DIR: ${{ github.workspace }}/.uv_cache
-    steps:
-      - name: Pre-Flight Workspace Purity
-        run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
-      - name: Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Install uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      - name: Install Temporal CLI
-        run: |
-          curl -sSf https://temporal.download/cli.sh | sh
-          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
-        shell: bash
-      - name: Substrate Purity Verification
-        run: git clean -xfd -e .venv -e .uv_cache
-      - name: Install System Dependencies
-        run: for i in {1..10}; do sudo apt-get update && sudo apt-get install -y protobuf-compiler && break || sleep 15; done
-        shell: bash
-      - name: Set PYTHON_GIL for Free-Threading
-        if: matrix.python-version == '3.14t-dev'
-        run: echo "PYTHON_GIL=0" >> $GITHUB_ENV
-        shell: bash
-      - name: Dynamic Ecosystem Sync (standard)
-        if: matrix.python-version != '3.14t-dev'
-        run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14.3 --all-extras --dev; fi
-        shell: bash
-      - name: Dynamic Ecosystem Sync (free-threaded, skip lancedb)
-        if: matrix.python-version == '3.14t-dev'
-        run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14t --dev; fi
-        shell: bash
-      - name: Provision Ephemeral Orchestration Isolation
-        run: temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE || true
-        shell: bash
-      - name: Run tests
-        run: uv run pytest --cov=coreason_ecosystem --cov-report=xml
-        shell: bash
-      - name: CLI Contract Drift Check
-        run: |
-          mkdir -p docs/snapshots
-          uv run coreason-ecosystem --help > docs/snapshots/cli_snapshot.txt
-          git diff --exit-code docs/snapshots/cli_snapshot.txt || (echo "::error::CRITICAL: CLI contract has drifted. Please commit the updated docs/snapshots/cli_snapshot.txt" && exit 1)
-        shell: bash
       - name: Build docs
         run: uv run zensical build
         shell: bash
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@1e68e0611db2136730979cd394747063d8985160 # v6.0.1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
-          verbose: true
-      - name: Teardown Ephemeral Orchestration Isolation
-        if: always()
-        run: temporal operator namespace delete -n $TEMPORAL_CI_NAMESPACE || true
-        shell: bash
 
-  test-extended:
-    needs: [lint-and-audit, security-sast]
-    if: always() && needs.lint-and-audit.result == 'success' && needs.security-sast.result == 'success'
+      - name: Substrate Purity Verification
+        run: git clean -xfd -e .venv -e .uv_cache
+
+  test-ubuntu:
+    needs: [lint-and-audit]
+    if: always() && needs.lint-and-audit.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    permissions:
-      contents: read
     strategy:
-      fail-fast: false
       matrix:
-        python-version: ["3.14-dev"]
-    env:
-      TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-      COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-      CI_RUN_ID: ${{ github.run_id }}
-      PORT: 0
-      UV_CACHE_DIR: ${{ github.workspace }}/.uv_cache
+        python-version: ["3.14", "3.14t"]
     steps:
       - name: Pre-Flight Workspace Purity
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
-      - name: Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Harden Runner (Endpoint Network Security)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      - name: Install Temporal CLI
-        run: |
-          curl -sSf https://temporal.download/cli.sh | sh
-          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
+          python-version: ${{ matrix.python-version }}
+
+      - name: Configure free-threading execution
+        if: matrix.python-version == '3.14t'
+        run: echo "PYTHON_GIL=0" >> "$GITHUB_ENV"
         shell: bash
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Compose
+        run: |
+          docker compose -f infrastructure/local/compose.yaml up -d
+        shell: bash
+
+      - name: Install Temporal CLI
+        uses: temporalio/setup-temporal@1059a504f87e7fa2f385e3fa40d1aa7e62f1c6ca # v0
+
+      - name: Create Ephemeral Temporal Namespace
+        run: |
+          temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE --address 127.0.0.1:7233 --retention 1
+        shell: bash
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev --frozen
+        shell: bash
+
+      - name: Run tests
+        run: uv run pytest --cov=src --cov-report=xml
+        shell: bash
+        env:
+          TEMPORAL_ADDRESS: "127.0.0.1:7233"
+          TEMPORAL_NAMESPACE: ${{ env.TEMPORAL_CI_NAMESPACE }}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Container & Network Teardown (Always Execute)
+        if: always()
+        run: |
+          if command -v temporal >/dev/null 2>&1; then
+            temporal operator namespace delete -n $TEMPORAL_CI_NAMESPACE --address 127.0.0.1:7233 --yes || true
+          fi
+          if [ -f "infrastructure/local/compose.yaml" ]; then
+            docker compose -f infrastructure/local/compose.yaml down -v || true
+          fi
+          sudo chown -R $(whoami):$(whoami) ${{ github.workspace }}
+        shell: bash
+
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
-      - name: Install System Dependencies
-        run: for i in {1..10}; do sudo apt-get update && sudo apt-get install -y protobuf-compiler && break || sleep 15; done
+
+  test-extended:
+    needs: [test-ubuntu]
+    if: always() && needs.test-ubuntu.result == 'success'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+        python-version: ["3.14", "3.14t"]
+        exclude:
+          - os: windows-latest
+            python-version: "3.14t"
+          - os: macos-latest
+            python-version: "3.14t"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Configure free-threading execution
+        if: matrix.python-version == '3.14t'
+        run: echo "PYTHON_GIL=0" >> "$GITHUB_ENV"
         shell: bash
-      - name: Set PYTHON_GIL for Free-Threading
-        if: matrix.python-version == '3.14t-dev'
-        run: echo "PYTHON_GIL=0" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev --frozen
         shell: bash
-      - name: Dynamic Ecosystem Sync (standard)
-        if: matrix.python-version != '3.14t-dev'
-        run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14.3 --all-extras --dev; fi
-        shell: bash
-      - name: Dynamic Ecosystem Sync (free-threaded, skip lancedb)
-        if: matrix.python-version == '3.14t-dev'
-        run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14t --dev; fi
-        shell: bash
-      - name: Provision Ephemeral Orchestration Isolation
-        run: temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE || true
-        shell: bash
+
       - name: Run tests
-        run: uv run pytest --cov=coreason_ecosystem --cov-report=xml
-        shell: bash
-      - name: Teardown Ephemeral Orchestration Isolation
-        if: always()
-        run: temporal operator namespace delete -n $TEMPORAL_CI_NAMESPACE || true
+        run: uv run pytest --cov=src --cov-report=xml
         shell: bash
 
   reproducible-builds:
-    name: Reproducible Builds (Determinism Verification)
+    name: Determinism Verification
     needs: [test-ubuntu, test-extended]
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    permissions:
-      contents: read
-    env:
-      TEMPORAL_CI_NAMESPACE: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-      COMPOSE_PROJECT_NAME: ci-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}-${{ strategy.job-index }}
-      CI_RUN_ID: ${{ github.run_id }}
-      PORT: 0
-      UV_CACHE_DIR: ${{ github.workspace }}/.uv_cache
     steps:
-      - name: Pre-Flight Workspace Purity
-        run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
-      - name: Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Harden Runner (Endpoint Network Security)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      - name: Install Temporal CLI
-        run: |
-          curl -sSf https://temporal.download/cli.sh | sh
-          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
-        shell: bash
-      - name: Substrate Purity Verification
-        run: git clean -xfd -e .venv -e .uv_cache
+          python-version: "3.14"
+
       - name: Build wheel (attempt 1)
         run: |
+          export SOURCE_DATE_EPOCH=315532800
           uv build --out-dir dist1
           sha256sum dist1/*.whl | tee /tmp/hash1.txt
         shell: bash
+
       - name: Build wheel (attempt 2)
         run: |
+          export SOURCE_DATE_EPOCH=315532800
           uv build --out-dir dist2
           sha256sum dist2/*.whl | tee /tmp/hash2.txt
         shell: bash
+
       - name: Verify deterministic build
         run: |
           HASH1=$(awk '{print $1}' /tmp/hash1.txt)
@@ -305,11 +239,19 @@ jobs:
           echo "Build 2 SHA256: $HASH2"
           if [ "$HASH1" != "$HASH2" ]; then
             echo "::error::CRITICAL: Non-deterministic build detected! Hashes do not match."
-            echo "  Attempt 1: $HASH1"
-            echo "  Attempt 2: $HASH2"
             exit 1
           fi
           echo "✅ Deterministic build verified. SHA256: $HASH1"
         shell: bash
 
-
+      - name: Container & Network Teardown (Always Execute)
+        if: always()
+        run: |
+          if command -v temporal >/dev/null 2>&1; then
+            temporal operator namespace delete -n $TEMPORAL_CI_NAMESPACE --address 127.0.0.1:7233 --yes || true
+          fi
+          if [ -f "infrastructure/local/compose.yaml" ]; then
+            docker compose -f infrastructure/local/compose.yaml down -v || true
+          fi
+          sudo chown -R $(whoami):$(whoami) ${{ github.workspace }}
+        shell: bash

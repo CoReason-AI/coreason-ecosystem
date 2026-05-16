@@ -253,7 +253,9 @@ class NATSCapabilityRegistry:
             content_hash = metadata.pop("content_hash", "")
             capability_metadata = {
                 "path": metadata.pop("path", ""),
-                "default_clearance_tiers": metadata.pop("default_clearance_tiers", [255]),
+                "default_clearance_tiers": metadata.pop(
+                    "default_clearance_tiers", [255]
+                ),
                 "default_minimum_rigidity_tier": metadata.pop(
                     "default_minimum_rigidity_tier", 255
                 ),
@@ -295,4 +297,6 @@ class NATSCapabilityRegistry:
     @staticmethod
     def _key_to_urn(key: str) -> str:
         """Convert a NATS KV key back to a URN."""
-        return key.replace(".", ":", 5)  # Replace first 5 dots (urn.X.actionspace.Y.Z.vN)
+        return key.replace(
+            ".", ":", 5
+        )  # Replace first 5 dots (urn.X.actionspace.Y.Z.vN)
