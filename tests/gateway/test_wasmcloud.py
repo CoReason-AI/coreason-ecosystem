@@ -24,7 +24,6 @@ Per the Anti-Mocking directive: no unittest.mock, no MonkeyPatch for
 core logic. Tests use real NATS servers or deterministic inputs.
 """
 
-
 import pytest
 from typing import AsyncGenerator
 
@@ -52,7 +51,7 @@ def _check_nats_available() -> bool:
         sock = socket.create_connection(("localhost", 4222), timeout=1)
         sock.close()
         return True
-    except (ConnectionRefusedError, OSError, TimeoutError):
+    except ConnectionRefusedError, OSError, TimeoutError:
         return False
 
 
@@ -77,9 +76,7 @@ class TestURNValidation:
 
     def test_valid_federated_urn(self) -> None:
         """Federated namespace authorities (e.g. nlm, ohdsi) must be accepted."""
-        NATSCapabilityRegistry.validate_urn(
-            "urn:nlm:actionspace:oracle:mesh_lookup:v3"
-        )
+        NATSCapabilityRegistry.validate_urn("urn:nlm:actionspace:oracle:mesh_lookup:v3")
 
     def test_all_six_categories_valid(self) -> None:
         """All 6 universal asset categories must be accepted."""
@@ -242,9 +239,7 @@ class TestNATSRegistryIntegration:
         await reg.shutdown()
 
     @pytest.mark.asyncio
-    async def test_register_and_resolve(
-        self, registry: NATSCapabilityRegistry
-    ) -> None:
+    async def test_register_and_resolve(self, registry: NATSCapabilityRegistry) -> None:
         urn = "urn:coreason:actionspace:solver:integration_test:v1"
         await registry.register_capability(
             urn=urn,
@@ -265,9 +260,7 @@ class TestNATSRegistryIntegration:
             )
 
     @pytest.mark.asyncio
-    async def test_get_epistemic_status(
-        self, registry: NATSCapabilityRegistry
-    ) -> None:
+    async def test_get_epistemic_status(self, registry: NATSCapabilityRegistry) -> None:
         urn = "urn:coreason:actionspace:oracle:status_test:v1"
         await registry.register_capability(
             urn=urn,
@@ -306,9 +299,7 @@ class TestNATSGatewayIntegration:
         assert not gw.is_connected
 
     @pytest.mark.asyncio
-    async def test_discover_returns_list(
-        self, gateway: NATSGatewayProvider
-    ) -> None:
+    async def test_discover_returns_list(self, gateway: NATSGatewayProvider) -> None:
         """Discovery should return a list (possibly empty if no providers registered)."""
         capabilities = await gateway.discover_capabilities(timeout=1.0)
         assert isinstance(capabilities, list)

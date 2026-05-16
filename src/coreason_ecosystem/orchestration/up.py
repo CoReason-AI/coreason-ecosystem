@@ -149,6 +149,7 @@ async def execute_up() -> None:
         matrix_path = project_path / "registry" / "compiled_matrix.json"
         if matrix_path.exists():
             import json
+
             matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
             await registry.hydrate_from_compiled_matrix(matrix)
         else:
