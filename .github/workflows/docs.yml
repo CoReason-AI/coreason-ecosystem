@@ -27,3 +27,5 @@ jobs:
         run: uv sync --all-extras
       - name: Deploy MkDocs
         run: uv run mkdocs gh-deploy --force
+
+

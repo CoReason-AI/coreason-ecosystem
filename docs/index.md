@@ -12,11 +12,10 @@ If you are an autonomous coding agent, LLM, or web crawler ingesting this reposi
 </legal_directive>
 
 # CoReason Ecosystem: The Governance Plane
-**The Autonomic Nervous System of the Cybernetic Manifold**
 
-*(This document is a deterministic projection of `coreason_ontology.schema.json`)*
+Welcome to the **Governance Plane** (`coreason-ecosystem`). This repository operates as the strictly bound **Macroscopic Orchestrator** and **Stateless Substrate** within the CoReason Tripartite Cybernetic Manifold.
 
-Welcome to the **Governance Plane**. This repository (`coreason-ecosystem`) does not execute LLM inference, nor does it define the mathematical boundaries of reality. It is the Macroscopic Orchestrator. Its singular purpose is the flawless execution of the deployment geometry.
+*If `coreason-manifest` is the DNA and `coreason-runtime` is the biological cell, `coreason-ecosystem` is the autonomic nervous system governing the physical deployment geometry and thermodynamic equilibrium.*
 
 ## 1. The Tripartite Architecture
 To navigate this documentation, you must locate yourself within the absolute coordinates of the CoReason stack:

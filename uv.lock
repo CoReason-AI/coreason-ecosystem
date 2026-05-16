@@ -496,7 +496,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.1.7" },
-    { name = "coreason-manifest", specifier = ">=0.72.1" },
+    { name = "coreason-manifest", git = "https://github.com/CoReason-AI/coreason-manifest.git?rev=v0.75.0" },
     { name = "cryptography", specifier = ">=44.0.0" },
     { name = "fastapi", specifier = ">=0.135.3" },
     { name = "httpx", specifier = ">=0.27.0" },
@@ -551,8 +551,8 @@ dev = [
 
 [[package]]
 name = "coreason-manifest"
-version = "0.72.1"
-source = { registry = "https://pypi.org/simple" }
+version = "0.75.0"
+source = { git = "https://github.com/CoReason-AI/coreason-manifest.git?rev=v0.75.0#a53c2b1ef3373eeb1186606c18a3f07b41b1cd00" }
 dependencies = [
     { name = "canonicaljson" },
     { name = "jsonpatch" },
@@ -560,10 +560,6 @@ dependencies = [
     { name = "numpy" },
     { name = "pycrdt" },
     { name = "pydantic" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ea/79/5ac98d189dd3536a1fb6cd990de65397dba47a0adc7b13cca601a4081291/coreason_manifest-0.72.1.tar.gz", hash = "sha256:da61b0172dc768bf8616851a207d0aaa749b8a6dc068fdd0fc54cd4cdbd43620", size = 896182, upload-time = "2026-05-15T15:05:13.551Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/44/c2f682b413f808cf5e15af29a8a9509c0792401815ab3bc9fb7f4bf1597a/coreason_manifest-0.72.1-py3-none-any.whl", hash = "sha256:18a72c310bd6aa0cee10f9c4b16c5cac495df2880c0b0956f748249df5182fd4", size = 201700, upload-time = "2026-05-15T15:05:11.675Z" },
 ]
 
 [[package]]
