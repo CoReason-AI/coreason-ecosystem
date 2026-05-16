@@ -212,9 +212,9 @@ function App() {
     setLogs(["[Uninstall] Initiating wipe..."]);
     try {
       await invoke("uninstall_nemoclaw");
-      setLogs((prev) => [...prev, "Uninstall complete. Restarting detection..."]);
+      setLogs((prev) => [...prev, "Uninstall complete."]);
       setTimeout(() => {
-        launchSwarm();
+        setBootState("Idle");
       }, 1500);
     } catch (e) {
       setErrorMessage(String(e));
