@@ -136,19 +136,18 @@ async def test_provision_node_with_mesh_injection(
         use_spot=True,
     )
 
-    # Mock MeshInjector
-    with patch.object(actuator.injector, "compile_payload", return_value="payload-b64"):
-        mock_sky.launch.return_value = "job-mesh"
-        mock_sky.get.return_value = {"status": "SUCCESS"}
+    mock_sky.launch.return_value = "job-mesh"
+    mock_sky.get.return_value = {"status": "SUCCESS"}
 
-        await actuator.provision_node(target)
+    await actuator.provision_node(target)
 
-    # Verify setup commands were generated
+    # Verify setup commands were generated with NATS bootstrap payload
     task_call_args = mock_sky.Task.call_args
     setup_cmd = task_call_args.kwargs["setup"]
     assert "mkdir -p /etc/coreason" in setup_cmd
-    assert "payload-b64" in setup_cmd
     assert "/opt/coreason/bin/bootstrap.sh" in setup_cmd
+    # Payload should be base64-encoded JSON containing NATS URL
+    assert "base64 -d" in setup_cmd
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,17 @@
+# Gitleaks ignore file for CoReason Ecosystem
+# Test artifacts, mock keys, and local infrastructure config
+
+# infrastructure/local/dex-config.yaml (local dev config)
+476ed49564507d2766fedb1416441922bbb5d378:infrastructure/local/dex-config.yaml:generic-api-key:21
+
+# tests/unit/fleet/test_expansion_loop.py mock keys
+50ab55e698e8d8c05a5f28fc708dbbfdaccf2c05:tests/unit/fleet/test_expansion_loop.py:generic-api-key:48
+50ab55e698e8d8c05a5f28fc708dbbfdaccf2c05:tests/unit/fleet/test_expansion_loop.py:generic-api-key:77
+50ab55e698e8d8c05a5f28fc708dbbfdaccf2c05:tests/unit/fleet/test_expansion_loop.py:generic-api-key:89
+2ec4d03f3a31fb93c7bd88ec69763e404de16cb5:tests/unit/fleet/test_expansion_loop.py:generic-api-key:48
+2ec4d03f3a31fb93c7bd88ec69763e404de16cb5:tests/unit/fleet/test_expansion_loop.py:generic-api-key:77
+2ec4d03f3a31fb93c7bd88ec69763e404de16cb5:tests/unit/fleet/test_expansion_loop.py:generic-api-key:89
+
+# bandit-tests.json artifacts
+e6d9421a63179844185a28b4146b444dbf5e30ab:bandit-tests.json:private-key:1442
+e6d9421a63179844185a28b4146b444dbf5e30ab:bandit-tests.json:private-key:4941
