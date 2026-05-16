@@ -24,7 +24,6 @@ from typing import Any, Dict, List
 import pyarrow as pa
 import pyarrow.ipc as ipc
 from loguru import logger
-import routellm  # Just to make deptry happy
 
 
 class SemanticRouter:
@@ -55,9 +54,13 @@ class SemanticRouter:
                     table = reader.read_all()
                     pylist: List[Dict[str, Any]] = table.to_pylist()
                     return pylist
-        except Exception as e:
-            logger.error(f"Failed to load Arrow matrix: {e}")
-            return []
+        except (pa.ArrowInvalid, IOError) as e:
+            logger.critical(
+                f"FATAL: Arrow matrix corruption detected at {self.arrow_matrix_path}: {e}"
+            )
+            raise RuntimeError(
+                "Cannot initialize SemanticRouter: Matrix corrupted"
+            ) from e
 
     def generate_envoy_configuration(self) -> Dict[str, Any]:
         """
@@ -92,9 +95,7 @@ class SemanticRouter:
             f"Configuring RouteLLM threshold={cost_threshold} models={target_models}"
         )
         return {
-            "router": routellm.__name__
-            if hasattr(routellm, "__name__")
-            else "routellm",
+            "router": "routellm",
             "threshold": cost_threshold,
             "models": target_models,
             "capabilities_mapped": len(self.registry),

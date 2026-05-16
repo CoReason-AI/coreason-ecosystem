@@ -82,7 +82,7 @@ packages = ["src/coreason_ecosystem"]
 [tool.deptry]
 exclude = ["venv", "\\.venv", "tests", "infrastructure"]
 known_first_party = ["coreason_ecosystem"]
-per_rule_ignores = {"DEP002" = ["click", "onnxruntime", "cryptography", "fastapi", "pyyaml"], "DEP003" = ["starlette", "coreason_ecosystem"]}
+per_rule_ignores = {"DEP002" = ["routellm", "click", "onnxruntime", "cryptography", "fastapi", "pyyaml"], "DEP003" = ["starlette", "coreason_ecosystem"]}
 
 
 [project.urls]

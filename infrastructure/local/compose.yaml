@@ -1,5 +1,3 @@
-
-
 services:
   postgres:
     image: postgres:15
@@ -8,19 +6,20 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: '1G'
+          memory: 1G
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test:
+      - CMD-SHELL
+      - pg_isready -U postgres
       interval: 10s
       timeout: 5s
       retries: 5
     volumes:
-      - pg_data:/var/lib/postgresql/data
+    - pg_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_HOST_AUTH_METHOD=trust
+    - POSTGRES_HOST_AUTH_METHOD=trust
     networks:
-      - swarm-mesh
-
+    - swarm-mesh
   temporal:
     image: temporalio/auto-setup
     restart: on-failure
@@ -28,9 +27,11 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: '2G'
+          memory: 2G
     healthcheck:
-      test: [ "CMD-SHELL", "temporal operator cluster health || exit 1" ]
+      test:
+      - CMD-SHELL
+      - temporal operator cluster health || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,39 +39,39 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      - DB=postgres12
-      - DB_PORT=5432
-      - POSTGRES_USER=postgres
-      - POSTGRES_PWD=
-      - POSTGRES_SEEDS=postgres
-      - BIND_ON_IP=0.0.0.0
+    - DB=postgres12
+    - DB_PORT=5432
+    - POSTGRES_USER=postgres
+    - POSTGRES_PWD=
+    - POSTGRES_SEEDS=postgres
+    - BIND_ON_IP=0.0.0.0
     ports:
-      - "7233:7233"
+    - 7233:7233
     networks:
-      - swarm-mesh
-      - sensory-gateway
-
+    - swarm-mesh
+    - sensory-gateway
   coreason-runtime:
-    image: ghcr.io/coreason/coreason-runtime:latest
+    image: ghcr.io/coreason-ai/coreason-runtime:latest
     restart: on-failure
     deploy:
       resources:
         limits:
-          cpus: '${RUNTIME_CPUS:-2.0}'
-          memory: '${RUNTIME_MEMORY:-4G}'
+          cpus: ${RUNTIME_CPUS:-2.0}
+          memory: ${RUNTIME_MEMORY:-4G}
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
+      test:
+      - CMD-SHELL
+      - curl -f http://localhost:8000/health || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
     environment:
-      - EPISTEMIC_MERKLE_ROOT=${EPISTEMIC_MERKLE_ROOT}
+    - EPISTEMIC_MERKLE_ROOT=${EPISTEMIC_MERKLE_ROOT}
     ports:
-      - "8000:8000"
+    - 8000:8000
     networks:
-      - swarm-mesh
-      - sensory-gateway
-
+    - swarm-mesh
+    - sensory-gateway
   prometheus:
     image: prom/prometheus
     restart: on-failure
@@ -78,15 +79,16 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: '1G'
+          memory: 1G
     healthcheck:
-      test: [ "CMD-SHELL", "wget --spider http://localhost:9090/-/healthy || exit 1" ]
+      test:
+      - CMD-SHELL
+      - wget --spider http://localhost:9090/-/healthy || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - swarm-mesh
-
+    - swarm-mesh
   grafana:
     image: grafana/grafana
     restart: on-failure
@@ -94,17 +96,18 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: '1G'
+          memory: 1G
     healthcheck:
-      test: [ "CMD-SHELL", "wget --spider http://localhost:3000/api/health || exit 1" ]
+      test:
+      - CMD-SHELL
+      - wget --spider http://localhost:3000/api/health || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
     ports:
-      - "3000:3000"
+    - 3000:3000
     networks:
-      - swarm-mesh
-
+    - swarm-mesh
   envoy:
     image: envoyproxy/envoy:v1.30-latest
     restart: on-failure
@@ -112,23 +115,24 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: '1G'
+          memory: 1G
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:9901/ready || exit 1" ]
+      test:
+      - CMD-SHELL
+      - curl -f http://localhost:9901/ready || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
     volumes:
-      - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
+    - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
     ports:
-      - "80:80"
+    - 80:80
     networks:
-      - swarm-mesh
-      - sensory-gateway
+    - swarm-mesh
+    - sensory-gateway
     depends_on:
       coreason-master-gateway:
         condition: service_healthy
-
   vault:
     image: hashicorp/vault:latest
     restart: on-failure
@@ -136,29 +140,26 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: '512M'
+          memory: 512M
     environment:
-      - VAULT_DEV_ROOT_TOKEN_ID=root-token
-      - VAULT_ADDR=http://127.0.0.1:8200
-    command: >
-      /bin/sh -c "
-        vault server -dev -dev-listen-address=0.0.0.0:8200 &
-        sleep 5
-        vault secrets enable transit
-        vault write -f transit/keys/coreason-merkle-key
-        wait
-      "
+    - VAULT_DEV_ROOT_TOKEN_ID=root-token
+    - VAULT_ADDR=http://127.0.0.1:8200
+    command: "/bin/sh -c \"\n  vault server -dev -dev-listen-address=0.0.0.0:8200\
+      \ &\n  sleep 5\n  vault secrets enable transit\n  vault write -f transit/keys/coreason-merkle-key\n\
+      \  wait\n\"\n"
     ports:
-      - "8200:8200"
+    - 8200:8200
     networks:
-      - swarm-mesh
-      - sensory-gateway
+    - swarm-mesh
+    - sensory-gateway
     healthcheck:
-      test: [ "CMD", "vault", "status" ]
+      test:
+      - CMD
+      - vault
+      - status
       interval: 10s
       timeout: 5s
       retries: 5
-
   dex:
     image: ghcr.io/dexidp/dex:v2.38.0
     restart: on-failure
@@ -166,15 +167,14 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: '512M'
+          memory: 512M
     volumes:
-      - ./dex-config.yaml:/etc/dex/config.docker.yaml:ro
+    - ./dex-config.yaml:/etc/dex/config.docker.yaml:ro
     ports:
-      - "5556:5556"
+    - 5556:5556
     networks:
-      - swarm-mesh
-      - sensory-gateway
-
+    - swarm-mesh
+    - sensory-gateway
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.100.0
     restart: on-failure
@@ -182,15 +182,14 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: '512M'
+          memory: 512M
     volumes:
-      - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
     ports:
-      - "4317:4317"
-      - "4318:4318"
+    - 4317:4317
+    - 4318:4318
     networks:
-      - swarm-mesh
-
+    - swarm-mesh
   redpanda-connect:
     image: redpandadata/connect:4
     restart: on-failure
@@ -198,38 +197,39 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: '512M'
+          memory: 512M
     volumes:
-      - ./redpanda-connect-pipeline.yaml:/benthos.yaml:ro
+    - ./redpanda-connect-pipeline.yaml:/benthos.yaml:ro
     networks:
-      - swarm-mesh
-      - sensory-gateway
-
+    - swarm-mesh
+    - sensory-gateway
   coreason-master-gateway:
-    image: ghcr.io/coreason/coreason-master-gateway:latest
+    image: ghcr.io/coreason-ai/coreason-master-gateway:latest
     restart: on-failure
     deploy:
       resources:
         limits:
-          cpus: '${GATEWAY_CPUS:-1.0}'
-          memory: '${GATEWAY_MEMORY:-2G}'
+          cpus: ${GATEWAY_CPUS:-1.0}
+          memory: ${GATEWAY_MEMORY:-2G}
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
+      test:
+      - CMD-SHELL
+      - curl -f http://localhost:8000/health || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
     environment:
-      - COREASON_NEO4J_URI=${COREASON_NEO4J_URI:-bolt://neo4j:7687}
-      - COREASON_MILVUS_URI=${COREASON_MILVUS_URI:-http://milvus:19530}
-      - COREASON_TREASURY_CONTRACT=${COREASON_TREASURY_CONTRACT}
-      - COREASON_OTLP_ENDPOINT=http://otel-collector:4318/v1/logs
-      - VAULT_ADDR=http://vault:8200
-      - VAULT_TOKEN=root-token
+    - COREASON_NEO4J_URI=${COREASON_NEO4J_URI:-bolt://neo4j:7687}
+    - COREASON_MILVUS_URI=${COREASON_MILVUS_URI:-http://milvus:19530}
+    - COREASON_TREASURY_CONTRACT=${COREASON_TREASURY_CONTRACT}
+    - COREASON_OTLP_ENDPOINT=http://otel-collector:4318/v1/logs
+    - VAULT_ADDR=http://vault:8200
+    - VAULT_TOKEN=root-token
     ports:
-      - "8001:8000"
+    - 8001:8000
     networks:
-      - swarm-mesh
-      - sensory-gateway
+    - swarm-mesh
+    - sensory-gateway
     depends_on:
       coreason-runtime:
         condition: service_healthy
@@ -239,7 +239,6 @@ services:
         condition: service_healthy
       vault:
         condition: service_healthy
-
   nemoclaw:
     image: ghcr.io/nvidia/nemoclaw:latest
     restart: on-failure
@@ -247,18 +246,19 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: '2G'
+          memory: 2G
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8443/health || exit 1" ]
+      test:
+      - CMD-SHELL
+      - curl -f http://localhost:8443/health || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
     ports:
-      - "8443:8443"
+    - 8443:8443
     networks:
-      - swarm-mesh
-      - sensory-gateway
-
+    - swarm-mesh
+    - sensory-gateway
   milvus:
     image: milvusdb/milvus:v2.3.0
     restart: on-failure
@@ -266,23 +266,27 @@ services:
       resources:
         limits:
           cpus: '2.0'
-          memory: '4G'
+          memory: 4G
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:9091/healthz || exit 1" ]
+      test:
+      - CMD-SHELL
+      - curl -f http://localhost:9091/healthz || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
-    command: [ "milvus", "run", "standalone" ]
+    command:
+    - milvus
+    - run
+    - standalone
     environment:
-      ETCD_USE_EMBED: "true"
+      ETCD_USE_EMBED: 'true'
       COMMON_STORAGETYPE: local
     volumes:
-      - milvus_data:/var/lib/milvus
+    - milvus_data:/var/lib/milvus
     ports:
-      - "19530:19530"
+    - 19530:19530
     networks:
-      - swarm-mesh
-
+    - swarm-mesh
   neo4j:
     image: neo4j:5.12
     restart: on-failure
@@ -290,28 +294,28 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: '2G'
+          memory: 2G
     healthcheck:
-      test: [ "CMD-SHELL", "wget http://localhost:7474/ -O - > /dev/null 2>&1 || exit 1" ]
+      test:
+      - CMD-SHELL
+      - wget http://localhost:7474/ -O - > /dev/null 2>&1 || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
     environment:
       NEO4J_AUTH: ${NEO4J_AUTH:-none}
     volumes:
-      - neo4j_data:/data
+    - neo4j_data:/data
     ports:
-      - "7687:7687"
-      - "7474:7474"
+    - 7687:7687
+    - 7474:7474
     networks:
-      - swarm-mesh
-
+    - swarm-mesh
 networks:
   swarm-mesh:
     internal: true
-  sensory-gateway:
-
+  sensory-gateway: null
 volumes:
-  pg_data:
-  milvus_data:
-  neo4j_data:
+  pg_data: null
+  milvus_data: null
+  neo4j_data: null
