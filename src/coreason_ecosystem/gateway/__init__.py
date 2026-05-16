@@ -11,20 +11,12 @@
 """
 The Master MCP Gateway.
 
-This boundary governs federated capability discovery and routes the JSON-RPC
-requests to sub-MCP backends based on Epistemic Intents.
+This boundary governs federated capability discovery and configures the Envoy
+proxy layer to route the JSON-RPC requests via RouteLLM based on Epistemic Intents.
 """
 
-from .semantic_router import (
-    SemanticRouter,
-    IntentWeighting,
-    HybridWeighting,
-    ScoreCalibration,
-)
+from .semantic_router import SemanticRouter
 
 __all__ = [
     "SemanticRouter",
-    "IntentWeighting",
-    "HybridWeighting",
-    "ScoreCalibration",
 ]

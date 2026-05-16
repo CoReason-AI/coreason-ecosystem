@@ -27,17 +27,14 @@ dependencies = [
     "temporalio>=1.9.0",
     "mcp>=1.27.0",
     "fastapi>=0.135.3",
-    "pyyaml>=6.0.2",
-    "onnxruntime>=1.26.0",  # Transitive via sentence-transformers; kept for ONNX backend
+    "pyyaml>=6.0.2",  # Transitive via sentence-transformers; kept for ONNX backend
     "pyarrow>=24.0.0",
-    "sentence-transformers>=4.1.0",
-    "semantic-router>=0.1.1",
-    "numpy>=2.4.4",
     "skypilot>=0.6.2",
     "hvac>=2.4.0",
     "pyjwt>=2.12.1",
     "requests>=2.34.0",
     "nats-py>=2.9.0",
+    "routellm>=0.2.0",
 ]
 
 license = { file = "LICENSE" }
@@ -194,3 +191,7 @@ extraPaths = ["."]
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[[tool.mypy.overrides]]
+module = "routellm.*"
+ignore_missing_imports = true
