@@ -33,6 +33,16 @@ jobs:
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
+        shell: bash
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Dynamic Ecosystem Sync
@@ -59,7 +69,7 @@ jobs:
         run: uv run deptry src/
         shell: bash
       - name: Docs Link Validation
-        uses: lycheeverse/lychee-action@f796ca024b457c7f3e1a05282496a79e49635677 # v2.1.0
+        uses: lycheeverse/lychee-action@f81112d0d2814ded911bd23e3beaa9dda9093915 # v2.1.0
         with:
           args: >-
             --exclude-loopback
@@ -93,6 +103,16 @@ jobs:
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
+        shell: bash
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Dynamic Ecosystem Sync
@@ -124,6 +144,16 @@ jobs:
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
+        shell: bash
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Install System Dependencies
@@ -189,6 +219,16 @@ jobs:
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
+        shell: bash
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Install System Dependencies
@@ -235,6 +275,16 @@ jobs:
         run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
       - name: Checkout Repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
+        shell: bash
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Build wheel (attempt 1)
