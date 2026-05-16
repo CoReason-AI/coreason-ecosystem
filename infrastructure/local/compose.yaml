@@ -241,7 +241,7 @@ services:
         condition: service_healthy
 
   nemoclaw:
-    image: ghcr.io/nvidia/nemoclaw:latest
+    image: ghcr.io/coreason-ai/nemoclaw:0.1.0
     restart: on-failure
     deploy:
       resources:
