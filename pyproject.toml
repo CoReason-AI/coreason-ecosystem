@@ -7,7 +7,7 @@ name = "coreason_ecosystem"
 dynamic = ["version"]
 description = "The CoReason AI Swarm Ecosystem Integration Wrapper and Execution Plane"
 readme = "README.md"
-requires-python = "==3.14.*"
+requires-python = ">=3.14"
 authors = [
     { name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" },
 ]
@@ -89,9 +89,9 @@ per_rule_ignores = {"DEP002" = ["click", "onnxruntime", "cryptography", "fastapi
 
 
 [project.urls]
-Homepage = "https://github.com/CoReason-AI/coreason_ecosystem"
-Repository = "https://github.com/CoReason-AI/coreason_ecosystem"
-Documentation = "https://github.com/CoReason-AI/coreason_ecosystem"
+Homepage = "https://github.com/CoReason-AI/coreason-ecosystem"
+Repository = "https://github.com/CoReason-AI/coreason-ecosystem"
+Documentation = "https://github.com/CoReason-AI/coreason-ecosystem"
 
 [tool.ruff]
 line-length = 120
@@ -194,5 +194,3 @@ extraPaths = ["."]
 
 [tool.hatch.metadata]
 allow-direct-references = true
-
-
