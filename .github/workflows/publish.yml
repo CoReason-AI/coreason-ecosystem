@@ -28,7 +28,7 @@ jobs:
     environment: pypi
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@v2
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.10.4
         with:
           egress-policy: audit
 
@@ -40,13 +40,13 @@ jobs:
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           fetch-tags: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.3.1
         with:
           enable-cache: false
           cache-dependency-glob: "uv.lock"
@@ -65,24 +65,24 @@ jobs:
         shell: bash
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           path: "site/"
 
       - name: Generate SLSA Provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.2.3
         with:
           subject-path: |
             dist/*.whl
             dist/*.tar.gz
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1 # release/v1
+        uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.12.4
         with:
           skip-existing: true
 
       - name: Generate SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.18.0
         with:
           path: ./dist
           format: spdx-json
@@ -90,14 +90,14 @@ jobs:
           upload-release-assets: false
 
       - name: Sign artifacts with Sigstore
-        uses: sigstore/gh-action-sigstore-python@v3.3.0
+        uses: sigstore/gh-action-sigstore-python@04cffa1d795717b140764e8b640de88853c92acc # v3.3.0
         with:
           inputs: >-
             dist/*.tar.gz
             dist/*.whl
 
       - name: Upload attestations to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.1.0
         with:
           files: |
             dist/*.sigstore.json
@@ -111,13 +111,13 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@v2
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.10.4
         with:
           egress-policy: audit
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
 
   publish-container:
     needs: release
@@ -129,7 +129,7 @@ jobs:
       attestations: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@v2
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.10.4
         with:
           egress-policy: audit
 
@@ -141,16 +141,16 @@ jobs:
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.3.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.10.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df683c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.3.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -158,7 +158,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.7.0
         with:
           images: ghcr.io/coreason-ai/coreason-ecosystem
           tags: |
@@ -169,7 +169,7 @@ jobs:
 
       - name: Build and push Docker image
         id: build-and-push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.12.0
         with:
           context: .
           push: true
@@ -178,7 +178,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Generate SBOM for Container
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.18.0
         with:
           image: ghcr.io/coreason-ai/coreason-ecosystem@${{ steps.build-and-push.outputs.digest }}
           format: spdx-json
@@ -186,13 +186,13 @@ jobs:
           upload-release-assets: false
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.5.0
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.8.1
 
       - name: Sign the image with Cosign
         run: cosign sign --yes ghcr.io/coreason-ai/coreason-ecosystem@${{ steps.build-and-push.outputs.digest }}
 
       - name: Generate SLSA Provenance for Container
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.2.3
         with:
           subject-name: ghcr.io/coreason-ai/coreason-ecosystem
           subject-digest: ${{ steps.build-and-push.outputs.digest }}
