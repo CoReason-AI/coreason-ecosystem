@@ -21,7 +21,7 @@ from coreason_ecosystem.orchestration.registry import (
     write_registry_lock,
 )
 from coreason_manifest.spec.ontology import CognitiveSwarmDeploymentManifest
-from coreason_ecosystem.gateway.sovereign_mcp_registry import SovereignMCPRegistry
+from coreason_ecosystem.wasmcloud.nats_registry import NATSCapabilityRegistry
 from loguru import logger
 
 
@@ -143,9 +143,16 @@ async def execute_up() -> None:
         logger.info(
             "[Gateway] Connecting to NemoClaw via mTLS and registering MCP tools..."
         )
-        registry = SovereignMCPRegistry()
+        registry = NATSCapabilityRegistry()
         await registry.initialize()
-        await registry.scan_action_space_modules()
+        # Load compiled capability matrix (replaces AST-based scan)
+        matrix_path = project_path / "registry" / "compiled_matrix.json"
+        if matrix_path.exists():
+            import json
+            matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
+            await registry.hydrate_from_compiled_matrix(matrix)
+        else:
+            logger.warning("No compiled_matrix.json found — registry will be empty")
         progress.update(
             task_injection,
             description="[green]✓ Gateway Injection Complete[/green]",

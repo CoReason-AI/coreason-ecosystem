@@ -22,7 +22,8 @@ from coreason_manifest.spec.ontology import (
     EscrowPolicy,
     EpistemicSecurityProfile as SecurityProfile,
 )
-from coreason_ecosystem.fleet.mesh_injector import MeshInjector
+import base64
+import json
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("SubstrateActuator")
@@ -52,7 +53,7 @@ class SkyPilotActuator:
     """
 
     def __init__(self) -> None:
-        self.injector = MeshInjector()
+        pass  # MeshInjector removed; NATS lattice handles node bootstrapping
 
     async def provision_node(self, target: SkyPilotTarget) -> dict[str, Any]:
         """Execute physical instantiation via SkyPilot managed clusters."""
@@ -121,14 +122,15 @@ class SkyPilotActuator:
             and target.mesh_auth_key
             and target.temporal_mesh_ip
         ):
-            payload_b64 = self.injector.compile_payload(
-                node_cid=cluster_name,
-                provider="skypilot",  # Abstracted provider
-                hardware=target.hardware_profile.model_dump(),
-                security=target.security_profile.model_dump(),
-                mesh_auth_key=target.mesh_auth_key,
-                temporal_mesh_ip=target.temporal_mesh_ip,
-            )
+            # Generate NATS-native bootstrap payload (replaces MeshInjector)
+            bootstrap_payload = json.dumps({
+                "node_cid": cluster_name,
+                "nats_url": "nats://nats.mesh.coreason.ai:4222",
+                "lattice_prefix": "coreason",
+                "hardware": target.hardware_profile.model_dump(),
+                "security": target.security_profile.model_dump(),
+            }, sort_keys=True, separators=(",", ":"))
+            payload_b64 = base64.b64encode(bootstrap_payload.encode("utf-8")).decode("ascii")
             # Inject the payload into the node setup
             setup_cmds.append("mkdir -p /etc/coreason")
             setup_cmds.append(

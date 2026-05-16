@@ -37,6 +37,7 @@ dependencies = [
     "hvac>=2.4.0",
     "pyjwt>=2.12.1",
     "requests>=2.34.0",
+    "nats-py>=2.9.0",
 ]
 
 license = { file = "LICENSE" }
@@ -154,12 +155,6 @@ ignore_missing_imports = true
 module = "networkx.*"
 ignore_missing_imports = true
 
-[[tool.mypy.overrides]]
-module = [
-    "coreason_ecosystem.gateway.master_mcp",
-]
-warn_unused_ignores = false
-disallow_untyped_decorators = false
 
 [tool.ruff.lint.isort]
 known-first-party = ["coreason_ecosystem"]

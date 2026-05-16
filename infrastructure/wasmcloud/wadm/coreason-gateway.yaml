@@ -1,0 +1,156 @@
+# wadm Application Manifest — CoReason MCP Gateway
+#
+# This declarative manifest replaces:
+#   - capabilities.matrix.yaml (static capability routing)
+#   - SovereignMCPRegistry + RegistryStateWorkflow (dynamic routing via Temporal)
+#   - expansion_loop.py (manual scaling)
+#
+# wadm (wasmCloud Application Deployment Manager) handles:
+#   - Declarative desired-state reconciliation
+#   - Automatic scaling and placement
+#   - Health monitoring and self-healing
+#
+# Copyright (c) 2026 CoReason, Inc. Licensed under the Prosperity Public License 3.0.
+
+apiVersion: core.oam.dev/v1beta1
+kind: Application
+metadata:
+  name: coreason-gateway
+  annotations:
+    version: v0.1.0
+    description: >
+      CoReason MCP Gateway — the Hollow Plane entry point.
+      Exposes MCP SSE/Streamable HTTP to external AI agents and routes
+      tool invocations to wasmCloud capability providers via the NATS lattice.
+    coreason.ai/urn: "urn:coreason:actionspace:node:master_gateway:v1"
+
+spec:
+  components:
+    # ---------------------------------------------------------------
+    # Component 1: MCP Gateway (Python sidecar)
+    # ---------------------------------------------------------------
+    # This is the MCP-to-NATS bridge. It receives MCP JSON-RPC requests
+    # from external AI agents and publishes them as NATS messages for
+    # routing to the appropriate capability provider.
+    - name: mcp-gateway
+      type: component
+      properties:
+        # In Phase 1, this runs as a Python sidecar process connected to NATS.
+        # In Phase 5+, this can be compiled to WASM via componentize-py.
+        image: ghcr.io/coreason-ai/mcp-gateway:latest
+      traits:
+        - type: spreadscaler
+          properties:
+            # Run exactly 1 instance in development
+            instances: 1
+
+    # ---------------------------------------------------------------
+    # Capability Provider: HTTP Server (wasi:http)
+    # ---------------------------------------------------------------
+    # Exposes the MCP SSE/Streamable HTTP endpoint to external clients.
+    - name: httpserver
+      type: capability
+      properties:
+        image: ghcr.io/wasmcloud/http-server:0.23.2
+        config:
+          - name: http-config
+            properties:
+              address: "0.0.0.0:8000"
+
+    # ---------------------------------------------------------------
+    # Capability Provider: SkyPilot Actuator (Python sidecar)
+    # ---------------------------------------------------------------
+    # Domain logic: GPU spot-market orchestration via SkyPilot.
+    # Runs as a NATS-connected Python sidecar.
+    - name: skypilot-actuator
+      type: capability
+      properties:
+        image: ghcr.io/coreason-ai/skypilot-actuator:latest
+        config:
+          - name: skypilot-config
+            properties:
+              urn: "urn:coreason:actionspace:substrate:skypilot:v1"
+
+    # ---------------------------------------------------------------
+    # Capability Provider: NemoClaw DLP Scanner (external)
+    # ---------------------------------------------------------------
+    - name: nemoclaw-dlp
+      type: capability
+      properties:
+        image: ghcr.io/nvidia/nemoclaw:latest
+        config:
+          - name: nemoclaw-config
+            properties:
+              urn: "urn:coreason:actionspace:solver:dlp_scanner:v1"
+              endpoint: "https://nemoclaw:8443"
+
+    # ---------------------------------------------------------------
+    # Registered Capabilities (URN Routing Table)
+    # ---------------------------------------------------------------
+    # These replace the static capabilities.matrix.yaml entries.
+    # Each capability is a NATS subject that the gateway can route to.
+
+    # Oracle: Medical Knowledge Graph
+    - name: oracle-medical-kg
+      type: capability
+      properties:
+        contract: "coreason:oracle"
+        config:
+          - name: capability-config
+            properties:
+              urn: "urn:coreason:actionspace:oracle:medical_kg:v1"
+              endpoint: "http://neo4j:7474"
+              clearance: "PUBLIC"
+              epistemic_status: "PUBLISHED"
+
+    # Oracle: Clinical Vector Store
+    - name: oracle-clinical-vector
+      type: capability
+      properties:
+        contract: "coreason:oracle"
+        config:
+          - name: capability-config
+            properties:
+              urn: "urn:coreason:actionspace:oracle:clinical_vector:v1"
+              endpoint: "http://milvus:19530"
+              clearance: "CONFIDENTIAL"
+              epistemic_status: "PUBLISHED"
+
+    # Substrate: Treasury
+    - name: substrate-treasury
+      type: capability
+      properties:
+        contract: "coreason:substrate"
+        config:
+          - name: capability-config
+            properties:
+              urn: "urn:coreason:actionspace:substrate:treasury:v1"
+              endpoint: "http://coreason-master-gateway:8000"
+              clearance: "RESTRICTED"
+              epistemic_status: "CLIENT_APPROVED"
+
+    # Oracle: Combinatorial Prover
+    - name: oracle-combinatorial-prover
+      type: capability
+      properties:
+        contract: "coreason:oracle"
+        config:
+          - name: capability-config
+            properties:
+              urn: "urn:coreason:actionspace:oracle:combinatorial_prover:v1"
+              endpoint: "http://lean4-prover:8000"
+              clearance: "RESTRICTED"
+              epistemic_status: "SRB_APPROVED"
+
+    # Effector: Chaos Mesh
+    - name: effector-chaos-mesh
+      type: capability
+      properties:
+        contract: "coreason:effector"
+        config:
+          - name: capability-config
+            properties:
+              urn: "urn:coreason:actionspace:effector:chaos_mesh:v1"
+              endpoint: "http://chaos-mesh-effector:8000"
+              clearance: "RESTRICTED"
+              epistemic_status: "SRB_APPROVED"
