@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   lint-and-audit:
-    runs-on: [self-hosted, hetzner, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
@@ -37,6 +37,11 @@ jobs:
         run: git clean -xfd -e .venv -e .uv_cache
       - name: Dynamic Ecosystem Sync
         run: if [ -f "pyproject.toml" ]; then uv sync --python 3.14.3 --all-extras --dev; fi
+        shell: bash
+      - name: Install Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "$HOME/.temporalio/bin" >> $GITHUB_PATH
         shell: bash
       - name: Provision Ephemeral Orchestration Isolation
         run: temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE || true
@@ -73,7 +78,7 @@ jobs:
         shell: bash
 
   security-sast:
-    runs-on: [self-hosted, hetzner, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
@@ -100,7 +105,7 @@ jobs:
   test-ubuntu:
     needs: [lint-and-audit, security-sast]
     if: always() && needs.lint-and-audit.result == 'success' && needs.security-sast.result == 'success'
-    runs-on: [self-hosted, hetzner, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
@@ -165,7 +170,7 @@ jobs:
   test-extended:
     needs: [lint-and-audit, security-sast]
     if: always() && needs.lint-and-audit.result == 'success' && needs.security-sast.result == 'success'
-    runs-on: [self-hosted, hetzner, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
@@ -215,7 +220,7 @@ jobs:
   reproducible-builds:
     name: Reproducible Builds (Determinism Verification)
     needs: [test-ubuntu, test-extended]
-    runs-on: [self-hosted, hetzner, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
