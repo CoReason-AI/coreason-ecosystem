@@ -51,7 +51,7 @@ services:
       - sensory-gateway
 
   coreason-runtime:
-    image: ghcr.io/coreason/coreason-runtime:latest
+    image: ghcr.io/coreason-ai/coreason-runtime:latest
     restart: on-failure
     deploy:
       resources:
@@ -206,7 +206,7 @@ services:
       - sensory-gateway
 
   coreason-master-gateway:
-    image: ghcr.io/coreason/coreason-master-gateway:latest
+    image: ghcr.io/coreason-ai/coreason-ecosystem:latest
     restart: on-failure
     deploy:
       resources:
