@@ -26,6 +26,7 @@ core logic. Tests use real NATS servers or deterministic inputs.
 
 
 import pytest
+from typing import AsyncGenerator
 
 from coreason_ecosystem.wasmcloud.gateway_provider import (
     MAX_PAYLOAD_BYTES,
@@ -233,11 +234,11 @@ class TestNATSRegistryIntegration:
     """Integration tests for NATSCapabilityRegistry against a real NATS server."""
 
     @pytest.fixture
-    async def registry(self) -> NATSCapabilityRegistry:
+    async def registry(self) -> AsyncGenerator[NATSCapabilityRegistry, None]:
         """Create and initialize a registry connected to the local NATS server."""
         reg = NATSCapabilityRegistry(nats_url="nats://localhost:4222")
         await reg.initialize()
-        yield reg  # type: ignore[misc]
+        yield reg
         await reg.shutdown()
 
     @pytest.mark.asyncio
@@ -290,10 +291,10 @@ class TestNATSGatewayIntegration:
     """Integration tests for NATSGatewayProvider against a real NATS server."""
 
     @pytest.fixture
-    async def gateway(self) -> NATSGatewayProvider:
+    async def gateway(self) -> AsyncGenerator[NATSGatewayProvider, None]:
         gw = NATSGatewayProvider(nats_url="nats://localhost:4222")
         await gw.connect()
-        yield gw  # type: ignore[misc]
+        yield gw
         await gw.disconnect()
 
     @pytest.mark.asyncio
