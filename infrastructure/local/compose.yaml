@@ -51,7 +51,7 @@ services:
       - sensory-gateway
 
   coreason-runtime:
-    image: ghcr.io/coreason/coreason-runtime:latest
+    image: ghcr.io/coreason-ai/coreason-runtime:0.39.0
     restart: on-failure
     deploy:
       resources:
@@ -192,7 +192,7 @@ services:
       - swarm-mesh
 
   redpanda-connect:
-    image: redpandadata/connect:4.30.0
+    image: redpandadata/connect:latest
     restart: on-failure
     deploy:
       resources:
@@ -206,7 +206,7 @@ services:
       - sensory-gateway
 
   coreason-master-gateway:
-    image: ghcr.io/coreason/coreason-master-gateway:latest
+    image: ghcr.io/coreason-ai/coreason-ecosystem:0.32.0
     restart: on-failure
     deploy:
       resources:
