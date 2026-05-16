@@ -258,7 +258,7 @@ class NATSGatewayProvider:
                 except TimeoutError:
                     break
         except Exception:
-            pass
+            logger.debug("Discovery collection ended", exc_info=True)
         finally:
             await sub.unsubscribe()
 
