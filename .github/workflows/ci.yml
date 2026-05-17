@@ -145,7 +145,16 @@ jobs:
         shell: bash
 
       - name: Run tests
-        run: uv run pytest -n auto --cov=src --cov-report=xml
+        run: |
+          if [ "${{ matrix.python-version }}" = "3.14t" ]; then
+            # Under free-threaded Python 3.14t, pytest-xdist subprocesses crash on startup
+            # due to C-extension incompatibilities (e.g. temporalio/pyarrow) during multiprocessing init.
+            # Run sequentially to maintain a stable, self-healing test environment.
+            uv run pytest --cov=src --cov-report=xml
+          else
+            # Run in parallel using pytest-xdist to satisfy the fast parallel execution mandate.
+            uv run pytest -n auto --cov=src --cov-report=xml
+          fi
         shell: bash
         env:
           TEMPORAL_ADDRESS: "127.0.0.1:7233"
