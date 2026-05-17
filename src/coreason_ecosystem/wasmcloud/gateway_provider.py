@@ -10,8 +10,8 @@
 
 """MCP-to-NATS Gateway Provider — The Hollow Plane Bridge.
 
-External AI agents connect via MCP (JSON-RPC over SSE/Streamable HTTP), 
-and tool invocations are published as NATS messages for routing to wasmCloud 
+External AI agents connect via MCP (JSON-RPC over SSE/Streamable HTTP),
+and tool invocations are published as NATS messages for routing to wasmCloud
 capability providers on the lattice.
 
 This module implements the "Borrow, Don't Build" mandate by delegating:

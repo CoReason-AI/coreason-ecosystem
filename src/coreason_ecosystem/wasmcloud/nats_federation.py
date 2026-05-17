@@ -10,7 +10,7 @@
 
 """NATS-Based Federation — Air Gap via Leaf Nodes.
 
-This module implements the core federation logic for the CoReason ecosystem 
+This module implements the core federation logic for the CoReason ecosystem
 using NATS leaf nodes and accounts for zero-trust air gap management.
 
 Architecture:
@@ -24,7 +24,7 @@ Architecture:
       a shared NATS server (or use NATS gateway mode). Bilateral agreements
       are enforced via NATS account isolation.
 
-    - **Air Gap Control:** NATS account imports/exports natively enforce 
+    - **Air Gap Control:** NATS account imports/exports natively enforce
       which subjects (capabilities) are accessible between instances.
 
     - **DLP Scanning:** NemoClaw DLP scanning is implemented as a NATS
@@ -181,7 +181,9 @@ class NATSFederationProxy:
         try:
             await self._js.stream_info("coreason-federation-audit")
         except Exception as e:
-            logger.critical("NATS audit stream 'coreason-federation-audit' missing: %s", e)
+            logger.critical(
+                "NATS audit stream 'coreason-federation-audit' missing: %s", e
+            )
             raise RuntimeError(
                 "Federation audit stream missing. Provision infrastructure first."
             ) from e
@@ -343,8 +345,7 @@ class NATSFederationProxy:
         status: str,
         payload_hash: str = "",
     ) -> None:
-        """Publish an immutable audit receipt to the JetStream stream.
-        """
+        """Publish an immutable audit receipt to the JetStream stream."""
         if not self._js:
             return
 

@@ -10,7 +10,7 @@
 
 """NATS-Based Capability Registry — Lightweight URN Discovery.
 
-This module implements a NATS JetStream-backed capability registry for 
+This module implements a NATS JetStream-backed capability registry for
 durable, distributed URN discovery across the ecosystem.
 
 Architecture:
@@ -74,8 +74,7 @@ class NATSCapabilityRegistry:
         self._local_cache: dict[str, dict[str, Any]] = {}
 
     async def initialize(self) -> None:
-        """Connect to NATS and create the JetStream KV bucket.
-        """
+        """Connect to NATS and create the JetStream KV bucket."""
         if self._nc and self._nc.is_connected:
             return
 
@@ -98,8 +97,7 @@ class NATSCapabilityRegistry:
             logger.info("Created JetStream KV bucket: %s", REGISTRY_BUCKET)
 
     async def shutdown(self) -> None:
-        """Gracefully disconnect from NATS.
-        """
+        """Gracefully disconnect from NATS."""
         if self._nc and self._nc.is_connected:
             await self._nc.drain()
             logger.info("Registry disconnected from NATS")
@@ -174,8 +172,7 @@ class NATSCapabilityRegistry:
             ) from e
 
     async def get_epistemic_status(self, target_urn: str) -> str:
-        """Retrieve the SRB governance lifecycle status for a URN.
-        """
+        """Retrieve the SRB governance lifecycle status for a URN."""
         try:
             entry = await self.resolve_urn(target_urn)
             return str(entry.get("epistemic_status", "DRAFT"))
@@ -183,8 +180,7 @@ class NATSCapabilityRegistry:
             return "DRAFT"
 
     async def list_all_capabilities(self) -> dict[str, dict[str, Any]]:
-        """List all registered capabilities.
-        """
+        """List all registered capabilities."""
         if not self._kv:
             raise RuntimeError("Registry not initialized. Call initialize() first.")
 
@@ -249,11 +245,10 @@ class NATSCapabilityRegistry:
 
     @staticmethod
     def validate_urn(urn: str) -> None:
-        """Validate that a URN conforms to the ActionSpace taxonomy.
-        """
+        """Validate that a URN conforms to the ActionSpace taxonomy."""
         if not _ACTIONSPACE_URN_PATTERN.match(urn):
             raise ValueError(
-                f"URN {urn} does not conform to the CoReason manifest "
+                f"URN Topology Breach: URN {urn} does not conform to the CoReason manifest "
                 "modern actionspace taxonomy. Rejecting capability."
             )
 
