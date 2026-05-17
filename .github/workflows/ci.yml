@@ -14,7 +14,7 @@ env:
   TEMPORAL_CI_NAMESPACE: "coreason-ci-${{ github.run_id }}-${{ github.run_attempt }}"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -79,9 +79,6 @@ jobs:
       matrix:
         python-version: ["3.14", "3.14t"]
     steps:
-      - name: Pre-Flight Workspace Purity
-        run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
-
       - name: Harden Runner (Endpoint Network Security)
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
         with:
@@ -107,12 +104,18 @@ jobs:
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: gowthamrao
+          password: ${{ secrets.GHCR_PAT }}
 
       - name: Set up Docker Compose
         run: |
-          docker compose -f infrastructure/local/compose.yaml up -d
+          docker compose -f infrastructure/local/compose.yaml up -d --build
+        shell: bash
+
+      - name: Dump Docker Compose Logs on Failure
+        if: failure()
+        run: |
+          docker compose -f infrastructure/local/compose.yaml logs
         shell: bash
 
       - name: Install Temporal CLI
@@ -120,7 +123,7 @@ jobs:
 
       - name: Create Ephemeral Temporal Namespace
         run: |
-          temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE --address 127.0.0.1:7233 --retention 1
+          temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE --address 127.0.0.1:7233 --retention 24h
         shell: bash
 
       - name: Install dependencies
@@ -150,11 +153,7 @@ jobs:
           if [ -f "infrastructure/local/compose.yaml" ]; then
             docker compose -f infrastructure/local/compose.yaml down -v || true
           fi
-          sudo chown -R $(whoami):$(whoami) ${{ github.workspace }}
         shell: bash
-
-      - name: Substrate Purity Verification
-        run: git clean -xfd -e .venv -e .uv_cache
 
   test-extended:
     needs: [test-ubuntu]
@@ -253,5 +252,4 @@ jobs:
           if [ -f "infrastructure/local/compose.yaml" ]; then
             docker compose -f infrastructure/local/compose.yaml down -v || true
           fi
-          sudo chown -R $(whoami):$(whoami) ${{ github.workspace }}
         shell: bash

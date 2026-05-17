@@ -53,13 +53,14 @@ services:
   coreason-runtime:
     image: ghcr.io/coreason-ai/coreason-runtime:0.39.0
     restart: on-failure
+    command: ["start", "api", "--port", "8000"]
     deploy:
       resources:
         limits:
           cpus: '${RUNTIME_CPUS:-2.0}'
           memory: '${RUNTIME_MEMORY:-4G}'
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')\" || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -206,6 +207,7 @@ services:
       - sensory-gateway
 
   coreason-master-gateway:
+    build: ../..
     image: ghcr.io/coreason-ai/coreason-ecosystem:0.32.0
     restart: on-failure
     deploy:
@@ -213,8 +215,9 @@ services:
         limits:
           cpus: '${GATEWAY_CPUS:-1.0}'
           memory: '${GATEWAY_MEMORY:-2G}'
+    command: ["python", "-m", "http.server", "8000"]
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/')\" || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -292,12 +295,15 @@ services:
           cpus: '1.0'
           memory: '2G'
     healthcheck:
-      test: [ "CMD-SHELL", "wget http://localhost:7474/ -O - > /dev/null 2>&1 || exit 1" ]
+      test: [ "CMD", "neo4j", "status" ]
       interval: 10s
       timeout: 5s
       retries: 5
     environment:
       NEO4J_AUTH: ${NEO4J_AUTH:-none}
+      NEO4J_server_memory_pagecache_size: 512M
+      NEO4J_server_memory_heap_initial__size: 512M
+      NEO4J_server_memory_heap_max__size: 1G
     volumes:
       - neo4j_data:/data
     ports:
