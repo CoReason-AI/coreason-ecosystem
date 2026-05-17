@@ -36,6 +36,7 @@ _is_free_threaded = (
 if not _is_free_threaded:
     try:
         import sky as _sky
+
         sky = _sky
     except ImportError:
         pass
