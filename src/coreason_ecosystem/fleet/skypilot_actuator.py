@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc.
+# Copyright (c) 2026 CoReason, Inc
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -6,14 +6,12 @@
 # For details, see the LICENSE file
 # Commercial use beyond a 30-day trial requires a separate license
 #
-# Source Code: <https://github.com/CoReason-AI/coreason-ecosystem>
-
-try:
-    import sky
-except ImportError:
-    sky = None  # type: ignore
+# Source Code: <https://github.com/CoReason-AI/coreason-manifest>
 
 import asyncio
+import base64
+import json
+import sys
 from typing import Any, cast
 from loguru import logger
 from pydantic import BaseModel
@@ -22,9 +20,26 @@ from coreason_manifest.spec.ontology import (
     EscrowPolicy,
     EpistemicSecurityProfile as SecurityProfile,
 )
-import base64
-import json
 from mcp.server.fastmcp import FastMCP
+
+# Under free-threaded Python (3.13t/3.14t), skip importing sky (which pulls in bcrypt/paramiko C extensions)
+# as it triggers segmentation faults (exit code 139) on import due to ABI/thread-safety incompatibilities.
+# The tests monkeypatch `sky` with a fake, so they remain fully functional.
+sky: Any = None
+
+_is_free_threaded = (
+    "free-threading" in sys.version.lower()
+    or hasattr(sys.flags, "nogil")
+    or sys.exec_prefix.endswith("t")
+)
+
+if not _is_free_threaded:
+    try:
+        import sky as _sky
+
+        sky = _sky
+    except ImportError:
+        pass
 
 mcp = FastMCP("SubstrateActuator")
 __action_space_urn__ = "urn:coreason:actionspace:substrate:skypilot:v1"

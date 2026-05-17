@@ -8,8 +8,24 @@
 #
 # Source Code: <https://github.com/CoReason-AI/coreason-ecosystem>
 
-import jwt
+import base64
+import json
 from coreason_ecosystem.auth.identity_manager import extract_workload_identity
+
+
+from typing import Any
+
+
+def _encode_jwt_manually(payload: dict[str, Any]) -> str:
+    header = {"alg": "HS256", "typ": "JWT"}
+    header_json = json.dumps(header, separators=(",", ":")).encode("utf-8")
+    payload_json = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+
+    header_b64 = base64.urlsafe_b64encode(header_json).decode("utf-8").rstrip("=")
+    payload_b64 = base64.urlsafe_b64encode(payload_json).decode("utf-8").rstrip("=")
+    signature_b64 = "dummy_signature"
+
+    return f"{header_b64}.{payload_b64}.{signature_b64}"
 
 
 def test_extract_workload_identity_spiffe_only():
@@ -21,7 +37,7 @@ def test_extract_workload_identity_spiffe_only():
 
 def test_extract_workload_identity_jwt_only():
     payload = {"sub": "user123", "iat": 1600000000}
-    token = jwt.encode(payload, "secret", algorithm="HS256")
+    token = _encode_jwt_manually(payload)
     headers = {"Authorization": f"Bearer {token}"}
 
     identity = extract_workload_identity(headers)
@@ -32,7 +48,7 @@ def test_extract_workload_identity_jwt_only():
 
 def test_extract_workload_identity_jwt_and_spiffe():
     payload = {"sub": "user-1"}
-    token = jwt.encode(payload, "secret", algorithm="HS256")
+    token = _encode_jwt_manually(payload)
     headers = {
         "Authorization": f"Bearer {token}",
         "X-SPIFFE-ID": "spiffe://local/workload",
@@ -49,7 +65,7 @@ def test_extract_workload_identity_jwt_and_spiffe():
 
 def test_extract_workload_identity_case_insensitivity():
     payload = {"sub": "user-1"}
-    token = jwt.encode(payload, "secret", algorithm="HS256")
+    token = _encode_jwt_manually(payload)
     headers = {
         "authorization": f"Bearer {token}",
         "x-spiffe-id": "spiffe://local/workload",
