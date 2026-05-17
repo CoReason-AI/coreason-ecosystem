@@ -47,4 +47,4 @@ COPY --from=builder /wheels /wheels
 RUN uv venv /home/appuser/app/.venv && \
     uv pip install --no-cache /wheels/*.whl
 
-CMD ["coreason"]
+CMD ["coreason-ecosystem"]
