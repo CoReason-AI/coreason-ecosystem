@@ -53,6 +53,7 @@ services:
   coreason-runtime:
     image: ghcr.io/coreason-ai/coreason-runtime:0.39.0
     restart: on-failure
+    command: ["start", "api", "--port", "8000"]
     deploy:
       resources:
         limits:
