@@ -346,10 +346,10 @@ pub fn ignite_swarm(app: tauri::AppHandle, intent: SwarmIgnitionIntent) -> Swarm
 
     let runtime_image = if has_nvidia_gpu() {
         let _ = app.emit("boot-log", "[Hardware] NVIDIA GPU Detected. Pulling coreason-runtime:latest-gpu (11GB)...");
-        "ghcr.io/coreason-ai/coreason-runtime:20260515_docker_build_fix-gpu"
+        "ghcr.io/coreason-ai/coreason-runtime:latest"
     } else {
         let _ = app.emit("boot-log", "[Hardware] No NVIDIA GPU Detected. Pulling coreason-runtime:latest-cpu (1.5GB)...");
-        "ghcr.io/coreason-ai/coreason-runtime:20260515_docker_build_fix-cpu"
+        "ghcr.io/coreason-ai/coreason-runtime:latest"
     };
 
     command.env("COREASON_RUNTIME_IMAGE", runtime_image);
