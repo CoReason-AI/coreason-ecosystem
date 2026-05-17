@@ -13,7 +13,7 @@ from typing import Any
 
 import hvac
 import hvac.exceptions
-import jwt
+from coreason_ecosystem.auth import jwt_compat as jwt
 
 # Root CA for verifying license tokens
 COREASON_ROOT_CA = "coreason_root_ca_public_key_placeholder"

@@ -17,7 +17,7 @@ inbound headers for use in zero-trust authorization sidecars.
 import logging
 from typing import Any
 
-import jwt
+from coreason_ecosystem.auth import jwt_compat as jwt
 
 logger = logging.getLogger(__name__)
 
