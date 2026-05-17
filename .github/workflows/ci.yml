@@ -104,7 +104,7 @@ jobs:
 
       - name: Configure free-threading execution
         if: matrix.python-version == '3.14t'
-        run: echo "PYTHON_GIL=0" >> "$GITHUB_ENV"
+        run: echo "PYTHON_GIL=1" >> "$GITHUB_ENV"
         shell: bash
 
       - name: Login to GitHub Container Registry
@@ -197,7 +197,7 @@ jobs:
 
       - name: Configure free-threading execution
         if: matrix.python-version == '3.14t'
-        run: echo "PYTHON_GIL=0" >> "$GITHUB_ENV"
+        run: echo "PYTHON_GIL=1" >> "$GITHUB_ENV"
         shell: bash
 
       - name: Install dependencies
