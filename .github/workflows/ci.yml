@@ -123,7 +123,7 @@ jobs:
 
       - name: Create Ephemeral Temporal Namespace
         run: |
-          temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE --address 127.0.0.1:7233 --retention 1
+          temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE --address 127.0.0.1:7233 --retention 24h
         shell: bash
 
       - name: Install dependencies
