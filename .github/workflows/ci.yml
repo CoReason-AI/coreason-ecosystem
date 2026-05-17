@@ -14,7 +14,7 @@ env:
   TEMPORAL_CI_NAMESPACE: "coreason-ci-${{ github.run_id }}-${{ github.run_attempt }}"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: true
 
 jobs:
