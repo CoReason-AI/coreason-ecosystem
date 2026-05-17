@@ -133,12 +133,19 @@ jobs:
           temporal operator namespace create -n $TEMPORAL_CI_NAMESPACE --address 127.0.0.1:7233 --retention 24h
         shell: bash
 
+      - name: Install system dependencies (protobuf-compiler for temporalio source build)
+        if: matrix.python-version == '3.14t'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+        shell: bash
+
       - name: Install dependencies
         run: uv sync --all-extras --dev --frozen
         shell: bash
 
       - name: Run tests
-        run: uv run pytest --cov=src --cov-report=xml
+        run: uv run pytest -n auto --cov=src --cov-report=xml
         shell: bash
         env:
           TEMPORAL_ADDRESS: "127.0.0.1:7233"
@@ -198,7 +205,7 @@ jobs:
         shell: bash
 
       - name: Run tests
-        run: uv run pytest --cov=src --cov-report=xml
+        run: uv run pytest -n auto --cov=src --cov-report=xml
         shell: bash
 
   reproducible-builds:
