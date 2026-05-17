@@ -1,0 +1,50 @@
+# Copyright (c) 2026 CoReason, Inc. Licensed under the Prosperity Public License 3.0.
+#
+# CoReason GitOps Root Application
+# ==================================
+# This is the ArgoCD root Application that manages the CoReason ApplicationSet.
+# It monitors the gitops/apps directory and applies the ApplicationSet CR,
+# which in turn generates all child CoReason Applications.
+#
+# This file exists for:
+#   1. Documentation clarity
+#   2. Manual re-sync via `kubectl apply -f root.yaml`
+#   3. ArgoCD UI visibility
+#
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: coreason-platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: coreason
+    app.kubernetes.io/component: gitops-root
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/manifest-generate-paths: isv-distribution/gitops/apps
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: coreason
+  source:
+    repoURL: https://github.com/CoReason-AI/coreason-ecosystem.git
+    targetRevision: main
+    path: isv-distribution/gitops/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

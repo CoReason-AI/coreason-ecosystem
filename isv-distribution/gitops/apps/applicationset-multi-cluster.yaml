@@ -1,0 +1,144 @@
+# Copyright (c) 2026 CoReason, Inc. Licensed under the Prosperity Public License 3.0.
+#
+# CoReason Platform — Multi-Cluster ApplicationSet (Cluster Generator)
+# =====================================================================
+#
+# STATUS: SCAFFOLD — NOT ACTIVE
+#
+# This file documents the natural evolution path from single-cluster
+# to multi-cluster (hub-spoke) deployments. It is NOT applied by
+# default — customers activate it when they need fleet management.
+#
+# Architecture:
+#
+#   ┌──────────────────┐
+#   │   Hub Cluster     │  ← ArgoCD management plane lives here
+#   │   (argocd ns)     │
+#   └────────┬─────────┘
+#            │  Cluster Generator discovers spoke secrets
+#            ├──────────────────────────────────┐
+#   ┌────────▼─────────┐             ┌─────────▼────────┐
+#   │  Spoke: US-East   │             │  Spoke: EU-West   │
+#   │  (coreason-system) │             │  (coreason-system) │
+#   └──────────────────┘             └──────────────────┘
+#
+# Prerequisites:
+#   1. Register spoke clusters with ArgoCD:
+#        argocd cluster add <context-name> --name us-east-prod
+#   2. Label the cluster secret for filtering:
+#        kubectl label secret <cluster-secret> -n argocd \
+#          environment=production \
+#          region=us-east \
+#          coreason.ai/tier=enterprise
+#   3. Replace the List generator in applicationset.yaml with this file
+#
+# How it works:
+#   The Cluster Generator automatically discovers all clusters registered
+#   in ArgoCD (stored as Secrets with label argocd.argoproj.io/secret-type=cluster).
+#   It uses label selectors to filter which clusters get which components.
+#   The {{nameNormalized}} template variable provides a K8s-safe cluster name.
+#
+# Activation:
+#   1. Copy the generators block below into applicationset.yaml
+#   2. Replace the existing List generator
+#   3. Add cluster-specific values overrides in isv-distribution/gitops/values/<cluster>/
+#   4. Push to release branch — ArgoCD auto-deploys to all matching clusters
+#
+# References:
+#   - ArgoCD Cluster Generator: https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators-Cluster/
+#   - Matrix Generator (combine cluster + list): https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators-Matrix/
+#
+---
+# Example: Cluster Generator with label-based filtering
+#
+# This deploys the full CoReason stack to every cluster labeled
+# with coreason.ai/tier=enterprise AND environment=production.
+#
+# apiVersion: argoproj.io/v1alpha1
+# kind: ApplicationSet
+# metadata:
+#   name: coreason-platform-fleet
+#   namespace: argocd
+# spec:
+#   goTemplate: true
+#   generators:
+#     # ── Matrix Generator: Cluster × Component ──────────────────
+#     # Produces the cartesian product of (matching clusters) × (components).
+#     # Each cluster gets all 4 sync-wave components deployed.
+#     - matrix:
+#         generators:
+#           # Dimension 1: Which clusters?
+#           - clusters:
+#               selector:
+#                 matchLabels:
+#                   coreason.ai/tier: enterprise
+#                   environment: production
+#               # Available template variables:
+#               #   {{.name}}           — cluster display name (e.g. "us-east-prod")
+#               #   {{.nameNormalized}} — K8s-safe name (e.g. "us-east-prod")
+#               #   {{.server}}         — cluster API server URL
+#               #   {{.metadata.labels.region}} — any cluster label
+#
+#           # Dimension 2: Which components?
+#           - list:
+#               elements:
+#                 - chart: external-secrets
+#                   component: secret-management
+#                   syncWave: "0"
+#                   chartVersion: "~0.12.0"
+#                   chartRepo: https://charts.external-secrets.io
+#                   namespace: external-secrets
+#                 - chart: coreason-enterprise
+#                   component: core
+#                   syncWave: "1"
+#                   chartVersion: "~0.1.0"
+#                   chartRepo: ghcr.io/coreason-ai/charts
+#                   namespace: coreason-system
+#                 - chart: coreason-mesh
+#                   component: mesh
+#                   syncWave: "2"
+#                   chartVersion: "~0.1.0"
+#                   chartRepo: ghcr.io/coreason-ai/charts
+#                   namespace: coreason-system
+#                 - chart: coreason-observability
+#                   component: observability
+#                   syncWave: "3"
+#                   chartVersion: "~0.1.0"
+#                   chartRepo: ghcr.io/coreason-ai/charts
+#                   namespace: coreason-system
+#
+#   preserveResourcesOnDeletion: true
+#
+#   template:
+#     metadata:
+#       # Include cluster name to prevent collisions across fleet
+#       name: 'coreason-{{.nameNormalized}}-{{.component}}'
+#       namespace: argocd
+#       labels:
+#         app.kubernetes.io/part-of: coreason
+#         app.kubernetes.io/component: '{{.component}}'
+#         coreason.ai/cluster: '{{.nameNormalized}}'
+#       annotations:
+#         argocd.argoproj.io/sync-wave: '{{.syncWave}}'
+#     spec:
+#       project: coreason
+#       source:
+#         repoURL: '{{.chartRepo}}'
+#         chart: '{{.chart}}'
+#         targetRevision: '{{.chartVersion}}'
+#         helm:
+#           releaseName: '{{.component}}'
+#           # Cluster-specific values overlay:
+#           valueFiles:
+#             - values/{{.nameNormalized}}/{{.component}}.yaml
+#       destination:
+#         # Dynamic: deploys to the discovered cluster
+#         server: '{{.server}}'
+#         namespace: '{{.namespace}}'
+#       syncPolicy:
+#         automated:
+#           prune: true
+#           selfHeal: true
+#         syncOptions:
+#           - CreateNamespace=true
+#           - ServerSideApply=true

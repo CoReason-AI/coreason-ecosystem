@@ -1,12 +1,45 @@
 global:
   environment: local # Options: 'local' (laptops) or 'production' (hyperscaler)
+  # ISV Distribution Configuration
+  networkMode: public       # 'public' = CoReason-managed network | 'private' = client-operated network
+  licenseType: prosperity-3.0  # 'prosperity-3.0' = assets forged by coreason-meta-engineering are licensed to CoReason | 'commercial' = client retains ownership of forged assets
+  federationEnabled: false  # When true, enables bridge from client's private network to CoReason public network
+
+# OCI Registry Credentials — injected by the client for private GHCR access
+imagePullSecrets:
+  - name: coreason-registry-credentials
 
 gateway:
   replicaCount: 1
+  terminationGracePeriodSeconds: 30
   image:
     repository: ghcr.io/coreason/coreason-master-gateway
     tag: latest
+    # Digest pin (SHA-256): When set, takes precedence over tag.
+    # Production deployments MUST use digest for SOC2/ISO compliance.
+    # Example: sha256:abc123def456...
+    digest: ""
     pullPolicy: IfNotPresent
+  # Health probes — ArgoCD waits for these before proceeding to next sync-wave.
+  # Endpoints MUST be lightweight (no DB calls, no external deps).
+  probes:
+    startup:
+      path: /healthz
+      initialDelaySeconds: 5
+      periodSeconds: 2
+      timeoutSeconds: 3
+      failureThreshold: 30    # 30 × 2s = 60s max startup
+    readiness:
+      path: /healthz
+      periodSeconds: 10
+      timeoutSeconds: 3
+      successThreshold: 1
+      failureThreshold: 3
+    liveness:
+      path: /healthz
+      periodSeconds: 15
+      timeoutSeconds: 5
+      failureThreshold: 5     # 5 × 15s = 75s before restart
   resources:
     limits:
       cpu: 1000m
@@ -17,6 +50,7 @@ gateway:
 
 runtime:
   replicaCount: 1
+  terminationGracePeriodSeconds: 60  # Longer than gateway to drain Temporal workflows
   autoscaling:
     enabled: true
     minReplicas: 1
@@ -25,7 +59,27 @@ runtime:
   image:
     repository: ghcr.io/coreason/coreason-runtime
     tag: latest
+    # Digest pin (SHA-256): When set, takes precedence over tag.
+    digest: ""
     pullPolicy: IfNotPresent
+  probes:
+    startup:
+      path: /healthz
+      initialDelaySeconds: 10  # Longer delay for model loading
+      periodSeconds: 2
+      timeoutSeconds: 3
+      failureThreshold: 45    # 45 × 2s = 90s max startup
+    readiness:
+      path: /healthz
+      periodSeconds: 10
+      timeoutSeconds: 3
+      successThreshold: 1
+      failureThreshold: 3
+    liveness:
+      path: /healthz
+      periodSeconds: 20       # Wider interval — avoid killing long inferences
+      timeoutSeconds: 5
+      failureThreshold: 5
   resources:
     limits:
       cpu: 2000m

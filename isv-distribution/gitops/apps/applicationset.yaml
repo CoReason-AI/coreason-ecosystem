@@ -1,0 +1,207 @@
+# Copyright (c) 2026 CoReason, Inc. Licensed under the Prosperity Public License 3.0.
+#
+# CoReason Platform — ApplicationSet
+# =====================================
+# Single declarative source for all CoReason Helm chart deployments.
+# Uses a List generator to define per-chart configurations while
+# sharing common sync policies and destination settings.
+#
+# Adding a new chart:
+#   1. Add a new element to the generators[0].list.elements array
+#   2. Push to main — ArgoCD auto-discovers and deploys it
+#   3. No new YAML file needed
+#
+# Sync Ordering:
+#   sync-wave "0" = External Secrets Operator (secret management infrastructure)
+#   sync-wave "1" = Core (Gateway, Runtime, Temporal, Neo4j, Milvus, Dex)
+#   sync-wave "2" = Mesh (Governance Plane, MCP Router, Istio, LanceDB)
+#   sync-wave "3" = Observability (Prometheus, Grafana, OTel Collector)
+#
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: coreason-platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: coreason
+    app.kubernetes.io/component: gitops-platform
+    app.kubernetes.io/managed-by: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          # ── External Secrets Operator (Secret Management) ──────────────
+          # Deploys before all other components so ESO can create
+          # the registry credentials that Core/Mesh need to pull images.
+          # To disable ESO (if using kubectl-managed secrets), remove
+          # this element — the platform will fall back to manually
+          # created secrets.
+          - chart: external-secrets
+            name: coreason-external-secrets
+            component: secret-management
+            syncWave: "0"
+            chartVersion: "~0.12.0"
+            chartRepo: https://charts.external-secrets.io
+            namespace: external-secrets
+            values: |
+              installCRDs: true
+              serviceAccount:
+                create: true
+                name: external-secrets-sa
+              webhook:
+                port: 9443
+              certController:
+                enabled: true
+
+          # ── Core (Enterprise) ──────────────────────────────────────────
+          - chart: coreason-enterprise
+            name: coreason-core
+            component: core
+            syncWave: "1"
+            chartVersion: "~0.1.0"
+            chartRepo: ghcr.io/coreason-ai/charts
+            namespace: coreason-system
+            values: |
+              global:
+                environment: production
+              imagePullSecrets:
+                - name: coreason-registry-credentials
+
+          # ── Mesh (Governance Plane) ────────────────────────────────────
+          - chart: coreason-mesh
+            name: coreason-mesh
+            component: mesh
+            syncWave: "2"
+            chartVersion: "~0.1.0"
+            chartRepo: ghcr.io/coreason-ai/charts
+            namespace: coreason-system
+            values: |
+              replicaCount: 3
+              imagePullSecrets:
+                - name: coreason-registry-credentials
+              image:
+                pullPolicy: IfNotPresent
+
+          # ── Observability ──────────────────────────────────────────────
+          - chart: coreason-observability
+            name: coreason-observability
+            component: observability
+            syncWave: "3"
+            chartVersion: "~0.1.0"
+            chartRepo: ghcr.io/coreason-ai/charts
+            namespace: coreason-system
+            values: |
+              enabled: true
+              prometheus:
+                enabled: true
+              otelCollector:
+                enabled: true
+
+  # Prevent accidental cascade-deletion of PVCs and StatefulSets
+  # when the ApplicationSet is modified or removed.
+  preserveResourcesOnDeletion: true
+
+  template:
+    metadata:
+      name: '{{.name}}'
+      namespace: argocd
+      labels:
+        app.kubernetes.io/part-of: coreason
+        app.kubernetes.io/component: '{{.component}}'
+        app.kubernetes.io/managed-by: argocd
+      annotations:
+        argocd.argoproj.io/compare-options: IgnoreExtraneous
+        argocd.argoproj.io/sync-wave: '{{.syncWave}}'
+      # NOTE: No resources-finalizer. preserveResourcesOnDeletion (above)
+      # provides orphan protection. The finalizer would cascade-delete
+      # PVCs and StatefulSets if a child Application is removed.
+    spec:
+      project: coreason
+      source:
+        repoURL: '{{.chartRepo}}'
+        chart: '{{.chart}}'
+        targetRevision: '{{.chartVersion}}'
+        helm:
+          releaseName: '{{.name}}'
+          values: '{{.values}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{.namespace}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 5m
+      ignoreDifferences:
+        # ── HPA-managed fields ────────────────────────────────────────
+        # The HorizontalPodAutoscaler controller overwrites replicas;
+        # ArgoCD must not fight it or selfHeal will thrash.
+        - group: apps
+          kind: Deployment
+          jsonPointers:
+            - /spec/replicas
+        - group: apps
+          kind: StatefulSet
+          jsonPointers:
+            - /spec/replicas
+        - group: autoscaling
+          kind: HorizontalPodAutoscaler
+          jsonPointers:
+            - /spec/metrics
+            - /status
+
+        # ── Webhook CA injection ──────────────────────────────────────
+        # cert-manager and ESO webhook controllers inject caBundle
+        # after the resource is created. Ignoring prevents perpetual
+        # OutOfSync on every reconciliation cycle.
+        - group: admissionregistration.k8s.io
+          kind: MutatingWebhookConfiguration
+          jqPathExpressions:
+            - .webhooks[]?.clientConfig.caBundle
+        - group: admissionregistration.k8s.io
+          kind: ValidatingWebhookConfiguration
+          jqPathExpressions:
+            - .webhooks[]?.clientConfig.caBundle
+
+        # ── ServiceAccount token secrets (pre-1.24 clusters) ─────────
+        # The K8s token controller appends auto-generated secrets to
+        # ServiceAccounts. On 1.24+ this is a no-op but harmless.
+        - group: ""
+          kind: ServiceAccount
+          jsonPointers:
+            - /secrets
+
+        # ── ESO-managed Secrets ───────────────────────────────────────
+        # External Secrets Operator continuously reconciles Secret data.
+        # ArgoCD must not revert ESO-written values.
+        - group: ""
+          kind: Secret
+          jsonPointers:
+            - /data
+            - /stringData
+
+        # ── Kube-proxy / cloud-controller annotations ─────────────────
+        # Cloud LB controllers (AWS ALB, GCE, Azure) inject annotations
+        # on Services after creation (e.g. load-balancer ingress info).
+        - group: ""
+          kind: Service
+          jsonPointers:
+            - /metadata/annotations
+
+        # ── CronJob last-schedule annotation ──────────────────────────
+        # The CronJob controller updates status after each run.
+        - group: batch
+          kind: CronJob
+          jsonPointers:
+            - /status
+

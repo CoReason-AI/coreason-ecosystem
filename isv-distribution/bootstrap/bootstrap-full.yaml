@@ -1,0 +1,321 @@
+# Copyright (c) 2026 CoReason, Inc. Licensed under the Prosperity Public License 3.0.
+#
+# CoReason ISV Bootstrap — Full (Batteries-Included)
+# =====================================================
+# USE THIS FILE if your cluster does NOT have ArgoCD installed.
+#
+# This manifest performs a complete bootstrap:
+#   1. Installs ArgoCD into the 'argocd' namespace
+#   2. Creates the 'coreason-system' namespace
+#   3. Configures RBAC and AppProject boundaries
+#   4. Deploys the CoReason platform via ArgoCD ApplicationSet
+#
+# Prerequisites:
+#   1. A running Kubernetes cluster (v1.28+)
+#   2. kubectl configured with cluster-admin privileges
+#   3. A valid CoReason OCI pull token (provided by CoReason sales)
+#   4. A default StorageClass configured in the cluster
+#
+# STEP 1 — Install ArgoCD (run this first):
+#
+#   kubectl create namespace argocd
+#   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.14.11/manifests/install.yaml
+#
+# STEP 2 — Wait for ArgoCD to become ready:
+#
+#   kubectl wait --for=condition=Available deployment/argocd-server -n argocd --timeout=300s
+#
+# STEP 3 — Create the image pull secret for workload pods:
+#
+#   kubectl create namespace coreason-system --dry-run=client -o yaml | kubectl apply -f -
+#   kubectl create secret docker-registry coreason-registry-credentials \
+#     --namespace=coreason-system \
+#     --docker-server=ghcr.io \
+#     --docker-username=<your-github-username> \
+#     --docker-password=<your-coreason-oci-token> \
+#     --docker-email=<your-email>
+#
+# STEP 4 — Create ArgoCD OCI registry credentials (for Helm chart pulls):
+#
+#   kubectl create secret generic coreason-oci-helm-creds \
+#     --namespace=argocd \
+#     --from-literal=type=helm \
+#     --from-literal=name=coreason-charts \
+#     --from-literal=url=ghcr.io/coreason-ai/charts \
+#     --from-literal=enableOCI=true \
+#     --from-literal=username=<your-github-username> \
+#     --from-literal=password=<your-coreason-oci-token>
+#   kubectl label secret coreason-oci-helm-creds -n argocd \
+#     argocd.argoproj.io/secret-type=repository
+#
+# STEP 5 — Apply the CoReason bootstrap (this file):
+#
+#   kubectl apply -f bootstrap-full.yaml
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# NOTE: The ArgoCD installation (Step 1) is performed via the upstream
+# manifest URL rather than being embedded in this file. This ensures you
+# always get the latest security patches and avoids bloating this bootstrap
+# with ~10,000 lines of ArgoCD CRDs.
+# ─────────────────────────────────────────────────────────────────────────────
+---
+# 1. Create the coreason-system namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: coreason-system
+  labels:
+    app.kubernetes.io/part-of: coreason
+    app.kubernetes.io/managed-by: argocd
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# 2. ServiceAccount for ArgoCD controller operations
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coreason-argocd-sa
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: coreason
+    app.kubernetes.io/component: gitops
+---
+# 3. ClusterRole — CoReason-scoped permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: coreason-argocd-controller
+  labels:
+    app.kubernetes.io/part-of: coreason
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["namespaces", "services", "configmaps", "secrets", "persistentvolumeclaims", "serviceaccounts"]
+    verbs: ["create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["create", "update", "patch", "delete"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["create", "update", "patch", "delete"]
+  - apiGroups: ["networking.istio.io"]
+    resources: ["virtualservices", "gateways", "destinationrules"]
+    verbs: ["create", "update", "patch", "delete"]
+  - apiGroups: ["security.istio.io"]
+    resources: ["peerauthentications", "authorizationpolicies"]
+    verbs: ["create", "update", "patch", "delete"]
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications", "applicationsets", "appprojects"]
+    verbs: ["*"]
+---
+# 4. ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: coreason-argocd-controller-binding
+  labels:
+    app.kubernetes.io/part-of: coreason
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: coreason-argocd-controller
+subjects:
+  - kind: ServiceAccount
+    name: coreason-argocd-sa
+    namespace: argocd
+---
+# 5. OCI Registry Credentials Secret for ArgoCD Helm chart pulls
+#
+# IMPORTANT: Do NOT embed credentials in this file.
+# Create this secret via kubectl BEFORE applying the bootstrap:
+#
+#   kubectl create secret generic coreason-oci-helm-creds \
+#     --namespace=argocd \
+#     --from-literal=type=helm \
+#     --from-literal=name=coreason-charts \
+#     --from-literal=url=ghcr.io/coreason-ai/charts \
+#     --from-literal=enableOCI=true \
+#     --from-literal=username=$GITHUB_USERNAME \
+#     --from-literal=password=$COREASON_OCI_TOKEN
+#
+#   kubectl label secret coreason-oci-helm-creds -n argocd \
+#     argocd.argoproj.io/secret-type=repository
+---
+# 6. ArgoCD AppProject — strict RBAC boundary
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: coreason
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: coreason
+    app.kubernetes.io/component: gitops
+spec:
+  description: "CoReason Enterprise Platform — ISV Deployment Project"
+  sourceRepos:
+    - "ghcr.io/coreason-ai/charts/*"
+    - "https://github.com/CoReason-AI/coreason-ecosystem.git"
+    - "https://prometheus-community.github.io/helm-charts"
+    - "https://open-telemetry.github.io/opentelemetry-helm-charts"
+    - "https://charts.external-secrets.io"
+  destinations:
+    - namespace: coreason-system
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+    - namespace: external-secrets
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+    - group: external-secrets.io
+      kind: ClusterSecretStore
+  # ── Namespace-scoped Resource Whitelist ──────────────────────────
+  # Principle of Least Privilege: only the resource types CoReason
+  # Helm charts actually produce are permitted. Enterprise customers
+  # can audit this list to verify exactly what the ISV deploys.
+  namespaceResourceWhitelist:
+    # Core workload primitives
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    - group: ""
+      kind: PersistentVolumeClaim
+    - group: apps
+      kind: Deployment
+    - group: apps
+      kind: StatefulSet
+    - group: apps
+      kind: DaemonSet
+    # Autoscaling
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+    # Batch workloads (migrations, cron jobs)
+    - group: batch
+      kind: Job
+    - group: batch
+      kind: CronJob
+    # Ingress (traffic routing only — NOT NetworkPolicy)
+    - group: networking.k8s.io
+      kind: Ingress
+    # Istio service mesh (optional — ignored if CRDs absent)
+    - group: networking.istio.io
+      kind: VirtualService
+    - group: networking.istio.io
+      kind: Gateway
+    - group: networking.istio.io
+      kind: DestinationRule
+    - group: security.istio.io
+      kind: PeerAuthentication
+    - group: security.istio.io
+      kind: AuthorizationPolicy
+    # Observability (Prometheus Operator CRDs)
+    - group: monitoring.coreos.com
+      kind: ServiceMonitor
+    - group: monitoring.coreos.com
+      kind: PrometheusRule
+    # External Secrets Operator
+    - group: external-secrets.io
+      kind: ExternalSecret
+    - group: external-secrets.io
+      kind: SecretStore
+
+  # ── Namespace-scoped Resource Blacklist (Defense-in-Depth) ──────
+  # Even if the whitelist is accidentally broadened (e.g. group: "*"),
+  # these resources remain BLOCKED. This protects enterprise customers
+  # from ISV deployments that could:
+  #   - Alter cluster resource quotas (ResourceQuota, LimitRange)
+  #   - Escalate RBAC privileges (Role, RoleBinding)
+  #   - Hijack service discovery (Endpoints)
+  #   - Dictate network segmentation (NetworkPolicy)
+  #
+  # Secrets are intentionally NOT whitelisted above — ESO manages
+  # all secrets via ExternalSecret CRs, not direct Secret creation.
+  # If your deployment requires direct Secret creation, add it to
+  # the whitelist above (NOT recommended for SOC2 compliance).
+  namespaceResourceBlacklist:
+    # Resource governance — customer's domain, not ISV's
+    - group: ""
+      kind: ResourceQuota
+    - group: ""
+      kind: LimitRange
+    # RBAC escalation prevention
+    - group: rbac.authorization.k8s.io
+      kind: Role
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+    # Network segmentation — customer's security team owns this
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    # Service discovery hijacking prevention
+    - group: ""
+      kind: Endpoints
+---
+# 7. Root ArgoCD Application — "App of Apps" pattern
+#
+# IMPORTANT — targetRevision Pinning:
+#   This root Application MUST be pinned to a release tag or SHA, NOT
+#   a branch like 'main'. Pointing to a branch means ANY push (docs,
+#   CI, accidental merge) triggers a full platform re-sync in customer
+#   clusters. Pin to the latest release tag and bump via GitOps PR:
+#
+#   To update:
+#     1. Find the latest release: gh release list -R CoReason-AI/coreason-ecosystem
+#     2. Update targetRevision below to the new tag (e.g. v0.80.0)
+#     3. Commit and push — ArgoCD picks up the new version on next sync
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: coreason-platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: coreason
+    app.kubernetes.io/component: gitops-root
+  # NOTE: No resources-finalizer.argocd.argoproj.io finalizer.
+  # The finalizer causes cascade-deletion of ALL child resources
+  # (including PVCs with customer data) if this root Application
+  # is accidentally deleted. Without it, children become orphaned
+  # but survive. The ApplicationSet's preserveResourcesOnDeletion
+  # provides the same safety net at that level.
+spec:
+  project: coreason
+  source:
+    repoURL: https://github.com/CoReason-AI/coreason-ecosystem.git
+    # Pin to release tag — NOT a branch. See header comment.
+    targetRevision: v0.79.0
+    path: isv-distribution/gitops/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      # allowEmpty: false — prevents accidental deletion of all resources
+      # if the repo path becomes empty (e.g. during branch switchover).
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+

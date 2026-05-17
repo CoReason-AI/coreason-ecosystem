@@ -1,0 +1,73 @@
+# Copyright (c) 2026 CoReason, Inc. Licensed under the Prosperity Public License 3.0.
+#
+# CoReason Observability Stack — Default Values
+# ================================================
+# This chart wraps upstream community Helm charts (kube-prometheus-stack and
+# opentelemetry-collector) behind toggleable conditions. Enterprise clients
+# with mandated monitoring stacks (Datadog, Dynatrace, etc.) can disable
+# individual components without affecting the core CoReason deployment.
+
+# --- Master Toggle ---
+# Set to false to disable the entire observability stack
+enabled: true
+
+# --- Prometheus + Grafana (kube-prometheus-stack) ---
+prometheus:
+  enabled: true
+
+# --- OpenTelemetry Collector ---
+otelCollector:
+  enabled: true
+
+# --- kube-prometheus-stack overrides ---
+kube-prometheus-stack:
+  grafana:
+    enabled: true
+    adminPassword: "coreason-admin"
+    dashboardProviders:
+      dashboardproviders.yaml:
+        apiVersion: 1
+        providers:
+          - name: coreason
+            orgId: 1
+            folder: CoReason
+            type: file
+            disableDeletion: false
+            editable: true
+            options:
+              path: /var/lib/grafana/dashboards/coreason
+  prometheus:
+    prometheusSpec:
+      serviceMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelectorNilUsesHelmValues: false
+      retention: 7d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 50Gi
+
+# --- OpenTelemetry Collector overrides ---
+opentelemetry-collector:
+  mode: deployment
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    exporters:
+      prometheus:
+        endpoint: 0.0.0.0:8889
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp]
+          exporters: [prometheus]
+        traces:
+          receivers: [otlp]
+          exporters: []

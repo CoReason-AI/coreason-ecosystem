@@ -14,14 +14,50 @@ spec:
       labels:
         app.kubernetes.io/name: {{ .Chart.Name }}
     spec:
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds | default 30 }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
+          {{- if .Values.image.digest }}
+          image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
+          {{- else }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: 8000
               protocol: TCP
+          # Startup probe: mesh is a stateless MCP router, starts quickly.
+          # Budget: failureThreshold × periodSeconds = 30 × 2s = 60s.
+          startupProbe:
+            httpGet:
+              path: {{ .Values.probes.startup.path | default "/healthz" }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.startup.initialDelaySeconds | default 5 }}
+            periodSeconds: {{ .Values.probes.startup.periodSeconds | default 2 }}
+            timeoutSeconds: {{ .Values.probes.startup.timeoutSeconds | default 3 }}
+            failureThreshold: {{ .Values.probes.startup.failureThreshold | default 30 }}
+          # Readiness probe: gates Service traffic.
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.path | default "/healthz" }}
+              port: http
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds | default 3 }}
+            successThreshold: {{ .Values.probes.readiness.successThreshold | default 1 }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold | default 3 }}
+          # Liveness probe: conservative thresholds.
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.liveness.path | default "/healthz" }}
+              port: http
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds | default 15 }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold | default 5 }}
           env:
             - name: OPA_URL
               value: {{ .Values.env.OPA_URL | quote }}
@@ -31,3 +67,4 @@ spec:
               value: {{ .Values.env.COREASON_S3_BUCKET | quote }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: {{ .Values.env.OTEL_EXPORTER_OTLP_ENDPOINT | quote }}
+

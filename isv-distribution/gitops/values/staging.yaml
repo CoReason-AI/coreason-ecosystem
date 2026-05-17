@@ -1,0 +1,59 @@
+# Copyright (c) 2026 CoReason, Inc. Licensed under the Prosperity Public License 3.0.
+#
+# Staging Values Overlay
+# ========================
+# Apply these values when deploying to staging/test Kubernetes clusters.
+# Uses reduced replicas and embedded OSS databases for cost efficiency
+# while maintaining production-equivalent configurations.
+#
+# Usage: Referenced by ArgoCD Application manifests or applied manually via:
+#   helm install coreason-core oci://ghcr.io/coreason-ai/charts/coreason-enterprise \
+#     -f staging.yaml -n coreason-system
+#
+
+global:
+  environment: local
+  # ISV Distribution — override per client deployment
+  networkMode: public       # 'public' = CoReason-managed network | 'private' = client-operated network
+  licenseType: prosperity-3.0  # 'prosperity-3.0' = forged assets licensed to CoReason | 'commercial' = client retains ownership
+  federationEnabled: false  # When true, enables bridge from client's private network to CoReason public network
+
+# --- CoReason Enterprise (Core) Overrides ---
+gateway:
+  replicaCount: 1
+  image:
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+
+runtime:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  image:
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 200m
+      memory: 1Gi
+
+imagePullSecrets:
+  - name: coreason-registry-credentials
+
+# Enable embedded OSS databases for staging environments
+neo4j:
+  enabled: true
+temporal:
+  enabled: true
+milvus:
+  enabled: true
+dex:
+  enabled: true

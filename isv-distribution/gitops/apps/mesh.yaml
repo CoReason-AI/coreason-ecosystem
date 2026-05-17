@@ -1,0 +1,11 @@
+# Copyright (c) 2026 CoReason, Inc. Licensed under the Prosperity Public License 3.0.
+#
+# SUPERSEDED: This file has been replaced by applicationset.yaml
+# =================================================================
+# The CoReason platform now uses a single ApplicationSet (applicationset.yaml)
+# to manage all chart deployments. This file is retained for Git history only.
+#
+# To add, modify, or remove charts, edit the generators.list.elements array
+# in applicationset.yaml.
+#
+# This file contains no Kubernetes resources and can be safely deleted.
