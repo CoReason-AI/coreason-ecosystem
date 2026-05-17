@@ -11,7 +11,7 @@
 """
 Federation module for inter-instance CoReason communication.
 
-This module provides the core identity and proxy mechanisms for federated 
+This module provides the core identity and proxy mechanisms for federated
 swarm execution across zero-trust network boundaries.
 """
 

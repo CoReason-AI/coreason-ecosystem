@@ -10,7 +10,7 @@
 
 """Workload Identity Passthrough.
 
-This module provides utilities to extract SPIFFE IDs and JWT tokens from 
+This module provides utilities to extract SPIFFE IDs and JWT tokens from
 inbound headers for use in zero-trust authorization sidecars.
 """
 
@@ -25,21 +25,21 @@ logger = logging.getLogger(__name__)
 def extract_workload_identity(headers: dict[str, str]) -> dict[str, Any]:
     """
     Extracts the SPIFFE SVID or JWT from Envoy/NATS headers.
-    
+
     This is a passthrough function. Actual authorization decisions are
     delegated to the Envoy proxy layer or an external OPA sidecar.
     """
     # Normalize headers to lowercase for deterministic lookups
     norm_headers = {k.lower(): v for k, v in headers.items()}
-    
+
     # Extract SPIFFE ID (typically injected by Envoy/SPIRE)
     spiffe_id = norm_headers.get("x-spiffe-id")
-    
+
     # Extract JWT (typically in Authorization header)
     auth_header = norm_headers.get("authorization")
     jwt_payload = None
     raw_jwt = None
-    
+
     if auth_header and auth_header.startswith("Bearer "):
         raw_jwt = auth_header[7:]
         try:

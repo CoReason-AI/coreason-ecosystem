@@ -22,7 +22,6 @@ def router() -> SemanticRouter:
     return SemanticRouter(runtime_url="http://test-runtime:8000")
 
 
-
 @pytest.mark.asyncio
 async def test_route_intent_success(router: SemanticRouter) -> None:
     async with respx.mock:

@@ -113,10 +113,7 @@ class SkyPilotActuator:
         setup_cmds = []
         cluster_name = f"coreason-sky-{int(asyncio.get_event_loop().time())}"
 
-        if (
-            target.hardware_profile
-            and target.security_profile
-        ):
+        if target.hardware_profile and target.security_profile:
             # Generate NATS-native bootstrap payload (replaces MeshInjector)
             bootstrap_payload = json.dumps(
                 {

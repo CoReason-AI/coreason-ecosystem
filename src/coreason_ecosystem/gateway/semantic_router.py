@@ -25,7 +25,7 @@ MCP ROUTING TRIGGERS: Hollow Gateway, RPC Discovery, Semantic Proxy
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 import httpx
 from loguru import logger
@@ -45,7 +45,9 @@ class SemanticRouter:
             runtime_url: The base URL of the coreason-runtime API.
                          Defaults to COREASON_RUNTIME_URL env var or localhost:8000.
         """
-        self.runtime_url = runtime_url or os.getenv("COREASON_RUNTIME_URL", "http://localhost:8000")
+        self.runtime_url = runtime_url or os.getenv(
+            "COREASON_RUNTIME_URL", "http://localhost:8000"
+        )
         self._client = httpx.AsyncClient(base_url=self.runtime_url, timeout=10.0)
 
     async def route_intent(
@@ -70,7 +72,9 @@ class SemanticRouter:
         Returns:
             List of URNs sorted by final score (highest first).
         """
-        logger.debug(f"Delegating semantic discovery for intent: '{query_text}' to {self.runtime_url}")
+        logger.debug(
+            f"Delegating semantic discovery for intent: '{query_text}' to {self.runtime_url}"
+        )
 
         try:
             response = await self._client.post(
@@ -102,6 +106,7 @@ class SemanticRouter:
 # Note: Legacy configuration classes are kept as empty stubs or minimal
 # implementations to prevent breaking imports in other modules, but they
 # no longer influence the routing logic.
+
 
 class IntentWeighting:
     """Legacy stub for IntentWeighting."""
