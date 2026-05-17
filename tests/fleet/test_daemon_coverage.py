@@ -1,4 +1,13 @@
-# Copyright (c) 2026 CoReason, Inc.
+# Copyright (c) 2026 CoReason, Inc
+#
+# This software is proprietary and dual-licensed
+# Licensed under the Prosperity Public License 3.0 (the "License")
+# A copy of the license is available at <https://prosperitylicense.com/versions/3.0.0>
+# For details, see the LICENSE file
+# Commercial use beyond a 30-day trial requires a separate license
+#
+# Source Code: <https://github.com/CoReason-AI/coreason-manifest>
+
 import asyncio
 from pathlib import Path
 from typing import Any, Dict, List
@@ -42,7 +51,7 @@ def fleet_manager() -> AutonomicFleetManager:
 @pytest.mark.asyncio
 async def test_daemon_cooldown_decrement(fleet_manager: AutonomicFleetManager) -> None:
     """Cover background _cooldown_and_decrement task without mocks."""
-    fake_driver = fleet_manager.driver  # type: ignore
+    fake_driver: Any = fleet_manager.driver
     fake_driver.reconcile_data = [{"vram_capacity": -10.0}]
 
     # Stop the daemon after one iteration by setting _running to False in the loop
@@ -69,7 +78,7 @@ async def test_daemon_cooldown_decrement(fleet_manager: AutonomicFleetManager) -
 @pytest.mark.asyncio
 async def test_daemon_idle_no_nodes(fleet_manager: AutonomicFleetManager) -> None:
     """Cover idle with no active stacks without mocks."""
-    fake_driver = fleet_manager.driver  # type: ignore
+    fake_driver: Any = fleet_manager.driver
     fake_driver.reconcile_data = []
 
     async def reconcile_and_stop():

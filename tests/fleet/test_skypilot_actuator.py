@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc.
+# Copyright (c) 2026 CoReason, Inc
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -6,7 +6,9 @@
 # For details, see the LICENSE file
 # Commercial use beyond a 30-day trial requires a separate license
 #
-# Source Code: <https://github.com/CoReason-AI/coreason-ecosystem>
+# Source Code: <https://github.com/CoReason-AI/coreason-manifest>
+
+from typing import Any
 
 import pytest
 from coreason_ecosystem.fleet.skypilot_actuator import SkyPilotActuator, SkyPilotTarget
@@ -118,8 +120,9 @@ async def test_provision_node_with_hardware(
 
     await actuator.provision_node(target)
 
-    assert fake_sky.last_task.resources["accelerators"] == "H100:1"
-    assert fake_sky.last_task.resources["use_spot"] is False
+    task: Any = fake_sky.last_task
+    assert task.resources["accelerators"] == "H100:1"
+    assert task.resources["use_spot"] is False
 
 
 @pytest.mark.asyncio
@@ -182,7 +185,8 @@ async def test_provision_node_with_mesh_injection(
 
     await actuator.provision_node(target)
 
-    setup_cmd = fake_sky.last_task.setup
+    task: Any = fake_sky.last_task
+    setup_cmd = task.setup
     assert "mkdir -p /etc/coreason" in setup_cmd
     assert "/opt/coreason/bin/bootstrap.sh" in setup_cmd
     assert "base64 -d" in setup_cmd

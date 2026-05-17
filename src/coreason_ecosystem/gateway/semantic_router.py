@@ -1,12 +1,12 @@
-# Copyright (c) 2026 CoReason, Inc.
+# Copyright (c) 2026 CoReason, Inc
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
+# A copy of the license is available at <https://prosperitylicense.com/versions/3.0.0>
 # For details, see the LICENSE file
 # Commercial use beyond a 30-day trial requires a separate license
 #
-# Source Code: https://github.com/CoReason-AI/coreason-ecosystem
+# Source Code: <https://github.com/CoReason-AI/coreason-manifest>
 
 """
 Hollow Semantic Router for the Ecosystem Gateway.
@@ -38,15 +38,15 @@ class SemanticRouter:
     RPC client, following the Tripartite Architecture mandate.
     """
 
-    def __init__(self, runtime_url: Optional[str] = None):
+    def __init__(self, runtime_url: Optional[str] = None) -> None:
         """Initialize the hollow router.
 
         Args:
             runtime_url: The base URL of the coreason-runtime API.
                          Defaults to COREASON_RUNTIME_URL env var or localhost:8000.
         """
-        self.runtime_url = runtime_url or os.getenv(
-            "COREASON_RUNTIME_URL", "http://localhost:8000"
+        self.runtime_url: str = (
+            runtime_url or os.getenv("COREASON_RUNTIME_URL") or "http://localhost:8000"
         )
         self._client = httpx.AsyncClient(base_url=self.runtime_url, timeout=10.0)
 
