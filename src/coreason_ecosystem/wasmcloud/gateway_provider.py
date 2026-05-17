@@ -10,20 +10,14 @@
 
 """MCP-to-NATS Gateway Provider — The Hollow Plane Bridge.
 
-Replaces the custom FastAPI SSE transport in ``master_mcp.py`` with a
-NATS-native routing layer.  External AI agents connect via MCP (JSON-RPC
-over SSE/Streamable HTTP), and tool invocations are published as NATS
-messages for routing to wasmCloud capability providers on the lattice.
+External AI agents connect via MCP (JSON-RPC over SSE/Streamable HTTP), 
+and tool invocations are published as NATS messages for routing to wasmCloud 
+capability providers on the lattice.
 
 This module implements the "Borrow, Don't Build" mandate by delegating:
   - Mesh networking → NATS Lattice (CNCF OSS)
   - Component sandboxing → wasmCloud / Wasmtime (CNCF OSS)
   - Registry state → wadm + JetStream (CNCF OSS)
-
-The only proprietary logic retained is:
-  - MCP protocol handling (MCP SDK — OSS)
-  - JWT/OIDC validation (domain logic)
-  - Semantic routing (domain logic, future phase)
 """
 
 from __future__ import annotations
@@ -62,12 +56,7 @@ class NATSGatewayProvider:
     Architecture:
         External Agent → MCP SSE → NATSGatewayProvider → NATS Lattice → Capability Provider
 
-    Replaces:
-        - ``master_mcp.py`` (custom FastAPI SSE gateway)
-        - ``nemoclaw_client.py`` (custom httpx bridge)
-        - Point-to-point httpx routing in ``invoke_actuator()``
-
-    The MCP SSE endpoint layer (FastAPI + mcp.server) is preserved as a thin
+    The MCP SSE endpoint layer (FastAPI + mcp.server) acts as a thin
     wrapper that delegates tool invocation to this provider.
     """
 
@@ -125,9 +114,6 @@ class NATSGatewayProvider:
 
         Publishes a JSON-RPC request to the NATS subject corresponding to
         the target URN and awaits a reply from the capability provider.
-
-        This replaces the custom httpx-based ``NemoClawBridgeClient.call_tool()``
-        and the point-to-point routing in ``invoke_actuator()``.
 
         Args:
             urn: The URN of the capability to invoke.
@@ -214,8 +200,6 @@ class NATSGatewayProvider:
         Publishes a discovery request and collects responses from all
         capability providers that are listening.
 
-        This replaces ``SovereignMCPRegistry.discover_active_substrates()``.
-
         Args:
             timeout: Maximum wait time for discovery responses.
 
@@ -264,8 +248,7 @@ class NATSGatewayProvider:
     def _compute_request_id(arguments: dict[str, Any]) -> str:
         """Compute a deterministic request ID from the payload.
 
-        Uses SHA-256 truncated to 16 hex characters, matching the
-        existing behavior in master_mcp.py.
+        Uses SHA-256 truncated to 16 hex characters.
         """
         canonical = json.dumps(arguments, sort_keys=True, separators=(",", ":")).encode(
             "utf-8"

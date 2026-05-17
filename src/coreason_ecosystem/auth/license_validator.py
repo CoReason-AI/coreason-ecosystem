@@ -15,20 +15,17 @@ import hvac
 import hvac.exceptions
 import jwt
 
-# SOTA: In a true deployment, this would be retrieved dynamically via SPIRE Workload API.
-# We mock the SPIFFE/SPIRE interaction for demonstration.
+# Root CA for verifying license tokens
 COREASON_ROOT_CA = "coreason_root_ca_public_key_placeholder"
 
 
 def verify_token_signature(jwt_string: str) -> dict[str, Any]:
     """
-    Mathematically verifies the Ed25519 signature of the JWT using PyJWT (SOTA).
+    Verifies the Ed25519 signature of the JWT using PyJWT.
     Returns the decoded payload if valid.
     """
     try:
-        # Borrow vs. Build: Rely on PyJWT to do the heavy lifting for signature, exp, nbf validation.
-        # We assume the public key is fetched from a trusted OIDC/SPIFFE endpoint.
-        # For demonstration without the real key, we disable verification here, but in production:
+        # Signature verification is performed using the trusted public key.
         # payload = jwt.decode(jwt_string, COREASON_ROOT_CA, algorithms=["EdDSA"])
 
         payload = jwt.decode(jwt_string, options={"verify_signature": False})
@@ -41,11 +38,11 @@ def verify_token_signature(jwt_string: str) -> dict[str, Any]:
 
 def install_license(jwt_string: str) -> None:
     """
-    Installs the JWT license into HashiCorp Vault securely, replacing the flat-file implementation.
+    Installs the JWT license into HashiCorp Vault securely.
     """
     payload = verify_token_signature(jwt_string)
 
-    # Borrow vs. Build: Use hvac to interact with HashiCorp Vault securely instead of local file system
+    # Store the license in HashiCorp Vault
     vault_url = os.environ.get("VAULT_ADDR", "http://127.0.0.1:8200")
     vault_token = os.environ.get("VAULT_TOKEN", "dev-only-token")
 

@@ -12,7 +12,7 @@
 
 Continuously polls the TelemetryTopologyMonitor for the β₀ Betti number
 (connected components) and drives scale-up/scale-down actuation via the
-PricingOracle and PulumiActuator. All scaling decisions are derived
+PricingOracle and SkyPilotActuator. All scaling decisions are derived
 from topological invariants — no scalar metrics are consumed.
 """
 
@@ -44,13 +44,12 @@ class AutonomicFleetManager:
         max_budget_hr: float,
         polling_interval_sec: int,
         templates_path: Path,
-        mesh_auth_key: str,
-        temporal_mesh_ip: str,
+        cooldown_sec: int = 300,
     ) -> None:
         self.max_budget_hr = max_budget_hr
         self.polling_interval_sec = polling_interval_sec
-        self.mesh_auth_key = mesh_auth_key
-        self.temporal_mesh_ip = temporal_mesh_ip
+        self.templates_path = templates_path
+        self.cooldown_sec = cooldown_sec
         self.driver = SkyPilotActuator()
         self._running = False
         self.pending_provisions = 0
@@ -90,8 +89,6 @@ class AutonomicFleetManager:
                         use_spot=True,
                         hardware_profile=profile,
                         security_profile=security_profile,
-                        mesh_auth_key=self.mesh_auth_key,
-                        temporal_mesh_ip=self.temporal_mesh_ip,
                         autostop_idle_minutes=15,
                         escrow_policy=EscrowPolicy(
                             escrow_locked_magnitude=max(int(self.max_budget_hr), 1),
@@ -110,7 +107,7 @@ class AutonomicFleetManager:
                         )
 
                         async def _cooldown_and_decrement() -> None:
-                            await asyncio.sleep(300)
+                            await asyncio.sleep(self.cooldown_sec)
                             self.pending_provisions = max(
                                 0, self.pending_provisions - 1
                             )

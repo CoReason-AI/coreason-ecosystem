@@ -14,8 +14,6 @@ def fleet_manager() -> Any:
             max_budget_hr=10.0,
             polling_interval_sec=1,
             templates_path=Path("/tmp"),
-            mesh_auth_key="key",
-            temporal_mesh_ip="ip",
         )
         # Mock dependencies
         manager.driver = MagicMock()
