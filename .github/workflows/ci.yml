@@ -73,7 +73,7 @@ jobs:
   test-ubuntu:
     needs: [lint-and-audit]
     if: always() && needs.lint-and-audit.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, hetzner, x64]
     timeout-minutes: 30
     strategy:
       matrix:
