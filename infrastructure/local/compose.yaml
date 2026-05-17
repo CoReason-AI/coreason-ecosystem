@@ -206,6 +206,7 @@ services:
       - sensory-gateway
 
   coreason-master-gateway:
+    build: ../..
     image: ghcr.io/coreason-ai/coreason-ecosystem:0.32.0
     restart: on-failure
     deploy:
