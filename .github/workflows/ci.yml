@@ -73,15 +73,12 @@ jobs:
   test-ubuntu:
     needs: [lint-and-audit]
     if: always() && needs.lint-and-audit.result == 'success'
-    runs-on: [self-hosted, hetzner, x64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       matrix:
         python-version: ["3.14", "3.14t"]
     steps:
-      - name: Pre-Flight Workspace Purity
-        run: sudo chown -R $(whoami):$(whoami) ${{ github.workspace }} || true
-
       - name: Harden Runner (Endpoint Network Security)
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
         with:
@@ -107,8 +104,8 @@ jobs:
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: gowthamrao
+          password: ${{ secrets.GHCR_PAT }}
 
       - name: Set up Docker Compose
         run: |
@@ -150,11 +147,7 @@ jobs:
           if [ -f "infrastructure/local/compose.yaml" ]; then
             docker compose -f infrastructure/local/compose.yaml down -v || true
           fi
-          sudo chown -R $(whoami):$(whoami) ${{ github.workspace }}
         shell: bash
-
-      - name: Substrate Purity Verification
-        run: git clean -xfd -e .venv -e .uv_cache
 
   test-extended:
     needs: [test-ubuntu]
@@ -253,5 +246,4 @@ jobs:
           if [ -f "infrastructure/local/compose.yaml" ]; then
             docker compose -f infrastructure/local/compose.yaml down -v || true
           fi
-          sudo chown -R $(whoami):$(whoami) ${{ github.workspace }}
         shell: bash
