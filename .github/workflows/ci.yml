@@ -112,6 +112,12 @@ jobs:
           docker compose -f infrastructure/local/compose.yaml up -d --build
         shell: bash
 
+      - name: Dump Docker Compose Logs on Failure
+        if: failure()
+        run: |
+          docker compose -f infrastructure/local/compose.yaml logs
+        shell: bash
+
       - name: Install Temporal CLI
         uses: temporalio/setup-temporal@1059a504f87e7fa2f385e3fa40d1aa7e62f1c6ca # v0
 
