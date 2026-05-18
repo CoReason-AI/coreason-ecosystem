@@ -27,6 +27,7 @@ dependencies = [
     "temporalio>=1.9.0",
     "mcp>=1.27.0",
     "fastapi>=0.135.3",
+    "uvicorn>=0.30.0",
     "pyyaml>=6.0.2",
     "pyarrow>=24.0.0",
     "skypilot>=0.6.2",
