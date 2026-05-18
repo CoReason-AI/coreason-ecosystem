@@ -38,9 +38,21 @@ dependencies = [
 ]
 
 license = { file = "LICENSE" }
+keywords = [
+    "agents",
+    "api-gateway",
+    "coreason",
+    "fastapi",
+    "governance",
+    "mcp",
+    "mesh-networking",
+    "zero-trust",
+]
 classifiers = [
     "License :: Other/Proprietary License",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
 ]
 
 [project.optional-dependencies]
