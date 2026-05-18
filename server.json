@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.coreason-ai/coreason-ecosystem",
+  "name": "io.github.CoReason-AI/coreason-ecosystem",
   "title": "CoReason Ecosystem — Federated MCP Gateway",
   "description": "CoReason Tripartite Architecture Governance Plane. Stateless zero-trust federated MCP gateway.",
   "repository": {
