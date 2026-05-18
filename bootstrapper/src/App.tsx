@@ -39,8 +39,6 @@ type BootState =
   | "Idle"
   | "Detecting"
   | "InstallingNemoclaw"
-  | "NeedNgcKey"
-  | "OnboardingNemoclaw"
   | "NeedGhcrAuth"
   | "Booting"
   | "Active"
@@ -53,8 +51,6 @@ function App() {
   const [receipt, setReceipt] = useState<SwarmBootstrapReceipt | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [logs, setLogs] = useState<string[]>([]);
-  const [ngcApiKey, setNgcApiKey] = useState<string>("");
-  const [ngcKeyError, setNgcKeyError] = useState<string>("");
   const [ghcrUser, setGhcrUser] = useState<string>("");
   const [ghcrPat, setGhcrPat] = useState<string>("");
   const [ghcrError, setGhcrError] = useState<string>("");
@@ -102,7 +98,7 @@ function App() {
       }
 
       if (depResult.status === "NEEDS_NEMOCLAW_ONBOARD") {
-        setBootState("NeedNgcKey");
+        setBootState("NeedGhcrAuth");
         return;
       }
 
@@ -120,37 +116,7 @@ function App() {
     try {
       const result: NemoClawInstallReceipt = await invoke("install_nemoclaw");
       if (result.status === "SUCCESS") {
-        // Binary is now installed; need NGC key to onboard
-        setBootState("NeedNgcKey");
-      } else {
-        setErrorMessage(result.message);
-        setBootState("Error");
-      }
-    } catch (error) {
-      setErrorMessage(String(error));
-      setBootState("Error");
-    }
-  }
-
-  // ─── Step 3: Onboard NemoClaw with NGC API Key ────────────────────────────
-
-  async function runOnboard() {
-    if (!ngcApiKey.trim()) {
-      setNgcKeyError("NGC API key is required.");
-      return;
-    }
-    setNgcKeyError("");
-    setBootState("OnboardingNemoclaw");
-
-    try {
-      const result: NemoClawOnboardReceipt = await invoke("onboard_nemoclaw", {
-        intent: {
-          ngcApiKey: ngcApiKey.trim(),
-          sandboxName: "coreason",
-        },
-      });
-
-      if (result.status === "SUCCESS") {
+        // Binary is now installed; proceed to Ghcr Auth
         setBootState("NeedGhcrAuth");
       } else {
         setErrorMessage(result.message);
@@ -161,6 +127,8 @@ function App() {
       setBootState("Error");
     }
   }
+
+
 
   // ─── Step 4: Ignite Docker Swarm ─────────────────────────────────────────
 
@@ -226,7 +194,6 @@ function App() {
 
   const isStreaming =
     bootState === "InstallingNemoclaw" ||
-    bootState === "OnboardingNemoclaw" ||
     bootState === "Booting";
 
   return (
@@ -268,56 +235,7 @@ function App() {
         </div>
       )}
 
-      {/* ── NEED NGC KEY ── */}
-      {bootState === "NeedNgcKey" && (
-        <div style={styles.card}>
-          <h2 style={styles.cardTitle}>🔑 NGC API Key Required</h2>
-          <p style={styles.cardText}>
-            NemoClaw needs your NVIDIA NGC API key to configure the security sandbox.
-            Your key is used only locally and is never stored or transmitted by CoReason.
-          </p>
-          <p style={styles.helpLink}>
-            Get a free key at{" "}
-            <span
-              style={styles.link}
-              onClick={() => openUrl("https://org.ngc.nvidia.com/setup/api-key")}
-            >
-              org.ngc.nvidia.com/setup/api-key
-            </span>
-          </p>
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label} htmlFor="ngc-key-input">
-              NGC API Key
-            </label>
-            <input
-              id="ngc-key-input"
-              type="password"
-              value={ngcApiKey}
-              onChange={(e) => setNgcApiKey(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && runOnboard()}
-              placeholder="nvapi-xxxxxxxxxxxxxxxxxxxx"
-              style={{
-                ...styles.input,
-                borderColor: ngcKeyError ? "#f44336" : "#444",
-              }}
-            />
-            {ngcKeyError && <p style={styles.fieldError}>{ngcKeyError}</p>}
-          </div>
-
-          <button style={styles.primaryButton} onClick={runOnboard}>
-            Configure NemoClaw Sandbox
-          </button>
-        </div>
-      )}
-
-      {/* ── ONBOARDING ── */}
-      {bootState === "OnboardingNemoclaw" && (
-        <div style={styles.card}>
-          <Spinner label="Configuring NemoClaw sandbox 'coreason'… (this may take 2–3 minutes)" />
-          <LogConsole logs={logs} logsEndRef={logsEndRef} />
-        </div>
-      )}
 
       {/* ── GHCR AUTH ── */}
       {bootState === "NeedGhcrAuth" && (
@@ -443,8 +361,6 @@ function StepIndicator({ bootState }: { bootState: BootState }) {
   const steps = [
     { id: "Detecting", label: "Detect" },
     { id: "InstallingNemoclaw", label: "Install" },
-    { id: "NeedNgcKey", label: "Configure" },
-    { id: "OnboardingNemoclaw", label: "Onboard" },
     { id: "NeedGhcrAuth", label: "Auth" },
     { id: "Booting", label: "Ignite" },
     { id: "Active", label: "Active" },

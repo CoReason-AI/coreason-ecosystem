@@ -68,8 +68,6 @@ pub fn check_dependencies(_intent: SwarmBootstrapIntent) -> SwarmBootstrapReceip
         "NEEDS_DOCKER".to_string()
     } else if !nemoclaw_installed {
         "NEEDS_NEMOCLAW_INSTALL".to_string()
-    } else if !nemoclaw_onboarded {
-        "NEEDS_NEMOCLAW_ONBOARD".to_string()
     } else {
         "SUCCESS".to_string()
     };
@@ -80,10 +78,6 @@ pub fn check_dependencies(_intent: SwarmBootstrapIntent) -> SwarmBootstrapReceip
         }
         "NEEDS_NEMOCLAW_INSTALL" => {
             "NemoClaw binary not found. The bootstrapper will install it automatically.".to_string()
-        }
-        "NEEDS_NEMOCLAW_ONBOARD" => {
-            "NemoClaw is installed but not configured. Please provide your NGC API key to onboard."
-                .to_string()
         }
         _ => "All dependencies satisfied. Ready to ignite swarm.".to_string(),
     };
@@ -152,8 +146,7 @@ pub fn install_nemoclaw(app: tauri::AppHandle) -> NemoClawInstallReceipt {
             let _ = app.emit("boot-log", "[NemoClaw] ✅ Binary installed successfully.");
             return NemoClawInstallReceipt {
                 status: "SUCCESS".to_string(),
-                message: "NemoClaw binary installed. Please provide your NGC API key to onboard."
-                    .to_string(),
+                message: "NemoClaw binary installed.".to_string(),
             };
         }
     }

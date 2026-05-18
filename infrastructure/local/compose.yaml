@@ -50,26 +50,7 @@ services:
       - swarm-mesh
       - sensory-gateway
 
-  coreason-runtime:
-    image: ghcr.io/coreason-ai/coreason-runtime:0.39.0
-    restart: on-failure
-    command: ["start", "api", "--port", "8000"]
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: '512M'
-    environment:
-      - TEMPORAL_ADDRESS=temporal:7233
-      - TEMPORAL_CORS_ORIGINS=http://localhost:8080
-    ports:
-      - "8080:8080"
-    networks:
-      - swarm-mesh
-      - sensory-gateway
-    depends_on:
-      temporal:
-        condition: service_healthy
+
 
   coreason-runtime:
     image: ${COREASON_RUNTIME_IMAGE:-ghcr.io/coreason-ai/coreason-runtime:latest}
@@ -87,9 +68,7 @@ services:
       retries: 5
     environment:
       - EPISTEMIC_MERKLE_ROOT=${EPISTEMIC_MERKLE_ROOT}
-      - OPENAI_API_KEY=lqef2h4s9Oqx2fheJWWhVJo8WrhJBshu
       - OPENAI_BASE_URL=https://api.deepinfra.com/v1/openai
-      - CLOUD_ORACLE_API_KEY=lqef2h4s9Oqx2fheJWWhVJo8WrhJBshu
       - CLOUD_ORACLE_BASE_URL=https://api.deepinfra.com/v1/openai
       - CLOUD_ORACLE_MODEL=meta-llama/Meta-Llama-3-70B-Instruct
       - CLOUD_ORACLE_EMBEDDING_MODEL=text-embedding-3-small
@@ -107,10 +86,8 @@ services:
       # It needs the same environment variables as the API to function
       - TEMPORAL_HOST=temporal:7233
       - NEO4J_URI=bolt://neo4j:7687
-      - OPENAI_API_KEY=lqef2h4s9Oqx2fheJWWhVJo8WrhJBshu
       - OPENAI_BASE_URL=https://api.deepinfra.com/v1/openai
       - EPISTEMIC_MERKLE_ROOT=${EPISTEMIC_MERKLE_ROOT}
-      - CLOUD_ORACLE_API_KEY=lqef2h4s9Oqx2fheJWWhVJo8WrhJBshu
       - CLOUD_ORACLE_BASE_URL=https://api.deepinfra.com/v1/openai
       - CLOUD_ORACLE_MODEL=meta-llama/Meta-Llama-3-70B-Instruct
       - CLOUD_ORACLE_EMBEDDING_MODEL=text-embedding-3-small
@@ -259,7 +236,6 @@ services:
     build: ../..
     image: ghcr.io/coreason-ai/coreason-ecosystem:0.32.0
     restart: on-failure
-    command: ["sleep", "infinity"]
     deploy:
       resources:
         limits:
