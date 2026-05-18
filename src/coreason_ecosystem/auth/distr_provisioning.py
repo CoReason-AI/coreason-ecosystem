@@ -79,6 +79,21 @@ def init_vault() -> None:
     )
 
 
+def _base58_encode(b: bytes) -> str:
+    alphabet = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    num = int.from_bytes(b, "big")
+    res = bytearray()
+    while num > 0:
+        num, rem = divmod(num, 58)
+        res.append(alphabet[rem])
+    for byte in b:
+        if byte == 0:
+            res.append(alphabet[0])
+        else:
+            break
+    return res[::-1].decode("ascii")
+
+
 def issue_license(
     tenant_cid: str,
     entitlements: list[str],
@@ -94,6 +109,12 @@ def issue_license(
     with open(MASTER_KEY_FILE, "rb") as f:
         private_key = serialization.load_pem_private_key(f.read(), password=None)
 
+    # Derive did:key dynamically
+    pub_bytes = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
+    )
+    did = "did:key:z" + _base58_encode(b"\xed\x01" + pub_bytes)
+
     current_time = int(time.time())
     expires_at = current_time + (valid_days * 86400)
 
@@ -106,7 +127,7 @@ def issue_license(
         expires_at_epoch=expires_at,
         network_mode="private",
         license_tier="commercial",
-        signer_did="did:key:z6MkhaXgBZDvotDkL5257faiztiuC2ZXsdY4SSgMnh3YEFWbYB",  # gitleaks:allow
+        signer_did=did,
     )
 
     # Create standard JWT wrapping the VCDM credential
