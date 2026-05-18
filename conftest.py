@@ -22,4 +22,3 @@ if _is_free_threaded:
     # Set sys.modules["bcrypt"] = None to block loading the real bcrypt C extension
     # and force it to fail with an ImportError, which cryptography/paramiko handle gracefully.
     sys.modules["bcrypt"] = None  # type: ignore[assignment]
-
