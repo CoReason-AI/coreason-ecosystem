@@ -12,7 +12,7 @@ authors = [
     { name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" },
 ]
 dependencies = [
-    "coreason-manifest==0.83.1",
+    "coreason-manifest==0.84.0",
     "click>=8.1.7",
     "loguru>=0.7.2",
     "typer>=0.9.0",
