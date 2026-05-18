@@ -106,7 +106,7 @@ def issue_license(
         expires_at_epoch=expires_at,
         network_mode="private",
         license_tier="commercial",
-        signer_did="did:key:z6MkhaXgBZDvotDkL5257faiztiuC2ZXsdY4SSgMnh3YEFWbYB",
+        signer_did="did:key:z6MkhaXgBZDvotDkL5257faiztiuC2ZXsdY4SSgMnh3YEFWbYB",  # gitleaks:allow
     )
 
     # Create standard JWT wrapping the VCDM credential
