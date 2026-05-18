@@ -17,6 +17,9 @@ COPY README.md .
 COPY LICENSE .
 COPY .git ./.git
 
+# Copy local manifest dependency to /coreason-manifest/ to satisfy relative path dependency
+COPY coreason-manifest* /coreason-manifest/
+
 # Install dependencies and build the wheel
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev --frozen
@@ -27,6 +30,9 @@ RUN uv build --wheel --out-dir /wheels
 
 # Stage 2: Runtime
 FROM python:3.14-slim AS runtime
+
+# MCP Registry OCI ownership verification
+LABEL io.modelcontextprotocol.server.name="io.github.coreason-ai/coreason-ecosystem"
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -47,4 +53,4 @@ COPY --from=builder /wheels /wheels
 RUN uv venv /home/appuser/app/.venv && \
     uv pip install --no-cache /wheels/*.whl
 
-CMD ["coreason"]
+CMD ["coreason-ecosystem"]

@@ -176,3 +176,4 @@ A copy of the license is available at [https://prosperitylicense.com/versions/3.
 
 Commercial use beyond a 30-day trial requires a separate commercial license. For details, see the `LICENSE` file.
 
+<!-- mcp-name: io.github.coreason-ai/coreason-ecosystem -->

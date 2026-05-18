@@ -14,14 +14,59 @@ spec:
       labels:
         app: coreason-runtime
     spec:
+      terminationGracePeriodSeconds: {{ .Values.runtime.terminationGracePeriodSeconds | default 60 }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: runtime
+          {{- if .Values.runtime.image.digest }}
+          image: "{{ .Values.runtime.image.repository }}@{{ .Values.runtime.image.digest }}"
+          {{- else }}
           image: "{{ .Values.runtime.image.repository }}:{{ .Values.runtime.image.tag }}"
+          {{- end }}
           imagePullPolicy: {{ .Values.runtime.image.pullPolicy }}
           ports:
-            - containerPort: 8000
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          # Startup probe: runtime loads ML models + Temporal workers.
+          # Generous budget: failureThreshold × periodSeconds = 45 × 2s = 90s.
+          startupProbe:
+            httpGet:
+              path: {{ .Values.runtime.probes.startup.path | default "/healthz" }}
+              port: http
+            initialDelaySeconds: {{ .Values.runtime.probes.startup.initialDelaySeconds | default 10 }}
+            periodSeconds: {{ .Values.runtime.probes.startup.periodSeconds | default 2 }}
+            timeoutSeconds: {{ .Values.runtime.probes.startup.timeoutSeconds | default 3 }}
+            failureThreshold: {{ .Values.runtime.probes.startup.failureThreshold | default 45 }}
+          # Readiness probe: gates Service traffic.
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.runtime.probes.readiness.path | default "/healthz" }}
+              port: http
+            periodSeconds: {{ .Values.runtime.probes.readiness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.runtime.probes.readiness.timeoutSeconds | default 3 }}
+            successThreshold: {{ .Values.runtime.probes.readiness.successThreshold | default 1 }}
+            failureThreshold: {{ .Values.runtime.probes.readiness.failureThreshold | default 3 }}
+          # Liveness probe: conservative to avoid killing long-running inferences.
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.runtime.probes.liveness.path | default "/healthz" }}
+              port: http
+            periodSeconds: {{ .Values.runtime.probes.liveness.periodSeconds | default 20 }}
+            timeoutSeconds: {{ .Values.runtime.probes.liveness.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.runtime.probes.liveness.failureThreshold | default 5 }}
           resources:
             {{- toYaml .Values.runtime.resources | nindent 12 }}
           env:
             - name: COREASON_ENVIRONMENT
               value: {{ .Values.global.environment }}
+            - name: COREASON_NETWORK_MODE
+              value: {{ .Values.global.networkMode | default "public" }}
+            - name: COREASON_LICENSE_TYPE
+              value: {{ .Values.global.licenseType | default "prosperity-3.0" }}
+            - name: COREASON_FEDERATION_ENABLED
+              value: {{ .Values.global.federationEnabled | default "false" | quote }}
+

@@ -10,20 +10,14 @@
 
 """MCP-to-NATS Gateway Provider — The Hollow Plane Bridge.
 
-Replaces the custom FastAPI SSE transport in ``master_mcp.py`` with a
-NATS-native routing layer.  External AI agents connect via MCP (JSON-RPC
-over SSE/Streamable HTTP), and tool invocations are published as NATS
-messages for routing to wasmCloud capability providers on the lattice.
+External AI agents connect via MCP (JSON-RPC over SSE/Streamable HTTP),
+and tool invocations are published as NATS messages for routing to wasmCloud
+capability providers on the lattice.
 
 This module implements the "Borrow, Don't Build" mandate by delegating:
   - Mesh networking → NATS Lattice (CNCF OSS)
   - Component sandboxing → wasmCloud / Wasmtime (CNCF OSS)
   - Registry state → wadm + JetStream (CNCF OSS)
-
-The only proprietary logic retained is:
-  - MCP protocol handling (MCP SDK — OSS)
-  - JWT/OIDC validation (domain logic)
-  - Semantic routing (domain logic, future phase)
 """
 
 from __future__ import annotations
@@ -62,12 +56,7 @@ class NATSGatewayProvider:
     Architecture:
         External Agent → MCP SSE → NATSGatewayProvider → NATS Lattice → Capability Provider
 
-    Replaces:
-        - ``master_mcp.py`` (custom FastAPI SSE gateway)
-        - ``nemoclaw_client.py`` (custom httpx bridge)
-        - Point-to-point httpx routing in ``invoke_actuator()``
-
-    The MCP SSE endpoint layer (FastAPI + mcp.server) is preserved as a thin
+    The MCP SSE endpoint layer (FastAPI + mcp.server) acts as a thin
     wrapper that delegates tool invocation to this provider.
     """
 
@@ -126,9 +115,6 @@ class NATSGatewayProvider:
         Publishes a JSON-RPC request to the NATS subject corresponding to
         the target URN and awaits a reply from the capability provider.
 
-        This replaces the custom httpx-based ``NemoClawBridgeClient.call_tool()``
-        and the point-to-point routing in ``invoke_actuator()``.
-
         Args:
             urn: The URN of the capability to invoke.
             arguments: The tool arguments (JSON-serializable).
@@ -144,9 +130,7 @@ class NATSGatewayProvider:
             ValueError: If the payload exceeds the 10MB limit.
         """
         if not self._nc or not self._nc.is_connected:
-            raise RuntimeError(
-                "NATS connection not established. Call connect() first."
-            )
+            raise RuntimeError("NATS connection not established. Call connect() first.")
 
         # Build the JSON-RPC request envelope
         rpc_request = {
@@ -198,9 +182,7 @@ class NATSGatewayProvider:
                     f"Capability provider for '{urn}' did not respond "
                     f"within {timeout}s on subject '{subject}'"
                 ) from e
-            raise RuntimeError(
-                f"NATS request failed for '{urn}': {e}"
-            ) from e
+            raise RuntimeError(f"NATS request failed for '{urn}': {e}") from e
 
         # Parse the response
         try:
@@ -218,8 +200,6 @@ class NATSGatewayProvider:
         Publishes a discovery request and collects responses from all
         capability providers that are listening.
 
-        This replaces ``SovereignMCPRegistry.discover_active_substrates()``.
-
         Args:
             timeout: Maximum wait time for discovery responses.
 
@@ -227,9 +207,7 @@ class NATSGatewayProvider:
             List of capability descriptors from responding providers.
         """
         if not self._nc or not self._nc.is_connected:
-            raise RuntimeError(
-                "NATS connection not established. Call connect() first."
-            )
+            raise RuntimeError("NATS connection not established. Call connect() first.")
 
         capabilities: list[dict[str, Any]] = []
         inbox = self._nc.new_inbox()
@@ -244,12 +222,13 @@ class NATSGatewayProvider:
 
         # Collect responses until timeout
         import asyncio
+
         try:
             async for msg in sub.messages:
                 try:
                     cap = json.loads(msg.data.decode("utf-8"))
                     capabilities.append(cap)
-                except (json.JSONDecodeError, UnicodeDecodeError):
+                except json.JSONDecodeError, UnicodeDecodeError:
                     logger.warning("Invalid discovery response received")
 
                 # Use a short timeout between messages
@@ -269,10 +248,9 @@ class NATSGatewayProvider:
     def _compute_request_id(arguments: dict[str, Any]) -> str:
         """Compute a deterministic request ID from the payload.
 
-        Uses SHA-256 truncated to 16 hex characters, matching the
-        existing behavior in master_mcp.py.
+        Uses SHA-256 truncated to 16 hex characters.
         """
-        canonical = json.dumps(
-            arguments, sort_keys=True, separators=(",", ":")
-        ).encode("utf-8")
+        canonical = json.dumps(arguments, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
         return hashlib.sha256(canonical).hexdigest()[:16]

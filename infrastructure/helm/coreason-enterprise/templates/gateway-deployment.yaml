@@ -14,14 +14,62 @@ spec:
       labels:
         app: coreason-gateway
     spec:
+      terminationGracePeriodSeconds: {{ .Values.gateway.terminationGracePeriodSeconds | default 30 }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: gateway
+          {{- if .Values.gateway.image.digest }}
+          image: "{{ .Values.gateway.image.repository }}@{{ .Values.gateway.image.digest }}"
+          {{- else }}
           image: "{{ .Values.gateway.image.repository }}:{{ .Values.gateway.image.tag }}"
+          {{- end }}
           imagePullPolicy: {{ .Values.gateway.image.pullPolicy }}
           ports:
-            - containerPort: 8000
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          # Startup probe: generous budget for cold-start (model loading, cache warming).
+          # Prevents liveness from killing the container during initialization.
+          # Budget: failureThreshold × periodSeconds = 30 × 2s = 60s max startup time.
+          startupProbe:
+            httpGet:
+              path: {{ .Values.gateway.probes.startup.path | default "/healthz" }}
+              port: http
+            initialDelaySeconds: {{ .Values.gateway.probes.startup.initialDelaySeconds | default 5 }}
+            periodSeconds: {{ .Values.gateway.probes.startup.periodSeconds | default 2 }}
+            timeoutSeconds: {{ .Values.gateway.probes.startup.timeoutSeconds | default 3 }}
+            failureThreshold: {{ .Values.gateway.probes.startup.failureThreshold | default 30 }}
+          # Readiness probe: gates Service traffic. Pod is removed from endpoints
+          # on failure, but NOT restarted. Use for transient dependency issues.
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.gateway.probes.readiness.path | default "/healthz" }}
+              port: http
+            periodSeconds: {{ .Values.gateway.probes.readiness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.gateway.probes.readiness.timeoutSeconds | default 3 }}
+            successThreshold: {{ .Values.gateway.probes.readiness.successThreshold | default 1 }}
+            failureThreshold: {{ .Values.gateway.probes.readiness.failureThreshold | default 3 }}
+          # Liveness probe: restarts the container ONLY on unrecoverable failure.
+          # Conservative thresholds to avoid flapping under transient load spikes.
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.gateway.probes.liveness.path | default "/healthz" }}
+              port: http
+            periodSeconds: {{ .Values.gateway.probes.liveness.periodSeconds | default 15 }}
+            timeoutSeconds: {{ .Values.gateway.probes.liveness.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.gateway.probes.liveness.failureThreshold | default 5 }}
           resources:
             {{- toYaml .Values.gateway.resources | nindent 12 }}
           env:
             - name: COREASON_ENVIRONMENT
               value: {{ .Values.global.environment }}
+            - name: COREASON_NETWORK_MODE
+              value: {{ .Values.global.networkMode | default "public" }}
+            - name: COREASON_LICENSE_TYPE
+              value: {{ .Values.global.licenseType | default "prosperity-3.0" }}
+            - name: COREASON_FEDERATION_ENABLED
+              value: {{ .Values.global.federationEnabled | default "false" | quote }}
+

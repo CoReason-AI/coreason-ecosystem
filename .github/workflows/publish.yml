@@ -11,9 +11,9 @@ on:
 
 permissions:
   contents: write
-  id-token: write
-  pages: write
-  attestations: write # Requires Enterprise Cloud or public repo for SLSA provenance
+  id-token: write # Required for PyPI OIDC Trusted Publishing and Sigstore
+  pages: write    # Required for GitHub Pages deployment
+  attestations: write # Required for SLSA build provenance
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -27,47 +27,46 @@ jobs:
     runs-on: ubuntu-latest
     environment: pypi
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.10.4
+      - name: Harden Runner (Endpoint Network Security)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
         with:
           egress-policy: audit
-
-      - name: Free up disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.3.1
+      - name: Checkout coreason-manifest
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          enable-cache: false
-          cache-dependency-glob: "uv.lock"
+          repository: CoReason-AI/coreason-manifest
+          ref: develop
+          path: coreason-manifest
+          token: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Link coreason-manifest as sibling
+        run: python -c "import os, shutil; src=os.path.abspath('coreason-manifest'); dst=os.path.abspath('../coreason-manifest'); (os.remove(dst) if os.path.islink(dst) else (shutil.rmtree(dst) if os.path.isdir(dst) else os.remove(dst))) if (os.path.exists(dst) or os.path.islink(dst)) else None; os.symlink(src, dst, target_is_directory=True)"
+        shell: bash
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
           python-version: "3.14"
 
-      - name: Install system dependencies (for temporalio source build)
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
-        shell: bash
+      - name: Install dependencies
+        run: uv sync --all-extras --dev --frozen
 
-      - name: Build package
+      - name: Build Artifacts
         run: uv build
-        shell: bash
 
-      - name: Build Docs
-        run: uv run zensical build
-        shell: bash
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+      - name: Generate SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.18.0
         with:
-          path: "site/"
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-release-assets: false
 
       - name: Generate SLSA Provenance
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.2.3
@@ -78,30 +77,32 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.12.4
-        with:
-          skip-existing: true
 
-      - name: Generate SBOM
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.18.0
-        with:
-          path: ./dist
-          format: spdx-json
-          output-file: sbom.spdx.json
-          upload-release-assets: false
-
-      - name: Sign artifacts with Sigstore
+      - name: Sign Wheel
         uses: sigstore/gh-action-sigstore-python@04cffa1d795717b140764e8b640de88853c92acc # v3.3.0
         with:
           inputs: >-
-            dist/*.tar.gz
             dist/*.whl
+            dist/*.tar.gz
 
-      - name: Upload attestations to GitHub Release
+          source: false
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.1.0
         with:
           files: |
+            dist/*.whl
+            dist/*.tar.gz
             dist/*.sigstore.json
             sbom.spdx.json
+
+      - name: Build Docs
+        run: uv run zensical build --clean
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          path: site
 
   deploy-pages:
     needs: release
@@ -109,9 +110,12 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.10.4
+      - name: Harden Runner (Endpoint Network Security)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
         with:
           egress-policy: audit
 
@@ -128,20 +132,27 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.10.4
+      - name: Harden Runner (Endpoint Network Security)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
         with:
           egress-policy: audit
 
-      - name: Free up disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Checkout coreason-manifest
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: CoReason-AI/coreason-manifest
+          ref: develop
+          path: coreason-manifest
+          token: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Link coreason-manifest as sibling
+        run: python -c "import os, shutil; src=os.path.abspath('coreason-manifest'); dst=os.path.abspath('../coreason-manifest'); (os.remove(dst) if os.path.islink(dst) else (shutil.rmtree(dst) if os.path.isdir(dst) else os.remove(dst))) if (os.path.exists(dst) or os.path.islink(dst)) else None; os.symlink(src, dst, target_is_directory=True)"
+        shell: bash
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.3.0
@@ -160,7 +171,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.7.0
         with:
-          images: ghcr.io/coreason-ai/coreason-ecosystem
+          images: ghcr.io/${{ github.repository }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -180,20 +191,135 @@ jobs:
       - name: Generate SBOM for Container
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.18.0
         with:
-          image: ghcr.io/coreason-ai/coreason-ecosystem@${{ steps.build-and-push.outputs.digest }}
+          image: ghcr.io/${{ github.repository }}@${{ steps.build-and-push.outputs.digest }}
           format: spdx-json
           output-file: sbom-container.spdx.json
-          upload-release-assets: false
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.8.1
 
       - name: Sign the image with Cosign
-        run: cosign sign --yes ghcr.io/coreason-ai/coreason-ecosystem@${{ steps.build-and-push.outputs.digest }}
+        run: cosign sign --yes ghcr.io/${{ github.repository }}@${{ steps.build-and-push.outputs.digest }}
 
       - name: Generate SLSA Provenance for Container
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.2.3
         with:
-          subject-name: ghcr.io/coreason-ai/coreason-ecosystem
+          subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build-and-push.outputs.digest }}
           push-to-registry: true
+
+      - name: Output image digest for production pinning
+        run: |
+          echo "## 🔒 Container Image Digest" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Pin this digest in your \`production.yaml\` for SOC2/ISO compliance:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`yaml" >> $GITHUB_STEP_SUMMARY
+          echo "# production.yaml" >> $GITHUB_STEP_SUMMARY
+          echo "gateway:" >> $GITHUB_STEP_SUMMARY
+          echo "  image:" >> $GITHUB_STEP_SUMMARY
+          echo "    digest: \"${{ steps.build-and-push.outputs.digest }}\"" >> $GITHUB_STEP_SUMMARY
+          echo "runtime:" >> $GITHUB_STEP_SUMMARY
+          echo "  image:" >> $GITHUB_STEP_SUMMARY
+          echo "    digest: \"${{ steps.build-and-push.outputs.digest }}\"" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  publish-helm-charts:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      matrix:
+        chart:
+          - coreason-enterprise
+          - coreason-mesh
+          - coreason-observability
+    steps:
+      - name: Harden Runner (Endpoint Network Security)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Helm
+        uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # v4.3.0
+        with:
+          version: v3.17.3
+
+      - name: Log in to GitHub Container Registry (OCI)
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Extract chart version from Chart.yaml
+        id: chart-version
+        run: |
+          CHART_VERSION=$(grep '^version:' infrastructure/helm/${{ matrix.chart }}/Chart.yaml | awk '{print $2}' | tr -d '"')
+          echo "version=${CHART_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Chart: ${{ matrix.chart }}, Version: ${CHART_VERSION}"
+
+      - name: Package Helm chart
+        run: |
+          helm package infrastructure/helm/${{ matrix.chart }} \
+            --destination ./helm-packages/
+
+      - name: Push Helm chart to OCI registry
+        run: |
+          helm push ./helm-packages/${{ matrix.chart }}-${{ steps.chart-version.outputs.version }}.tgz \
+            oci://ghcr.io/coreason-ai/charts
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.8.1
+
+      - name: Sign Helm chart with Cosign
+        run: |
+          cosign sign --yes \
+            ghcr.io/coreason-ai/charts/${{ matrix.chart }}:${{ steps.chart-version.outputs.version }}
+
+  publish-mcp-registry:
+    needs: [release, publish-container]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for GitHub OIDC authentication with MCP Registry
+    steps:
+      - name: Harden Runner (Endpoint Network Security)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Inject release version into server.json
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          VERSION=${VERSION#refs/tags/}
+          echo "Injecting version: ${VERSION}"
+          jq --arg v "$VERSION" '
+            .version = $v |
+            .version_detail.version = $v |
+            .packages[0].version = $v |
+            .packages[1].identifier = "ghcr.io/coreason-ai/coreason-ecosystem:" + $v
+          ' server.json > server.tmp && mv server.tmp server.json
+          cat server.json
+
+      - name: Validate server.json
+        run: ./mcp-publisher validate server.json
+
+      - name: Authenticate to MCP Registry (GitHub OIDC)
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish server.json

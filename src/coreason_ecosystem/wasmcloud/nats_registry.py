@@ -10,20 +10,14 @@
 
 """NATS-Based Capability Registry — Lightweight URN Discovery.
 
-Replaces ``SovereignMCPRegistry`` and ``RegistryStateWorkflow`` with a
-NATS JetStream-backed capability registry.  Instead of using Temporal as
-a glorified key-value store, this module uses NATS JetStream KV buckets
-for durable, distributed state.
+This module implements a NATS JetStream-backed capability registry for
+durable, distributed URN discovery across the ecosystem.
 
 Architecture:
-    - JetStream KV bucket ``coreason-registry`` stores URN→metadata mappings
-    - Capability providers self-register by publishing to ``coreason.registry.update``
-    - The registry watches for changes and updates the local cache
-    - No Temporal workflow required — NATS provides the durable state natively
-
-Replaces:
-    - ``sovereign_mcp_registry.py`` (489 lines)
-    - ``RegistryStateWorkflow`` (Temporal workflow for registry state)
+    - JetStream KV bucket ``coreason-registry`` stores URN→metadata mappings.
+    - Capability providers self-register by publishing to ``coreason.registry.update``.
+    - The registry watches for changes and updates the local cache.
+    - NATS provides the durable state natively without external dependencies.
 """
 
 from __future__ import annotations
@@ -56,13 +50,10 @@ SUBJECT_REGISTRY_UPDATE = "coreason.registry.update"
 class NATSCapabilityRegistry:
     """NATS JetStream-backed capability registry.
 
-    Provides the same interface as ``SovereignMCPRegistry`` but uses NATS
-    JetStream KV buckets for state persistence instead of Temporal workflows.
+    This module uses NATS JetStream KV buckets for state persistence, providing
+    distributed, durable discovery for capability URNs.
 
-    This eliminates:
-      - The ``RegistryStateWorkflow`` (Temporal as a KV store)
-      - The ``_update_urn`` / ``_get_state`` signal/query pattern
-      - Background Temporal worker management
+    Key features:
 
     JetStream KV provides:
       - Durable, replicated state across NATS cluster nodes
@@ -83,11 +74,7 @@ class NATSCapabilityRegistry:
         self._local_cache: dict[str, dict[str, Any]] = {}
 
     async def initialize(self) -> None:
-        """Connect to NATS and create the JetStream KV bucket.
-
-        This replaces the Temporal worker initialization and workflow
-        startup in ``SovereignMCPRegistry.initialize()``.
-        """
+        """Connect to NATS and create the JetStream KV bucket."""
         if self._nc and self._nc.is_connected:
             return
 
@@ -110,11 +97,7 @@ class NATSCapabilityRegistry:
             logger.info("Created JetStream KV bucket: %s", REGISTRY_BUCKET)
 
     async def shutdown(self) -> None:
-        """Gracefully disconnect from NATS.
-
-        Replaces the Temporal worker cancellation in
-        ``SovereignMCPRegistry.shutdown()``.
-        """
+        """Gracefully disconnect from NATS."""
         if self._nc and self._nc.is_connected:
             await self._nc.drain()
             logger.info("Registry disconnected from NATS")
@@ -128,9 +111,6 @@ class NATSCapabilityRegistry:
         content_hash: str = "",
     ) -> None:
         """Register or update a URN capability in the registry.
-
-        Replaces ``SovereignMCPRegistry._update_urn()`` which sent a Temporal
-        signal. Now directly writes to the JetStream KV bucket.
 
         Args:
             urn: The capability URN (validated against actionspace regex).
@@ -165,9 +145,6 @@ class NATSCapabilityRegistry:
     async def resolve_urn(self, target_urn: str) -> dict[str, Any]:
         """Look up a URN in the registry.
 
-        Replaces ``SovereignMCPRegistry.resolve_urn()`` which queried the
-        Temporal workflow state.
-
         Args:
             target_urn: The URN to resolve.
 
@@ -195,10 +172,7 @@ class NATSCapabilityRegistry:
             ) from e
 
     async def get_epistemic_status(self, target_urn: str) -> str:
-        """Retrieve the SRB governance lifecycle status for a URN.
-
-        Replaces ``SovereignMCPRegistry.get_epistemic_status()``.
-        """
+        """Retrieve the SRB governance lifecycle status for a URN."""
         try:
             entry = await self.resolve_urn(target_urn)
             return str(entry.get("epistemic_status", "DRAFT"))
@@ -206,11 +180,7 @@ class NATSCapabilityRegistry:
             return "DRAFT"
 
     async def list_all_capabilities(self) -> dict[str, dict[str, Any]]:
-        """List all registered capabilities.
-
-        Replaces ``SovereignMCPRegistry._get_state()`` which queried the
-        Temporal workflow.
-        """
+        """List all registered capabilities."""
         if not self._kv:
             raise RuntimeError("Registry not initialized. Call initialize() first.")
 
@@ -234,8 +204,7 @@ class NATSCapabilityRegistry:
     ) -> int:
         """Hydrate the registry from a compiled JSON matrix.
 
-        Replaces ``SovereignMCPRegistry.hydrate_from_compiled_matrix()``.
-        Accepts a pre-parsed dictionary instead of a file path.
+        Accepts a pre-parsed dictionary (URN → metadata).
 
         Args:
             matrix: Pre-parsed JSON matrix (URN → metadata).
@@ -253,7 +222,9 @@ class NATSCapabilityRegistry:
             content_hash = metadata.pop("content_hash", "")
             capability_metadata = {
                 "path": metadata.pop("path", ""),
-                "default_clearance_tiers": metadata.pop("default_clearance_tiers", [255]),
+                "default_clearance_tiers": metadata.pop(
+                    "default_clearance_tiers", [255]
+                ),
                 "default_minimum_rigidity_tier": metadata.pop(
                     "default_minimum_rigidity_tier", 255
                 ),
@@ -274,13 +245,10 @@ class NATSCapabilityRegistry:
 
     @staticmethod
     def validate_urn(urn: str) -> None:
-        """Zero-trust URN validation.
-
-        Identical to ``SovereignMCPRegistry.validate_archetype_urn()``.
-        """
+        """Validate that a URN conforms to the ActionSpace taxonomy."""
         if not _ACTIONSPACE_URN_PATTERN.match(urn):
             raise ValueError(
-                f"URN Topology Breach: '{urn}' does not conform to the "
+                f"URN Topology Breach: URN {urn} does not conform to the CoReason manifest "
                 "modern actionspace taxonomy. Rejecting capability."
             )
 
@@ -295,4 +263,6 @@ class NATSCapabilityRegistry:
     @staticmethod
     def _key_to_urn(key: str) -> str:
         """Convert a NATS KV key back to a URN."""
-        return key.replace(".", ":", 5)  # Replace first 5 dots (urn.X.actionspace.Y.Z.vN)
+        return key.replace(
+            ".", ":", 5
+        )  # Replace first 5 dots (urn.X.actionspace.Y.Z.vN)

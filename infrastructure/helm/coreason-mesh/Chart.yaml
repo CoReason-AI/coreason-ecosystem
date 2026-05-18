@@ -1,6 +1,29 @@
 apiVersion: v2
 name: coreason-mesh
-description: A Helm chart for deploying the CoReason Tripartite Cybernetic Manifold (Governance Plane)
+description: >-
+  CoReason Governance Plane — deploys the stateless MCP router, Istio service
+  mesh configuration, Temporal orchestration engine, and LanceDB persistent
+  storage for the CoReason Tripartite Cybernetic Manifold.
 type: application
 version: 0.1.0
 appVersion: "0.64.0"
+kubeVersion: ">=1.28.0-0"
+home: https://coreason.ai
+sources:
+  - https://github.com/CoReason-AI/coreason-ecosystem
+maintainers:
+  - name: CoReason Engineering
+    email: engineering@coreason.ai
+    url: https://coreason.ai
+icon: https://coreason.ai/assets/logo.png
+keywords:
+  - coreason
+  - mesh
+  - governance
+  - mcp
+  - istio
+  - temporal
+annotations:
+  artifacthub.io/license: "Prosperity-3.0"
+  artifacthub.io/signKey: "cosign"
+  artifacthub.io/category: "ai-machine-learning"

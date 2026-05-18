@@ -1,4 +1,4 @@
-# Copyright (c) 2026 CoReason, Inc.
+# Copyright (c) 2026 CoReason, Inc
 #
 # This software is proprietary and dual-licensed
 # Licensed under the Prosperity Public License 3.0 (the "License")
@@ -6,14 +6,12 @@
 # For details, see the LICENSE file
 # Commercial use beyond a 30-day trial requires a separate license
 #
-# Source Code: <https://github.com/CoReason-AI/coreason-ecosystem>
-
-try:
-    import sky
-except ImportError:
-    sky = None  # type: ignore
+# Source Code: <https://github.com/CoReason-AI/coreason-manifest>
 
 import asyncio
+import base64
+import json
+import sys
 from typing import Any, cast
 from loguru import logger
 from pydantic import BaseModel
@@ -22,9 +20,26 @@ from coreason_manifest.spec.ontology import (
     EscrowPolicy,
     EpistemicSecurityProfile as SecurityProfile,
 )
-import base64
-import json
 from mcp.server.fastmcp import FastMCP
+
+# Under free-threaded Python (3.13t/3.14t), skip importing sky (which pulls in bcrypt/paramiko C extensions)
+# as it triggers segmentation faults (exit code 139) on import due to ABI/thread-safety incompatibilities.
+# The tests monkeypatch `sky` with a fake, so they remain fully functional.
+sky: Any = None
+
+_is_free_threaded = (
+    "free-threading" in sys.version.lower()
+    or hasattr(sys.flags, "nogil")
+    or sys.exec_prefix.endswith("t")
+)
+
+if not _is_free_threaded:
+    try:
+        import sky as _sky
+
+        sky = _sky
+    except ImportError:
+        pass
 
 mcp = FastMCP("SubstrateActuator")
 __action_space_urn__ = "urn:coreason:actionspace:substrate:skypilot:v1"
@@ -38,8 +53,6 @@ class SkyPilotTarget(BaseModel):
     autostop_idle_minutes: int = 10
     hardware_profile: HardwareProfile | None = None
     security_profile: SecurityProfile | None = None
-    mesh_auth_key: str | None = None
-    temporal_mesh_ip: str | None = None
     escrow_policy: EscrowPolicy | None = None
 
 
@@ -48,8 +61,7 @@ class SkyPilotActuator:
 
     Structural Rationale:
     SkyPilot abstracts the multi-cloud spot market (AWS, GCP, Azure, Vast.ai) and provides
-    managed recovery for preempted instances. This actuator replaces the custom Pulumi-based
-    provisioning logic, adhering to the 'Borrow Do Not Build' architectural mandate.
+    managed recovery for preempted instances.
     """
 
     def __init__(self) -> None:
@@ -116,21 +128,22 @@ class SkyPilotActuator:
         setup_cmds = []
         cluster_name = f"coreason-sky-{int(asyncio.get_event_loop().time())}"
 
-        if (
-            target.hardware_profile
-            and target.security_profile
-            and target.mesh_auth_key
-            and target.temporal_mesh_ip
-        ):
+        if target.hardware_profile and target.security_profile:
             # Generate NATS-native bootstrap payload (replaces MeshInjector)
-            bootstrap_payload = json.dumps({
-                "node_cid": cluster_name,
-                "nats_url": "nats://nats.mesh.coreason.ai:4222",
-                "lattice_prefix": "coreason",
-                "hardware": target.hardware_profile.model_dump(),
-                "security": target.security_profile.model_dump(),
-            }, sort_keys=True, separators=(",", ":"))
-            payload_b64 = base64.b64encode(bootstrap_payload.encode("utf-8")).decode("ascii")
+            bootstrap_payload = json.dumps(
+                {
+                    "node_cid": cluster_name,
+                    "nats_url": "nats://nats.mesh.coreason.ai:4222",
+                    "lattice_prefix": "coreason",
+                    "hardware": target.hardware_profile.model_dump(),
+                    "security": target.security_profile.model_dump(),
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            payload_b64 = base64.b64encode(bootstrap_payload.encode("utf-8")).decode(
+                "ascii"
+            )
             # Inject the payload into the node setup
             setup_cmds.append("mkdir -p /etc/coreason")
             setup_cmds.append(

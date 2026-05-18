@@ -1,0 +1,77 @@
+# Copyright (c) 2026 CoReason, Inc. Licensed under the Prosperity Public License 3.0.
+#
+# Production Values Overlay
+# ==========================
+# Apply these values when deploying to production-grade Kubernetes clusters
+# (EKS, GKE, AKS, or bare-metal with enterprise StorageClasses).
+#
+# IMPORTANT — Image Digest Pinning (SOC2/ISO 27001):
+#   Production deployments MUST pin images by SHA-256 digest, not mutable tags.
+#   Replace the placeholder digests below with the actual values from your CI
+#   pipeline. The publish workflow outputs digests in the release summary.
+#
+#   To get the current digest for a tag:
+#     crane digest ghcr.io/coreason/coreason-master-gateway:v0.77.0
+#
+# Usage: Referenced by ArgoCD Application manifests or applied manually via:
+#   helm install coreason-core oci://ghcr.io/coreason-ai/charts/coreason-enterprise \
+#     -f production.yaml -n coreason-system
+#
+
+global:
+  environment: production
+  # ISV Distribution — override per client deployment
+  networkMode: public       # 'public' = CoReason-managed network | 'private' = client-operated network
+  licenseType: prosperity-3.0  # 'prosperity-3.0' = forged assets licensed to CoReason | 'commercial' = client retains ownership
+  federationEnabled: false  # When true, enables bridge from client's private network to CoReason public network
+
+# --- CoReason Enterprise (Core) Overrides ---
+gateway:
+  replicaCount: 3
+  image:
+    # Digest pins are immutable — IfNotPresent avoids redundant pulls
+    pullPolicy: IfNotPresent
+    # REQUIRED: Replace with actual digest from CI release.
+    # Get digest: crane digest ghcr.io/coreason/coreason-master-gateway:<tag>
+    digest: ""  # e.g. "sha256:a1b2c3d4e5f6..."
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+runtime:
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+  image:
+    pullPolicy: IfNotPresent
+    # REQUIRED: Replace with actual digest from CI release.
+    # Get digest: crane digest ghcr.io/coreason/coreason-runtime:<tag>
+    digest: ""  # e.g. "sha256:f6e5d4c3b2a1..."
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 8Gi
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+
+imagePullSecrets:
+  - name: coreason-registry-credentials
+
+# Disable embedded OSS databases in production — use managed services
+neo4j:
+  enabled: false
+temporal:
+  enabled: false
+milvus:
+  enabled: false
+dex:
+  enabled: false
+

@@ -1,42 +1,57 @@
-import os
+# Copyright (c) 2026 CoReason, Inc
+#
+# This software is proprietary and dual-licensed
+# Licensed under the Prosperity Public License 3.0 (the "License")
+# A copy of the license is available at <https://prosperitylicense.com/versions/3.0.0>
+# For details, see the LICENSE file
+# Commercial use beyond a 30-day trial requires a separate license
+#
+# Source Code: <https://github.com/CoReason-AI/coreason-ecosystem>
 
-import hvac
-import hvac.exceptions
+"""Workload Identity Passthrough.
 
+This module provides utilities to extract SPIFFE IDs and JWT tokens from
+inbound headers for use in zero-trust authorization sidecars.
+"""
 
-def get_vault_client() -> hvac.Client:
-    vault_url = os.environ.get("VAULT_ADDR", "http://127.0.0.1:8200")
-    vault_token = os.environ.get("VAULT_TOKEN", "dev-only-token")
-    return hvac.Client(url=vault_url, token=vault_token)
+import logging
+from typing import Any
 
+from coreason_ecosystem.auth import jwt_compat as jwt
 
-def set_identity(tenant_cid: str, legal_name: str) -> None:
-    """Stores the tenant identity securely into Vault."""
-    client = get_vault_client()
-    try:
-        payload = {"tenant_cid": tenant_cid, "legal_name": legal_name}
-        client.secrets.kv.v2.create_or_update_secret(
-            path="coreason/identity",
-            secret=payload,
-        )
-    except hvac.exceptions.InvalidPath:
-        raise ValueError("Vault KV engine not properly configured at 'secret/'.")
-    except hvac.exceptions.VaultError as e:
-        raise ValueError(f"Failed to securely store identity in Vault: {e}")
+logger = logging.getLogger(__name__)
 
 
-def get_identity() -> dict[str, str] | None:
-    """Retrieves the tenant identity from Vault."""
-    client = get_vault_client()
-    try:
-        response = client.secrets.kv.v2.read_secret_version(
-            path="coreason/identity", raise_on_deleted_version=False
-        )
-        if response and "data" in response and "data" in response["data"]:
-            data = response["data"]["data"]
-            if isinstance(data, dict):
-                return data
-            return None
-        return None
-    except Exception:
-        return None
+def extract_workload_identity(headers: dict[str, str]) -> dict[str, Any]:
+    """
+    Extracts the SPIFFE SVID or JWT from Envoy/NATS headers.
+
+    This is a passthrough function. Actual authorization decisions are
+    delegated to the Envoy proxy layer or an external OPA sidecar.
+    """
+    # Normalize headers to lowercase for deterministic lookups
+    norm_headers = {k.lower(): v for k, v in headers.items()}
+
+    # Extract SPIFFE ID (typically injected by Envoy/SPIRE)
+    spiffe_id = norm_headers.get("x-spiffe-id")
+
+    # Extract JWT (typically in Authorization header)
+    auth_header = norm_headers.get("authorization")
+    jwt_payload = None
+    raw_jwt = None
+
+    if auth_header and auth_header.startswith("Bearer "):
+        raw_jwt = auth_header[7:]
+        try:
+            # Note: We do NOT verify the signature here. We are a passthrough.
+            # Signature verification is handled at the network edge or sidecar.
+            jwt_payload = jwt.decode(raw_jwt, options={"verify_signature": False})
+        except Exception as e:
+            logger.debug("Failed to decode JWT for passthrough: %s", e)
+
+    return {
+        "spiffe_id": spiffe_id,
+        "jwt_payload": jwt_payload,
+        "raw_jwt": raw_jwt,
+        "tenant_cid": norm_headers.get("x-tenant-cid"),
+    }

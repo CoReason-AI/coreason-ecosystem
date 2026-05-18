@@ -1,0 +1,6 @@
+# Artifact Hub repository metadata
+# https://artifacthub.io/docs/topics/repositories/
+repositoryID: coreason-mesh
+owners:
+  - name: CoReason Engineering
+    email: engineering@coreason.ai

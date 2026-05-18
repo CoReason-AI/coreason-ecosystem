@@ -1,0 +1,44 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.coreason-ai/coreason-ecosystem",
+  "title": "CoReason Ecosystem — Federated MCP Gateway",
+  "description": "The Governance Plane of the CoReason Tripartite Architecture. A stateless, zero-trust MCP router and federated gateway that orchestrates URN-addressable capabilities across sovereign mesh topologies.",
+  "repository": {
+    "url": "https://github.com/CoReason-AI/coreason-ecosystem",
+    "source": "github"
+  },
+  "version_detail": {
+    "version": "0.0.0",
+    "release_date": "2026-05-17"
+  },
+  "version": "0.0.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "coreason-ecosystem",
+      "version": "0.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtime": {
+        "type": "python",
+        "config": {
+          "command": "coreason-ecosystem",
+          "args": ["serve"],
+          "env": {
+            "COREASON_NETWORK_MODE": "public",
+            "COREASON_LICENSE_TYPE": "prosperity-3.0",
+            "COREASON_FEDERATION_ENABLED": "false"
+          }
+        }
+      }
+    },
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/coreason-ai/coreason-ecosystem:latest",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

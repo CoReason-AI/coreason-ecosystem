@@ -10,12 +10,11 @@
 
 """NATS-Based Federation — Air Gap via Leaf Nodes.
 
-Replaces ``federation/proxy.py`` (1,049 lines) and ``federation/policy.py``
-(375 lines) with a NATS-native federation mechanism.
+This module implements the core federation logic for the CoReason ecosystem
+using NATS leaf nodes and accounts for zero-trust air gap management.
 
 Architecture:
-    Instead of custom httpx point-to-point mTLS connections, federation is
-    handled by NATS leaf nodes + accounts:
+    Federation is handled by NATS leaf nodes and account-based isolation:
 
     - **Private → Public:** Private instance connects as a NATS leaf node
       to the Public mesh's NATS server. Subject-based authorization controls
@@ -25,9 +24,8 @@ Architecture:
       a shared NATS server (or use NATS gateway mode). Bilateral agreements
       are enforced via NATS account isolation.
 
-    - **Air Gap Control:** NATS account imports/exports replace the custom
-      ``AirGapPolicy`` Pydantic model. The NATS server config natively
-      enforces which subjects (capabilities) are accessible.
+    - **Air Gap Control:** NATS account imports/exports natively enforce
+      which subjects (capabilities) are accessible between instances.
 
     - **DLP Scanning:** NemoClaw DLP scanning is implemented as a NATS
       service (request-reply) that payloads pass through before crossing
@@ -35,10 +33,6 @@ Architecture:
 
     - **Audit Trail:** ``FederatedExecutionReceipt`` events are published
       to a JetStream stream for durable, append-only audit.
-
-Replaces:
-    - ``federation/proxy.py`` (FederationProxy, 1,049 lines)
-    - ``federation/policy.py`` (AirGapPolicy, FederationAgreementState, etc., 375 lines)
 """
 
 from __future__ import annotations
@@ -69,8 +63,6 @@ class FederatedExecutionReceipt:
 
     Published to the ``coreason.federation.audit`` JetStream stream
     after every successful (or failed) cross-instance invocation.
-
-    Replaces the in-memory receipt pattern in ``proxy.py``.
     """
 
     __slots__ = (
@@ -185,23 +177,16 @@ class NATSFederationProxy:
         )
         self._js = self._nc.jetstream()
 
-        # Ensure the audit stream exists
+        # Ensure the audit stream exists — application code must not execute infra CRUD.
         try:
-            await self._js.find_stream_name_by_subject(SUBJECT_FEDERATION_AUDIT)
-        except Exception:
-            from nats.js.api import RetentionPolicy, StreamConfig
-
-            await self._js.add_stream(
-                StreamConfig(
-                    name="coreason-federation-audit",
-                    subjects=[SUBJECT_FEDERATION_AUDIT],
-                    description="Immutable audit trail for cross-instance traffic",
-                    retention=RetentionPolicy.LIMITS,
-                    max_msgs=1_000_000,
-                    max_bytes=1_073_741_824,  # 1GB
-                )
+            await self._js.stream_info("coreason-federation-audit")
+        except Exception as e:
+            logger.critical(
+                "NATS audit stream 'coreason-federation-audit' missing: %s", e
             )
-            logger.info("Created federation audit stream")
+            raise RuntimeError(
+                "Federation audit stream missing. Provision infrastructure first."
+            ) from e
 
         logger.info("Federation proxy connected for instance: %s", self._instance_id)
 
@@ -226,9 +211,6 @@ class NATSFederationProxy:
     ) -> dict[str, Any]:
         """Invoke a tool on a remote CoReason instance via NATS federation.
 
-        Replaces ``FederationProxy.invoke_remote_tool()`` which used custom
-        httpx mTLS connections.
-
         The NATS leaf node architecture means:
         1. This client publishes to a NATS subject
         2. The local NATS server forwards it via leaf node to the remote NATS
@@ -248,9 +230,7 @@ class NATSFederationProxy:
             The JSON response from the remote capability provider.
         """
         if not self._nc or not self._nc.is_connected:
-            raise RuntimeError(
-                "Federation proxy not connected. Call connect() first."
-            )
+            raise RuntimeError("Federation proxy not connected. Call connect() first.")
 
         # Step 1: DLP scanning (if required)
         if self._require_dlp:
@@ -288,9 +268,7 @@ class NATSFederationProxy:
         )
 
         try:
-            response = await self._nc.request(
-                subject, payload_bytes, timeout=timeout
-            )
+            response = await self._nc.request(subject, payload_bytes, timeout=timeout)
         except Exception as e:
             # Emit failure receipt
             await self._emit_receipt(
@@ -305,9 +283,7 @@ class NATSFederationProxy:
                     f"Remote instance '{target_instance_id}' did not respond "
                     f"within {timeout}s for URN '{urn}'"
                 ) from e
-            raise RuntimeError(
-                f"Federation request failed: {e}"
-            ) from e
+            raise RuntimeError(f"Federation request failed: {e}") from e
 
         # Step 4: Emit success receipt
         await self._emit_receipt(
@@ -331,17 +307,18 @@ class NATSFederationProxy:
     async def _dlp_scan(self, urn: str, arguments: dict[str, Any]) -> None:
         """Submit payload to NemoClaw DLP scanning via NATS.
 
-        Replaces the custom httpx-based NemoClaw bridge.
         NemoClaw runs as a NATS service (request-reply pattern).
         """
         if not self._nc:
             raise RuntimeError("Not connected")
 
-        scan_request = json.dumps({
-            "urn": urn,
-            "payload": arguments,
-            "scan_type": "FEDERATION_EGRESS",
-        }).encode("utf-8")
+        scan_request = json.dumps(
+            {
+                "urn": urn,
+                "payload": arguments,
+                "scan_type": "FEDERATION_EGRESS",
+            }
+        ).encode("utf-8")
 
         try:
             response = await self._nc.request(
@@ -368,10 +345,7 @@ class NATSFederationProxy:
         status: str,
         payload_hash: str = "",
     ) -> None:
-        """Publish an immutable audit receipt to the JetStream stream.
-
-        Replaces in-memory receipt accumulation in ``FederationProxy``.
-        """
+        """Publish an immutable audit receipt to the JetStream stream."""
         if not self._js:
             return
 
@@ -398,7 +372,7 @@ class NATSFederationProxy:
     @staticmethod
     def _compute_request_id(arguments: dict[str, Any]) -> str:
         """Compute a deterministic request ID from the payload."""
-        canonical = json.dumps(
-            arguments, sort_keys=True, separators=(",", ":")
-        ).encode("utf-8")
+        canonical = json.dumps(arguments, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
         return hashlib.sha256(canonical).hexdigest()[:16]

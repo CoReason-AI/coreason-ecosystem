@@ -1,10 +1,39 @@
 # Default values for coreason-mesh.
 replicaCount: 3
+terminationGracePeriodSeconds: 30
+
+# OCI Registry Credentials — injected by the client for private GHCR access
+imagePullSecrets:
+  - name: coreason-registry-credentials
 
 image:
   repository: ghcr.io/coreason-ai/coreason-ecosystem
   pullPolicy: IfNotPresent
   tag: "0.60.0"
+  # Digest pin (SHA-256): When set, takes precedence over tag.
+  # Production deployments MUST use digest for SOC2/ISO compliance.
+  # Example: sha256:abc123def456...
+  digest: ""
+
+# Health probes — ArgoCD waits for these before proceeding to next sync-wave.
+probes:
+  startup:
+    path: /healthz
+    initialDelaySeconds: 5
+    periodSeconds: 2
+    timeoutSeconds: 3
+    failureThreshold: 30
+  readiness:
+    path: /healthz
+    periodSeconds: 10
+    timeoutSeconds: 3
+    successThreshold: 1
+    failureThreshold: 3
+  liveness:
+    path: /healthz
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 5
 
 service:
   type: ClusterIP

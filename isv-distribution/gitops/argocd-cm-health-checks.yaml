@@ -1,0 +1,97 @@
+# Copyright (c) 2026 CoReason, Inc. Licensed under the Prosperity Public License 3.0.
+#
+# ArgoCD Custom Health Checks
+# =============================
+# Extend ArgoCD's built-in health assessment with Lua scripts for CRDs
+# that ArgoCD does not natively understand. Without these, ArgoCD marks
+# CRD instances as "Progressing" indefinitely, blocking sync waves.
+#
+# Apply after ArgoCD is installed:
+#   kubectl apply -f argocd-cm-health-checks.yaml
+#
+# Why this matters for sync waves:
+#   ArgoCD will NOT proceed from wave N to wave N+1 until all resources
+#   in wave N are "Healthy". If ESO's ExternalSecret stays "Progressing",
+#   Core/Mesh/Observability never deploy.
+#
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: health-checks
+data:
+  # ── External Secrets Operator ──────────────────────────────────────
+  # ExternalSecret: "Healthy" when the Ready condition is True,
+  # "Degraded" when False (backend unreachable, auth failure, etc.)
+  resource.customizations.health.external-secrets.io_ExternalSecret: |
+    hs = {}
+    if obj.status ~= nil and obj.status.conditions ~= nil then
+      for i, condition in ipairs(obj.status.conditions) do
+        if condition.type == "Ready" then
+          if condition.status == "True" then
+            hs.status = "Healthy"
+            hs.message = condition.message or "Secret synced successfully"
+            return hs
+          end
+          if condition.status == "False" then
+            hs.status = "Degraded"
+            hs.message = condition.message or "ExternalSecret sync failed"
+            return hs
+          end
+        end
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for ExternalSecret to reconcile"
+    return hs
+
+  # ClusterSecretStore: "Healthy" when the store can authenticate
+  # against the backend (Vault/AWS/GCP/Azure).
+  resource.customizations.health.external-secrets.io_ClusterSecretStore: |
+    hs = {}
+    if obj.status ~= nil and obj.status.conditions ~= nil then
+      for i, condition in ipairs(obj.status.conditions) do
+        if condition.type == "Ready" then
+          if condition.status == "True" then
+            hs.status = "Healthy"
+            hs.message = condition.message or "Store connected"
+            return hs
+          end
+          if condition.status == "False" then
+            hs.status = "Degraded"
+            hs.message = condition.message or "Store connection failed"
+            return hs
+          end
+        end
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for ClusterSecretStore to connect"
+    return hs
+
+  # SecretStore (namespace-scoped variant): same logic as ClusterSecretStore.
+  resource.customizations.health.external-secrets.io_SecretStore: |
+    hs = {}
+    if obj.status ~= nil and obj.status.conditions ~= nil then
+      for i, condition in ipairs(obj.status.conditions) do
+        if condition.type == "Ready" then
+          if condition.status == "True" then
+            hs.status = "Healthy"
+            hs.message = condition.message or "Store connected"
+            return hs
+          end
+          if condition.status == "False" then
+            hs.status = "Degraded"
+            hs.message = condition.message or "Store connection failed"
+            return hs
+          end
+        end
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for SecretStore to connect"
+    return hs

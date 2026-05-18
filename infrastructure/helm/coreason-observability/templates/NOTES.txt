@@ -1,0 +1,12 @@
+{{- if .Values.enabled }}
+# CoReason Observability Stack is enabled.
+# Sub-charts (kube-prometheus-stack, opentelemetry-collector) are deployed
+# via Helm dependency conditions defined in Chart.yaml.
+#
+# This template exists as a placeholder to ensure Helm recognizes the
+# templates/ directory. All actual resources are rendered by the sub-charts.
+#
+# To disable the entire observability stack, set:
+#   enabled: false
+# in your values override or ArgoCD Application spec.
+{{- end }}

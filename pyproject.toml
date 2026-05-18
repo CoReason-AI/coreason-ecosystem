@@ -7,12 +7,12 @@ name = "coreason_ecosystem"
 dynamic = ["version"]
 description = "The CoReason AI Swarm Ecosystem Integration Wrapper and Execution Plane"
 readme = "README.md"
-requires-python = "==3.14.*"
+requires-python = ">=3.14"
 authors = [
     { name = "Gowtham A Rao", email = "gowtham.rao@coreason.ai" },
 ]
 dependencies = [
-    "coreason-manifest==0.77.0",
+    "coreason-manifest==0.81.0",
     "click>=8.1.7",
     "loguru>=0.7.2",
     "typer>=0.9.0",
@@ -27,12 +27,9 @@ dependencies = [
     "temporalio>=1.9.0",
     "mcp>=1.27.0",
     "fastapi>=0.135.3",
+    "uvicorn>=0.30.0",
     "pyyaml>=6.0.2",
-    "onnxruntime>=1.26.0",  # Transitive via sentence-transformers; kept for ONNX backend
     "pyarrow>=24.0.0",
-    "sentence-transformers>=4.1.0",
-    "semantic-router>=0.1.1",
-    "numpy>=2.4.4",
     "skypilot>=0.6.2",
     "hvac>=2.4.0",
     "pyjwt>=2.12.1",
@@ -85,13 +82,13 @@ packages = ["src/coreason_ecosystem"]
 [tool.deptry]
 exclude = ["venv", "\\.venv", "tests", "infrastructure"]
 known_first_party = ["coreason_ecosystem"]
-per_rule_ignores = {"DEP002" = ["click", "onnxruntime", "cryptography", "fastapi", "pyyaml"], "DEP003" = ["starlette", "coreason_ecosystem"]}
+per_rule_ignores = {"DEP002" = ["click", "onnxruntime", "cryptography", "fastapi", "pyyaml", "pyarrow"], "DEP003" = ["starlette", "coreason_ecosystem"]}
 
 
 [project.urls]
-Homepage = "https://github.com/CoReason-AI/coreason_ecosystem"
-Repository = "https://github.com/CoReason-AI/coreason_ecosystem"
-Documentation = "https://github.com/CoReason-AI/coreason_ecosystem"
+Homepage = "https://github.com/CoReason-AI/coreason-ecosystem"
+Repository = "https://github.com/CoReason-AI/coreason-ecosystem"
+Documentation = "https://github.com/CoReason-AI/coreason-ecosystem"
 
 [tool.ruff]
 line-length = 120
@@ -117,6 +114,22 @@ warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
 
 
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+check_untyped_defs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = "tests"
+check_untyped_defs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+warn_unused_ignores = false
 
 [[tool.mypy.overrides]]
 module = "opentelemetry.*"
@@ -192,7 +205,8 @@ extraPaths = ["."]
 
 
 
+[tool.uv.sources]
+coreason-manifest = { path = "../coreason-manifest" }
+
 [tool.hatch.metadata]
 allow-direct-references = true
-
-
