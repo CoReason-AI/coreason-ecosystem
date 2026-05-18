@@ -12,6 +12,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Checkout coreason-manifest
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: CoReason-AI/coreason-manifest
+          ref: develop
+          path: coreason-manifest
+          token: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
+      - name: Link coreason-manifest as sibling
+        run: python -c "import os, shutil; src=os.path.abspath('coreason-manifest'); dst=os.path.abspath('../coreason-manifest'); (os.remove(dst) if os.path.islink(dst) else (shutil.rmtree(dst) if os.path.isdir(dst) else os.remove(dst))) if (os.path.exists(dst) or os.path.islink(dst)) else None; os.symlink(src, dst, target_is_directory=True)"
+        shell: bash
       - name: Install uv
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.3.1
         with:
