@@ -17,6 +17,9 @@ COPY README.md .
 COPY LICENSE .
 COPY .git ./.git
 
+# Copy local manifest dependency to /coreason-manifest/ to satisfy relative path dependency
+COPY coreason-manifest* /coreason-manifest/
+
 # Install dependencies and build the wheel
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev --frozen
