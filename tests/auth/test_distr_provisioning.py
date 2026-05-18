@@ -9,6 +9,7 @@ from coreason_ecosystem.auth.distr_provisioning import init_vault, issue_license
 
 from typing import Generator
 
+
 @pytest.fixture
 def mock_vault_dir(tmp_path: Path) -> Generator[Path, None, None]:
     """Mock the home directory so vault goes to tmp_path."""
