@@ -136,6 +136,66 @@ app.add_typer(docs_app, name="docs")
 license_app = typer.Typer(help="Sovereign Commercial License Management")
 app.add_typer(license_app, name="license")
 
+distr_app = typer.Typer(help="Distr Internal Billing & Provisioning Backend")
+app.add_typer(distr_app, name="distr")
+
+
+@distr_app.command("init-vault")
+def distr_init_vault() -> None:
+    """The Key Generation Ceremony: Generate and vault the Master Cryptographic Keys."""
+    from coreason_ecosystem.auth.distr_provisioning import init_vault
+
+    try:
+        init_vault()
+        console.print(
+            "[bold green]✓ Key Generation Ceremony Complete. Vault initialized.[/bold green]"
+        )
+    except Exception as e:
+        console.print(f"[bold red]✗ Vault Initialization Failed:[/bold red] {e}")
+
+
+@distr_app.command("issue-license")
+def distr_issue_license(
+    tenant_cid: str = typer.Option(
+        ..., help="The client's Tenant ID (e.g., 'tenant-xyz')"
+    ),
+    entitlements: list[str] = typer.Option(
+        ["COMMERCIAL_USE"],
+        help="List of entitlements (e.g., 'COMMERCIAL_USE', 'PRIVATE_LEDGER')",
+    ),
+    valid_days: int = typer.Option(365, help="Validity duration in days"),
+    hardware_zk_proof: str = typer.Option(
+        None, help="Optional zk-SNARK proof for hardware binding"
+    ),
+) -> None:
+    """Issue a CommercialOverrideReceipt (Signed VCDM v2.0 JWT) for a client."""
+    from coreason_ecosystem.auth.distr_provisioning import issue_license
+
+    try:
+        token = issue_license(tenant_cid, entitlements, valid_days, hardware_zk_proof)
+        console.print(
+            "[bold green]✓ CommercialOverrideReceipt Issued Successfully.[/bold green]\n"
+        )
+        console.print(f"[bold cyan]Token:[/bold cyan] {token}")
+    except Exception as e:
+        console.print(f"[bold red]✗ License Issuance Failed:[/bold red] {e}")
+
+
+@distr_app.command("serve-api")
+def distr_serve_api(
+    port: int = typer.Option(8000, help="Port to run the Distr API on"),
+    host: str = typer.Option("127.0.0.1", help="Host IP to bind to"),
+) -> None:
+    """Run the Distr FastAPI backend for the Vite Web Dashboard."""
+    import uvicorn
+
+    console.print(
+        f"[bold green]Starting Distr API on http://{host}:{port}[/bold green]"
+    )
+    uvicorn.run(
+        "coreason_ecosystem.auth.distr_api:app", host=host, port=port, reload=True
+    )
+
 
 @license_app.command("install")
 def license_install(
