@@ -18,3 +18,9 @@ e6d9421a63179844185a28b4146b444dbf5e30ab:bandit-tests.json:private-key:4941
 
 # mock public did key used in distr_provisioning.py
 cff5e0479384d70a3a7076abbc8807c000f77708:src/coreason_ecosystem/auth/distr_provisioning.py:generic-api-key:109
+
+# mock OpenAI / Oracle API keys in compose.yaml from commit 8f088b0
+8f088b02df911254f643380531a6bc7d6a8ce709:infrastructure/local/compose.yaml:generic-api-key:89
+8f088b02df911254f643380531a6bc7d6a8ce709:infrastructure/local/compose.yaml:generic-api-key:91
+8f088b02df911254f643380531a6bc7d6a8ce709:infrastructure/local/compose.yaml:generic-api-key:109
+8f088b02df911254f643380531a6bc7d6a8ce709:infrastructure/local/compose.yaml:generic-api-key:112
