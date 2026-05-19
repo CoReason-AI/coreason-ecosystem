@@ -3,8 +3,6 @@ import subprocess
 import time
 import httpx
 from pathlib import Path
-import os
-import signal
 
 # Paths
 E2E_DIR = Path(__file__).parent
