@@ -72,6 +72,24 @@ services:
       - swarm-mesh
       - sensory-gateway
 
+  coreason-worker:
+    image: ghcr.io/coreason-ai/coreason-runtime:0.39.0
+    restart: on-failure
+    command: ["start", "node"]
+    deploy:
+      resources:
+        limits:
+          cpus: '${RUNTIME_CPUS:-2.0}'
+          memory: '${RUNTIME_MEMORY:-4G}'
+    environment:
+      - EPISTEMIC_MERKLE_ROOT=${EPISTEMIC_MERKLE_ROOT}
+      - COREASON_TEMPORAL_HOST=temporal:7233
+    networks:
+      - swarm-mesh
+    depends_on:
+      temporal:
+        condition: service_healthy
+
   prometheus:
     image: prom/prometheus
     restart: on-failure
