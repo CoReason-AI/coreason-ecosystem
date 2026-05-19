@@ -1,251 +1,175 @@
+import os
+import json
+import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
-
-import httpx
 import pytest
+import httpx
 
 from coreason_ecosystem.orchestration.isomorphism_probe import execute_oracle_diagnostic
+from coreason_ecosystem.orchestration.registry import calculate_epistemic_root
 
-from typing import Any, Optional
+def create_mock_asgi_app(
+    docs_status=200,
+    verify_status=200,
+    docs_exc=None,
+    verify_exc=None,
+    stream_exc=None,
+):
+    async def mock_asgi_app(scope, receive, send):
+        if scope["type"] != "http":
+            return
+            
+        path = scope["path"]
+        headers = {k.decode("latin1"): v.decode("latin1") for k, v in scope.get("headers", [])}
+        
+        status = 200
+        body = b"OK"
+        
+        if path == "/docs":
+            if docs_exc:
+                raise docs_exc
+            status = docs_status
+        elif path == "/api/v1/telemetry/stream":
+            if stream_exc:
+                raise stream_exc
+        elif path == "/api/v1/epistemic/verify":
+            if verify_exc:
+                raise verify_exc
+            status = verify_status
+        else:
+            status = 404
+            body = b"Not Found"
 
-
-class MockResponse:
-    def __init__(self, status_code: int, elapsed_seconds: float = 0.1) -> None:
-        self.status_code = status_code
-        self.elapsed = type(
-            "obj", (object,), {"total_seconds": lambda *args, **kwargs: elapsed_seconds}
-        )()
-
-
-class MockAsyncClient:
-    def __init__(
-        self,
-        get_responses: Optional[dict[str, Any]] = None,
-        stream_responses: Optional[dict[str, Any]] = None,
-    ) -> None:
-        self.get_responses = get_responses or {}
-        self.stream_responses = stream_responses or {}
-
-    async def __aenter__(self) -> "MockAsyncClient":
-        return self
-
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        pass
-
-    async def get(self, url: str, **kwargs: Any) -> Any:
-        if url in self.get_responses:
-            resp = self.get_responses[url]
-            if isinstance(resp, Exception):
-                raise resp
-            return resp
-        return MockResponse(200)
-
-    def stream(self, method: str, url: str, **kwargs: Any) -> Any:
-        class StreamContext:
-            def __init__(self, resp: Any) -> None:
-                self.resp = resp
-
-            async def __aenter__(self) -> Any:
-                if isinstance(self.resp, Exception):
-                    raise self.resp
-                return self.resp
-
-            async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-                pass
-
-        resp = self.stream_responses.get(url, MockResponse(200))
-        return StreamContext(resp)
+        await send({
+            "type": "http.response.start",
+            "status": status,
+            "headers": [(b"content-type", b"text/plain")],
+        })
+        await send({
+            "type": "http.response.body",
+            "body": body,
+        })
+    return mock_asgi_app
 
 
 @pytest.mark.asyncio
-async def test_execute_oracle_diagnostic_all_success(tmp_path: Path) -> None:
+async def test_execute_oracle_diagnostic_all_success(tmp_path: Path, capsys, monkeypatch):
     schema_path = tmp_path / "coreason_ontology.schema.json"
     schema_path.write_bytes(b"{}")
-
-    with (
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.Path.cwd",
-            return_value=tmp_path,
-        ),
-        patch(
-            "httpx.AsyncClient",
-            return_value=MockAsyncClient(
-                get_responses={
-                    "http://localhost:8000/docs": MockResponse(200),
-                    "http://localhost:8000/api/v1/epistemic/verify": MockResponse(200),
-                },
-                stream_responses={
-                    "http://localhost:8000/api/v1/telemetry/stream": MockResponse(200)
-                },
-            ),
-        ),
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.read_registry_lock",
-            return_value="fake_root",
-        ),
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.calculate_epistemic_root",
-            new_callable=AsyncMock,
-        ) as mock_calc,
-        patch("coreason_ecosystem.cli.console.print") as mock_print,
-    ):
-        mock_calc.return_value = "fake_root"
-        await execute_oracle_diagnostic()
-        mock_print.assert_called_once()
-        table = mock_print.mock_calls[0].args[0]
-        # Should be 4 rows
-        assert len(table.rows) == 4
+    
+    monkeypatch.chdir(tmp_path)
+    current_root = await calculate_epistemic_root(tmp_path)
+    
+    coreason_dir = tmp_path / ".coreason"
+    coreason_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = coreason_dir / "registry.lock"
+    lock_path.write_text(json.dumps({"epistemic_root": current_root}))
+    
+    transport = httpx.ASGITransport(app=create_mock_asgi_app())
+    client = httpx.AsyncClient(transport=transport, base_url="http://localhost:8000")
+    
+    await execute_oracle_diagnostic(client=client)
+    
+    captured = capsys.readouterr()
+    assert "Ontological Isomorphism Diagnostic" in captured.out
+    assert "✓ ALIVE" in captured.out
+    assert "✓ STREAMING" in captured.out
+    assert "✓ SYNCED" in captured.out
+    assert "✓ ALIGNED" in captured.out
 
 
 @pytest.mark.asyncio
-async def test_execute_oracle_diagnostic_all_failures(tmp_path: Path) -> None:
-    with (
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.Path.cwd",
-            return_value=tmp_path,
-        ),
-        patch(
-            "httpx.AsyncClient",
-            return_value=MockAsyncClient(
-                get_responses={
-                    "http://localhost:8000/docs": httpx.RequestError("error"),
-                    "http://localhost:8000/api/v1/epistemic/verify": httpx.RequestError(
-                        "error"
-                    ),
-                },
-                stream_responses={
-                    "http://localhost:8000/api/v1/telemetry/stream": httpx.RequestError(
-                        "error"
-                    )
-                },
-            ),
-        ),
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.read_registry_lock",
-            return_value=None,
-        ),
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.calculate_epistemic_root",
-            new_callable=AsyncMock,
-        ) as mock_calc,
-        patch("coreason_ecosystem.cli.console.print") as mock_print,
-    ):
-        # Different root forces local drift
-        mock_calc.return_value = "different_root"
-        await execute_oracle_diagnostic()
-        mock_print.assert_called_once()
-        table = mock_print.mock_calls[0].args[0]
-        assert len(table.rows) == 4
+async def test_execute_oracle_diagnostic_all_failures(tmp_path: Path, capsys, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    
+    # Missing schema, missing lock
+    # Force network exceptions
+    transport = httpx.ASGITransport(
+        app=create_mock_asgi_app(
+            docs_exc=httpx.RequestError("error"),
+            stream_exc=httpx.RequestError("error"),
+            verify_exc=httpx.RequestError("error")
+        )
+    )
+    client = httpx.AsyncClient(transport=transport, base_url="http://localhost:8000")
+    
+    await execute_oracle_diagnostic(client=client)
+    
+    captured = capsys.readouterr()
+    assert "✗ OFFLINE" in captured.out
+    assert "✗ TIMEOUT/OFFLINE" in captured.out
+    assert "✗ MISSING" in captured.out
+    assert "✗ LOCAL DRIFT DETECTED" in captured.out
 
 
 @pytest.mark.asyncio
-async def test_execute_oracle_diagnostic_http_errors(tmp_path: Path) -> None:
+async def test_execute_oracle_diagnostic_http_errors(tmp_path: Path, capsys, monkeypatch):
     schema_path = tmp_path / "coreason_ontology.schema.json"
     schema_path.write_bytes(b"{}")
-
-    with (
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.Path.cwd",
-            return_value=tmp_path,
-        ),
-        patch(
-            "httpx.AsyncClient",
-            return_value=MockAsyncClient(
-                get_responses={
-                    "http://localhost:8000/docs": MockResponse(500),
-                    "http://localhost:8000/api/v1/epistemic/verify": MockResponse(409),
-                },
-                stream_responses={
-                    "http://localhost:8000/api/v1/telemetry/stream": MockResponse(500)
-                },
-            ),
-        ),
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.read_registry_lock",
-            return_value="fake_root",
-        ),
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.calculate_epistemic_root",
-            new_callable=AsyncMock,
-        ) as mock_calc,
-        patch("coreason_ecosystem.cli.console.print") as mock_print,
-    ):
-        mock_calc.return_value = "fake_root"
-        await execute_oracle_diagnostic()
-        mock_print.assert_called_once()
+    
+    monkeypatch.chdir(tmp_path)
+    current_root = await calculate_epistemic_root(tmp_path)
+    
+    coreason_dir = tmp_path / ".coreason"
+    coreason_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = coreason_dir / "registry.lock"
+    lock_path.write_text(json.dumps({"epistemic_root": current_root}))
+    
+    transport = httpx.ASGITransport(
+        app=create_mock_asgi_app(docs_status=500, verify_status=409)
+    )
+    client = httpx.AsyncClient(transport=transport, base_url="http://localhost:8000")
+    
+    await execute_oracle_diagnostic(client=client)
+    
+    captured = capsys.readouterr()
+    assert "✗ ERROR 500" in captured.out
+    assert "✗ DRIFT DETECTED" in captured.out
 
 
 @pytest.mark.asyncio
-async def test_execute_oracle_diagnostic_epistemic_http_error(tmp_path: Path) -> None:
+async def test_execute_oracle_diagnostic_epistemic_http_error(tmp_path: Path, capsys, monkeypatch):
     schema_path = tmp_path / "coreason_ontology.schema.json"
     schema_path.write_bytes(b"{}")
-
-    with (
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.Path.cwd",
-            return_value=tmp_path,
-        ),
-        patch(
-            "httpx.AsyncClient",
-            return_value=MockAsyncClient(
-                get_responses={
-                    "http://localhost:8000/docs": MockResponse(200),
-                    "http://localhost:8000/api/v1/epistemic/verify": MockResponse(500),
-                },
-                stream_responses={
-                    "http://localhost:8000/api/v1/telemetry/stream": MockResponse(200)
-                },
-            ),
-        ),
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.read_registry_lock",
-            return_value="fake_root",
-        ),
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.calculate_epistemic_root",
-            new_callable=AsyncMock,
-        ) as mock_calc,
-        patch("coreason_ecosystem.cli.console.print") as mock_print,
-    ):
-        mock_calc.return_value = "fake_root"
-        await execute_oracle_diagnostic()
-        mock_print.assert_called_once()
+    
+    monkeypatch.chdir(tmp_path)
+    current_root = await calculate_epistemic_root(tmp_path)
+    
+    coreason_dir = tmp_path / ".coreason"
+    coreason_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = coreason_dir / "registry.lock"
+    lock_path.write_text(json.dumps({"epistemic_root": current_root}))
+    
+    transport = httpx.ASGITransport(
+        app=create_mock_asgi_app(docs_status=200, verify_status=500)
+    )
+    client = httpx.AsyncClient(transport=transport, base_url="http://localhost:8000")
+    
+    await execute_oracle_diagnostic(client=client)
+    
+    captured = capsys.readouterr()
+    assert "⚠ HTTP 500" in captured.out
 
 
 @pytest.mark.asyncio
-async def test_execute_oracle_diagnostic_epistemic_timeout(tmp_path: Path) -> None:
+async def test_execute_oracle_diagnostic_epistemic_timeout(tmp_path: Path, capsys, monkeypatch):
     schema_path = tmp_path / "coreason_ontology.schema.json"
     schema_path.write_bytes(b"{}")
-
-    with (
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.Path.cwd",
-            return_value=tmp_path,
-        ),
-        patch(
-            "httpx.AsyncClient",
-            return_value=MockAsyncClient(
-                get_responses={
-                    "http://localhost:8000/docs": MockResponse(200),
-                    "http://localhost:8000/api/v1/epistemic/verify": httpx.TimeoutException(
-                        "timeout"
-                    ),
-                },
-                stream_responses={
-                    "http://localhost:8000/api/v1/telemetry/stream": MockResponse(200)
-                },
-            ),
-        ),
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.read_registry_lock",
-            return_value="fake_root",
-        ),
-        patch(
-            "coreason_ecosystem.orchestration.isomorphism_probe.calculate_epistemic_root",
-            new_callable=AsyncMock,
-        ) as mock_calc,
-        patch("coreason_ecosystem.cli.console.print") as mock_print,
-    ):
-        mock_calc.return_value = "fake_root"
-        await execute_oracle_diagnostic()
-        mock_print.assert_called_once()
+    
+    monkeypatch.chdir(tmp_path)
+    current_root = await calculate_epistemic_root(tmp_path)
+    
+    coreason_dir = tmp_path / ".coreason"
+    coreason_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = coreason_dir / "registry.lock"
+    lock_path.write_text(json.dumps({"epistemic_root": current_root}))
+    
+    transport = httpx.ASGITransport(
+        app=create_mock_asgi_app(verify_exc=httpx.TimeoutException("timeout"))
+    )
+    client = httpx.AsyncClient(transport=transport, base_url="http://localhost:8000")
+    
+    await execute_oracle_diagnostic(client=client)
+    
+    captured = capsys.readouterr()
+    assert "⚠ UNREACHABLE" in captured.out

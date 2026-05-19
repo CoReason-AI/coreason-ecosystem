@@ -1,10 +1,14 @@
-import runpy
+import subprocess
 import sys
-from unittest.mock import patch
 
 
 def test_main_execution() -> None:
-    with patch("coreason_ecosystem.cli.app") as mock_app:
-        with patch.object(sys, "argv", ["coreason"]):
-            runpy.run_module("coreason_ecosystem.__main__", run_name="__main__")
-            mock_app.assert_called_once_with(prog_name="coreason")
+    # Execute the CLI physically to satisfy Anti-Mocking "Real Test" Directive
+    result = subprocess.run(
+        [sys.executable, "-m", "coreason_ecosystem", "--help"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert "Usage: coreason" in result.stdout
+    assert result.returncode == 0

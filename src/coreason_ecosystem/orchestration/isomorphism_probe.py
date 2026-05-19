@@ -36,7 +36,9 @@ from coreason_ecosystem.orchestration.registry import (
 )
 
 
-async def execute_oracle_diagnostic() -> None:
+from contextlib import AsyncExitStack
+
+async def execute_oracle_diagnostic(client: httpx.AsyncClient | None = None) -> None:
     """Prove Ontological Isomorphism across the Tripartite Manifold.
 
     Acts as a blind asymmetric socket: routes diagnostic probes to the
@@ -52,7 +54,10 @@ async def execute_oracle_diagnostic() -> None:
     table.add_column("Status", style="magenta")
     table.add_column("Telemetry/Hash", style="green")
 
-    async with httpx.AsyncClient() as client:
+    async with AsyncExitStack() as stack:
+        if client is None:
+            client = await stack.enter_async_context(httpx.AsyncClient())
+
         # Probe A: Runtime Integrity
         try:
             resp = await client.get(f"{base_url}/docs", timeout=2.0)
