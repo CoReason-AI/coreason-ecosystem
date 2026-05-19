@@ -8,6 +8,7 @@ from pathlib import Path
 E2E_DIR = Path(__file__).parent
 COMPOSE_FILE = E2E_DIR / "docker-compose.e2e.yaml"
 
+
 @pytest.fixture(scope="session", autouse=True)
 def spin_up_tripartite_swarm():
     """
@@ -19,7 +20,7 @@ def spin_up_tripartite_swarm():
         subprocess.run(
             ["docker", "compose", "-f", str(COMPOSE_FILE), "up", "-d"],
             check=True,
-            capture_output=True
+            capture_output=True,
         )
     except subprocess.CalledProcessError as e:
         print(f"Failed to start docker-compose: {e.stderr.decode()}")
@@ -34,13 +35,13 @@ def spin_up_tripartite_swarm():
             res_gateway = httpx.get("http://localhost:8001/", timeout=1.0)
             # Check Runtime
             res_runtime = httpx.get("http://localhost:8000/docs", timeout=1.0)
-            
+
             if res_gateway.status_code == 200 and res_runtime.status_code == 200:
                 print("Swarm is healthy and ready for testing.")
                 break
         except httpx.RequestError:
             pass
-        
+
         time.sleep(2)
     else:
         # If we exit the loop without breaking, we failed to start
@@ -52,4 +53,6 @@ def spin_up_tripartite_swarm():
 
     # Tear down the cluster
     print("\nTeardown: Spinning down Tripartite Swarm...")
-    subprocess.run(["docker", "compose", "-f", str(COMPOSE_FILE), "down", "-v"], check=True)
+    subprocess.run(
+        ["docker", "compose", "-f", str(COMPOSE_FILE), "down", "-v"], check=True
+    )
