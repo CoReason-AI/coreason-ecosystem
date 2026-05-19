@@ -19,6 +19,12 @@ from coreason_ecosystem.auth.distr_provisioning import (
     MASTER_KEY_FILE,
 )
 
+import base64
+from cryptography.hazmat.primitives import serialization
+from mcp.client.stdio import stdio_client, StdioServerParameters
+from mcp.client.session import ClientSession
+from coreason_manifest.spec.ontology import CoreasonBaseState
+
 app = FastAPI(title="Distr License Provisioning API")
 
 # Enable CORS for the local Vite dashboard
@@ -74,3 +80,61 @@ def issue_new_license(request: IssueLicenseRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="Vault not initialized.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/forge/intent")
+async def proxy_forge_intent(intent: dict[str, Any]) -> dict[str, Any]:
+    """
+    Proxy GeometricSchemaIntent to the coreason-meta-engineering MCP server.
+    Enforces Zero-Trust MCP routing through the Governance Plane.
+    """
+    server_params = StdioServerParameters(
+        command="uv",
+        args=["run", "mcp_server.py"],
+        env=None
+    )
+    
+    try:
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                
+                # Assuming the MCP tool is called scaffold_manifest_state or similar
+                # We dynamically pass the intent payload
+                result = await session.call_tool(
+                    "scaffold_manifest_state",
+                    arguments={"intent": intent}
+                )
+                return {"status": "success", "result": result.content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Forge MCP routing failed: {e}")
+
+@app.get("/.well-known/jwks.json")
+def get_jwks() -> dict[str, Any]:
+    """Provide the JWKS for Authlib in coreason-runtime."""
+    try:
+        with open(MASTER_KEY_FILE, "rb") as f:
+            private_key = serialization.load_pem_private_key(f.read(), password=None)
+        public_bytes = private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
+        )
+        x_b64 = base64.urlsafe_b64encode(public_bytes).decode('ascii').rstrip('=')
+        return {
+            "keys": [
+                {
+                    "kty": "OKP",
+                    "crv": "Ed25519",
+                    "x": x_b64,
+                    "use": "sig",
+                    "kid": "master-key"
+                }
+            ]
+        }
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Vault not initialized. Run key generation.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/capabilities/schema")
+def get_capabilities_schema() -> dict[str, Any]:
+    """Serve the CoreasonBaseState ontology JSON schema for DynamicToposRenderer."""
+    return CoreasonBaseState.model_json_schema()
