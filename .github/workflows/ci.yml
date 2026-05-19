@@ -155,6 +155,9 @@ jobs:
 
       - name: Set up Docker Compose
         run: |
+          for i in 1 2 3 4 5; do
+            docker compose -f infrastructure/local/compose.yaml pull && break || sleep 15
+          done
           docker compose -f infrastructure/local/compose.yaml up -d --build
         shell: bash
 
