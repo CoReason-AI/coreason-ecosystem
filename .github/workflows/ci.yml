@@ -115,7 +115,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: CoReason-AI/coreason-manifest
-          ref: develop
+          ref: v0.84.1
           path: coreason-manifest
           token: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
@@ -231,7 +231,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: CoReason-AI/coreason-manifest
-          ref: develop
+          ref: v0.84.1
           path: coreason-manifest
           token: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
@@ -280,7 +280,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: CoReason-AI/coreason-manifest
-          ref: develop
+          ref: v0.84.1
           path: coreason-manifest
           token: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
