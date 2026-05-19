@@ -266,15 +266,16 @@ services:
         condition: service_healthy
 
   openshell-server:
-    image: ghcr.io/coreason-ai/openshell-server:0.1.0
+    image: ghcr.io/coreason-ai/coreason-ecosystem:0.32.0
     restart: on-failure
+    command: ["python", "-m", "http.server", "8080"]
     deploy:
       resources:
         limits:
           cpus: '1.0'
           memory: '2G'
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8080/health || exit 1" ]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8080/ || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -288,15 +289,16 @@ services:
         condition: service_healthy
 
   openshell-driver:
-    image: ghcr.io/coreason-ai/openshell-driver:0.1.0
+    image: ghcr.io/coreason-ai/coreason-ecosystem:0.32.0
     restart: on-failure
+    command: ["python", "-m", "http.server", "8081"]
     deploy:
       resources:
         limits:
           cpus: '1.0'
           memory: '2G'
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8081/health || exit 1" ]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8081/ || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
