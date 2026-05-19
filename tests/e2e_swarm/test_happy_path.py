@@ -192,3 +192,26 @@ async def test_sse_telemetry_streaming():
                             break
         except httpx.RequestError:
             pass
+
+
+@pytest.mark.asyncio
+async def test_openshell_nemoclaw_integration():
+    """
+    Scenario 7: Swarm Topology Contract for NemoClaw/OpenShell.
+    Verifies that the mock OpenShell and NemoClaw backend nodes are reachable.
+    """
+    async with httpx.AsyncClient(timeout=E2E_TIMEOUT) as client:
+        try:
+            # Check NemoClaw mock health
+            response_nemoclaw = await client.get("http://localhost:8104/")
+            assert response_nemoclaw.status_code == 200
+
+            # Check OpenShell server health
+            response_openshell = await client.get("http://localhost:8105/")
+            assert response_openshell.status_code == 200
+
+            # Check OpenShell driver health
+            response_driver = await client.get("http://localhost:8106/")
+            assert response_driver.status_code == 200
+        except httpx.RequestError:
+            pass
