@@ -87,9 +87,7 @@ services:
       - TEMPORAL_HOST=temporal:7233
       - NEO4J_URI=bolt://neo4j:7687
       - OPENAI_BASE_URL=https://api.deepinfra.com/v1/openai
-      - OPENAI_API_KEY=lqef2h4s9Oqx2fheJWWhVJo8WrhJBshu
       - EPISTEMIC_MERKLE_ROOT=${EPISTEMIC_MERKLE_ROOT}
-      - CLOUD_ORACLE_API_KEY=lqef2h4s9Oqx2fheJWWhVJo8WrhJBshu
       - CLOUD_ORACLE_BASE_URL=https://api.deepinfra.com/v1/openai
       - CLOUD_ORACLE_MODEL=meta-llama/Meta-Llama-3-70B-Instruct
       - CLOUD_ORACLE_EMBEDDING_MODEL=text-embedding-3-small
