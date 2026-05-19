@@ -33,7 +33,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -47,7 +47,7 @@ jobs:
         shell: bash
 
       - name: Checkout coreason-manifest
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v6.0.2
         with:
           repository: CoReason-AI/coreason-manifest
           ref: ${{ env.MANIFEST_VERSION }}
@@ -111,7 +111,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -122,7 +122,7 @@ jobs:
         shell: bash
 
       - name: Checkout coreason-manifest
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v6.0.2
         with:
           repository: CoReason-AI/coreason-manifest
           ref: ${{ env.MANIFEST_VERSION }}
@@ -232,7 +232,7 @@ jobs:
           - os: macos-latest
             python-version: "3.14t"
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -243,7 +243,7 @@ jobs:
         shell: bash
 
       - name: Checkout coreason-manifest
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v6.0.2
         with:
           repository: CoReason-AI/coreason-manifest
           ref: ${{ env.MANIFEST_VERSION }}
@@ -286,7 +286,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -297,7 +297,7 @@ jobs:
         shell: bash
 
       - name: Checkout coreason-manifest
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v6.0.2
         with:
           repository: CoReason-AI/coreason-manifest
           ref: ${{ env.MANIFEST_VERSION }}
