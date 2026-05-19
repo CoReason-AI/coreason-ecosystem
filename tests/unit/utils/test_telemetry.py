@@ -33,11 +33,12 @@ from coreason_ecosystem.utils.telemetry import TelemetryModel
 _CACHED_PROVIDER = None
 _CACHED_EXPORTER = None
 
+
 @pytest.fixture(scope="session", autouse=True)
 def init_global_telemetry() -> Generator[None, None, None]:
     """Initialize a single physical tracer provider for the entire test session."""
     global _CACHED_PROVIDER, _CACHED_EXPORTER
-    
+
     if _CACHED_PROVIDER is None:
         _CACHED_PROVIDER = TracerProvider()
         _CACHED_EXPORTER = InMemorySpanExporter()
@@ -45,11 +46,12 @@ def init_global_telemetry() -> Generator[None, None, None]:
         _CACHED_PROVIDER.add_span_processor(processor)
 
         # Clear any existing global provider to allow overriding it for tests
-        trace._TRACER_PROVIDER = None 
-        
+        trace._TRACER_PROVIDER = None
+
         # OpenTelemetry uses a Once object to prevent overriding. Reset it.
         if hasattr(trace, "_TRACER_PROVIDER_SET_ONCE"):
             import opentelemetry.util._once
+
             trace._TRACER_PROVIDER_SET_ONCE = opentelemetry.util._once.Once()
 
         trace.set_tracer_provider(_CACHED_PROVIDER)
@@ -58,9 +60,10 @@ def init_global_telemetry() -> Generator[None, None, None]:
 
     if _CACHED_PROVIDER is not None:
         _CACHED_PROVIDER.shutdown()
-        
+
     try:
         from opentelemetry._logs import get_logger_provider
+
         provider = get_logger_provider()
         if hasattr(provider, "shutdown"):
             provider.shutdown()
@@ -73,13 +76,14 @@ def setup_telemetry() -> Generator[InMemorySpanExporter, None, None]:
     global _CACHED_EXPORTER
     assert _CACHED_EXPORTER is not None
     _CACHED_EXPORTER.clear()
-    
+
     import os
+
     original_log_json = os.environ.get("COREASON_LOG_JSON")
     os.environ["COREASON_LOG_JSON"] = "true"
-    
+
     yield _CACHED_EXPORTER
-    
+
     _CACHED_EXPORTER.clear()
     if original_log_json is not None:
         os.environ["COREASON_LOG_JSON"] = original_log_json
@@ -141,7 +145,7 @@ def test_redaction_filter_dev() -> None:
         "message": "Test message with email@example.com and 123-45-6789",
         "extra": {},
     }
-    
+
     orig_is_production = logger_module._IS_PRODUCTION
     logger_module._IS_PRODUCTION = False
     try:
@@ -158,7 +162,7 @@ def test_redaction_filter_prod() -> None:
         "message": "Test message with email@example.com and 123-45-6789",
         "extra": {},
     }
-    
+
     orig_is_production = logger_module._IS_PRODUCTION
     logger_module._IS_PRODUCTION = True
     try:
@@ -177,28 +181,31 @@ def test_telemetry_model_success(setup_telemetry: InMemorySpanExporter) -> None:
     model = TestModel.validate_with_telemetry({"name": "test"})
     assert isinstance(model, TestModel)
     assert model.name == "test"
-    
+
     spans = setup_telemetry.get_finished_spans()
     assert len(spans) == 1
     assert spans[0].name == "validate_TestModel"
 
 
-def test_telemetry_model_failure_diagnostics(setup_telemetry: InMemorySpanExporter) -> None:
+def test_telemetry_model_failure_diagnostics(
+    setup_telemetry: InMemorySpanExporter,
+) -> None:
     import coreason_ecosystem.utils.telemetry as telemetry_module
-    
+
     class MockSettings:
         enable_diagnostics = True
 
     orig_get_settings = telemetry_module.get_observability_settings
     telemetry_module.get_observability_settings = lambda: MockSettings()  # type: ignore[assignment,return-value]
-    
+
     try:
+
         class TestModel(TelemetryModel):
             name: str
 
         with pytest.raises(ValidationError):
             TestModel.validate_with_telemetry({"name": 123})
-            
+
         spans = setup_telemetry.get_finished_spans()
         assert len(spans) == 1
         assert spans[0].name == "validate_TestModel_error"
@@ -208,22 +215,25 @@ def test_telemetry_model_failure_diagnostics(setup_telemetry: InMemorySpanExport
         telemetry_module.get_observability_settings = orig_get_settings
 
 
-def test_telemetry_model_failure_no_diagnostics(setup_telemetry: InMemorySpanExporter) -> None:
+def test_telemetry_model_failure_no_diagnostics(
+    setup_telemetry: InMemorySpanExporter,
+) -> None:
     import coreason_ecosystem.utils.telemetry as telemetry_module
-    
+
     class MockSettings:
         enable_diagnostics = False
 
     orig_get_settings = telemetry_module.get_observability_settings
     telemetry_module.get_observability_settings = lambda: MockSettings()  # type: ignore[assignment,return-value]
-    
+
     try:
+
         class TestModel(TelemetryModel):
             name: str
 
         with pytest.raises(ValidationError):
             TestModel.validate_with_telemetry({"name": 123})
-            
+
         spans = setup_telemetry.get_finished_spans()
         assert len(spans) == 1
         assert spans[0].name == "validate_TestModel_error"
@@ -244,7 +254,7 @@ def test_emit_span_event(setup_telemetry: InMemorySpanExporter) -> None:
     from coreason_ecosystem.utils.telemetry import emit_span_event
 
     emit_span_event("test_event", {"key": "value"})
-    
+
     spans = setup_telemetry.get_finished_spans()
     assert len(spans) == 1
     assert spans[0].name == "test_event"

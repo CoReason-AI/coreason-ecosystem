@@ -38,6 +38,7 @@ from coreason_ecosystem.orchestration.registry import (
 
 from contextlib import AsyncExitStack
 
+
 async def execute_oracle_diagnostic(client: httpx.AsyncClient | None = None) -> None:
     """Prove Ontological Isomorphism across the Tripartite Manifold.
 
