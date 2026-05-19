@@ -46,6 +46,8 @@ jobs:
           ref: develop
           path: coreason-manifest
           token: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Link coreason-manifest as sibling
         run: python -c "import os, shutil; src=os.path.abspath('coreason-manifest'); dst=os.path.abspath('../coreason-manifest'); (os.remove(dst) if os.path.islink(dst) else (shutil.rmtree(dst) if os.path.isdir(dst) else os.remove(dst))) if (os.path.exists(dst) or os.path.islink(dst)) else None; os.symlink(src, dst, target_is_directory=True)"
