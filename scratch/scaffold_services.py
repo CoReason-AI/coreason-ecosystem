@@ -1,8 +1,14 @@
 import os
 
-helm_dir = r'c:\files\git\github\coreason-ai\coreason-ecosystem\infrastructure\helm\coreason-enterprise'
+helm_dir = r"c:\files\git\github\coreason-ai\coreason-ecosystem\infrastructure\helm\coreason-enterprise"
 
-components = ['urnAuthority', 'metaEngineering', 'sensoryApp', 'sensoryEmbed', 'manifest']
+components = [
+    "urnAuthority",
+    "metaEngineering",
+    "sensoryApp",
+    "sensoryEmbed",
+    "manifest",
+]
 
 template = """apiVersion: v1
 kind: Service
@@ -22,9 +28,15 @@ spec:
 """
 
 for comp in components:
-    name = comp.replace('urnAuthority', 'urn-authority').replace('metaEngineering', 'meta-engineering').replace('sensoryApp', 'sensory-app').replace('sensoryEmbed', 'sensory-embed').replace('manifest', 'manifest')
+    name = (
+        comp.replace("urnAuthority", "urn-authority")
+        .replace("metaEngineering", "meta-engineering")
+        .replace("sensoryApp", "sensory-app")
+        .replace("sensoryEmbed", "sensory-embed")
+        .replace("manifest", "manifest")
+    )
     content = template.replace("__NAME__", name).replace("__CAMEL__", comp)
-    with open(os.path.join(helm_dir, 'templates', f'{name}-service.yaml'), 'w') as f:
+    with open(os.path.join(helm_dir, "templates", f"{name}-service.yaml"), "w") as f:
         f.write(content)
 
-print('Success')
+print("Success")

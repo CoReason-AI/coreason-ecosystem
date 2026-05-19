@@ -1,9 +1,15 @@
 import os
 
-helm_dir = r'c:\files\git\github\coreason-ai\coreason-ecosystem\infrastructure\helm\coreason-enterprise'
-values_path = os.path.join(helm_dir, 'values.yaml')
+helm_dir = r"c:\files\git\github\coreason-ai\coreason-ecosystem\infrastructure\helm\coreason-enterprise"
+values_path = os.path.join(helm_dir, "values.yaml")
 
-components = ['urnAuthority', 'metaEngineering', 'sensoryApp', 'sensoryEmbed', 'manifest']
+components = [
+    "urnAuthority",
+    "metaEngineering",
+    "sensoryApp",
+    "sensoryEmbed",
+    "manifest",
+]
 
 values_additions = """
 # Added Components
@@ -78,7 +84,7 @@ manifest:
       memory: 64Mi
 """
 
-with open(values_path, 'a') as f:
+with open(values_path, "a") as f:
     f.write(values_additions)
 
 template = """apiVersion: apps/v1
@@ -119,9 +125,15 @@ spec:
 """
 
 for comp in components:
-    name = comp.replace('urnAuthority', 'urn-authority').replace('metaEngineering', 'meta-engineering').replace('sensoryApp', 'sensory-app').replace('sensoryEmbed', 'sensory-embed').replace('manifest', 'manifest')
+    name = (
+        comp.replace("urnAuthority", "urn-authority")
+        .replace("metaEngineering", "meta-engineering")
+        .replace("sensoryApp", "sensory-app")
+        .replace("sensoryEmbed", "sensory-embed")
+        .replace("manifest", "manifest")
+    )
     content = template.replace("__NAME__", name).replace("__CAMEL__", comp)
-    with open(os.path.join(helm_dir, 'templates', f'{name}-deployment.yaml'), 'w') as f:
+    with open(os.path.join(helm_dir, "templates", f"{name}-deployment.yaml"), "w") as f:
         f.write(content)
 
-print('Success')
+print("Success")
