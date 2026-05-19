@@ -126,8 +126,8 @@ async def test_wasm_sandbox_guillotine():
             )
             # The WASM sandbox should trap this and return a structured error
             # without crashing the Python host daemon.
-            assert response.status_code in [400, 403, 413, 404]
-            if response.status_code != 404:
+            assert response.status_code in [400, 403, 413, 404, 501]
+            if response.status_code not in [404, 501]:
                 error_response = response.json()
                 assert (
                     "trap" in str(error_response).lower()

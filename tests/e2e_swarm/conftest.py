@@ -3,8 +3,6 @@ import subprocess
 import time
 import httpx
 from pathlib import Path
-import os
-import signal
 
 # Paths
 E2E_DIR = Path(__file__).parent
@@ -19,7 +17,7 @@ def spin_up_tripartite_swarm():
     # Start the host-native gateways as subprocesses to reflect new architecture
     processes = []
     print("\nStarting host-native mock components...")
-    
+
     # 8101: Master Gateway
     processes.append(subprocess.Popen(["python", "-m", "http.server", "8101"]))
     # 8102: URN Authority
@@ -50,7 +48,11 @@ def spin_up_tripartite_swarm():
             # Check Runtime
             res_runtime = httpx.get("http://localhost:8100/docs", timeout=1.0)
 
-            if res_gateway.status_code in [200, 501, 404] and res_runtime.status_code in [200, 501, 404]:
+            if res_gateway.status_code in [
+                200,
+                501,
+                404,
+            ] and res_runtime.status_code in [200, 501, 404]:
                 print("Swarm is healthy and ready for testing.")
                 break
         except httpx.RequestError:
