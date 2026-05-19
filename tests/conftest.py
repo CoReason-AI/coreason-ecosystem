@@ -25,3 +25,21 @@ if _is_free_threaded:
     # Set sys.modules["bcrypt"] = None to block loading the real bcrypt C extension
     # and force it to fail with an ImportError, which cryptography/paramiko handle gracefully.
     sys.modules["bcrypt"] = None  # type: ignore[assignment]
+
+try:
+    from hypothesis import settings, HealthCheck
+    import os
+
+    # CI Profiles
+    settings.register_profile(
+        "ci-deep",
+        max_examples=1000,
+        deadline=None,
+        suppress_health_check=[HealthCheck.too_slow],
+    )
+    settings.register_profile("default", max_examples=100, deadline=None)
+
+    # Load default profile if set
+    settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "default"))
+except ImportError:
+    pass

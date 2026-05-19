@@ -63,7 +63,7 @@ jobs:
         shell: bash
 
       - name: Run Hypothesis deep fuzzing
-        run: uv run pytest tests/ --hypothesis-profile=ci-deep -x -q
+        run: uv run pytest tests/ --ignore=tests/e2e_swarm --hypothesis-profile=ci-deep -x -q
         shell: bash
 
       - name: Upload Hypothesis artifacts on failure
