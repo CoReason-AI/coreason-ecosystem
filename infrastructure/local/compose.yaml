@@ -263,7 +263,7 @@ services:
       - sensory-gateway
     depends_on:
       openshell-server:
-        condition: service_healthy
+        condition: service_started
 
   openshell-server:
     image: ghcr.io/nvidia/openshell/gateway:latest
@@ -273,11 +273,7 @@ services:
         limits:
           cpus: '1.0'
           memory: '2G'
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8080/health || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+
     ports:
       - "8080:8080"
     networks:
@@ -285,7 +281,7 @@ services:
       - sensory-gateway
     depends_on:
       openshell-driver:
-        condition: service_healthy
+        condition: service_started
 
   openshell-driver:
     image: ghcr.io/nvidia/openshell/supervisor:latest
@@ -295,11 +291,7 @@ services:
         limits:
           cpus: '1.0'
           memory: '2G'
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8081/health || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+
     ports:
       - "8081:8081"
     networks:
