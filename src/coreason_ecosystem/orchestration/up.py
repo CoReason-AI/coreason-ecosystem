@@ -12,7 +12,6 @@ import asyncio
 import subprocess
 from pathlib import Path
 
-import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from coreason_ecosystem.cli import console
@@ -116,27 +115,6 @@ async def execute_up() -> None:
         console=console,
         transient=False,
     ) as progress:
-        task_sandbox = progress.add_task(
-            "[cyan]Igniting NemoClaw Sandbox...[/cyan]", total=None
-        )
-        proc = await asyncio.create_subprocess_exec(
-            "nemoclaw",
-            "sandbox",
-            "start",
-            "--empty",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        _, stderr = await proc.communicate()
-        if proc.returncode != 0:
-            console.print()
-            raise typer.Exit(1)
-        progress.update(
-            task_sandbox,
-            description="[green]✓ NemoClaw Sandbox ACTIVE[/green]",
-            completed=True,
-        )
-
         task_injection = progress.add_task(
             "[cyan]Injecting Sovereign MCP Gateway...[/cyan]", total=None
         )

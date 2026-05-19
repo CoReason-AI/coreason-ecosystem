@@ -17,8 +17,6 @@ import yaml
 # If a parent service is defined in a compose file, its backends MUST also be defined
 # and correctly linked via `depends_on`.
 TOPOLOGY_CONTRACT = {
-    "nemoclaw": ["openshell-server"],
-    "openshell-server": ["openshell-driver"],
     "coreason-master-gateway": ["coreason-runtime", "neo4j", "milvus", "vault"],
     "temporal": ["postgres"],
 }

@@ -66,53 +66,7 @@ services:
     networks:
       - e2e-mesh
 
-  nemoclaw:
-    image: ghcr.io/coreason-ai/coreason-ecosystem:0.32.0
-    restart: on-failure
-    command: ["python", "-m", "http.server", "8104"]
-    healthcheck:
-      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8104/')\" || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    ports:
-      - "8104:8104"
-    networks:
-      - e2e-mesh
-    depends_on:
-      openshell-server:
-        condition: service_started
 
-  openshell-server:
-    image: ghcr.io/coreason-ai/coreason-ecosystem:0.32.0
-    restart: on-failure
-    command: ["python", "-m", "http.server", "8105"]
-    healthcheck:
-      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8105/')\" || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    ports:
-      - "8105:8105"
-    networks:
-      - e2e-mesh
-    depends_on:
-      openshell-driver:
-        condition: service_started
-
-  openshell-driver:
-    image: ghcr.io/coreason-ai/coreason-ecosystem:0.32.0
-    restart: on-failure
-    command: ["python", "-m", "http.server", "8106"]
-    healthcheck:
-      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8106/')\" || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    ports:
-      - "8106:8106"
-    networks:
-      - e2e-mesh
 
   neo4j:
     image: ghcr.io/coreason-ai/coreason-ecosystem:0.32.0

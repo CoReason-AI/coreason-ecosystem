@@ -1,6 +1,5 @@
 from typing import Any
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, patch, MagicMock
 from coreason_ecosystem.orchestration.up import (
     wait_for_postgres,
@@ -9,7 +8,6 @@ from coreason_ecosystem.orchestration.up import (
     execute_up,
     provision_swarm_topology,
 )
-import typer
 
 
 @pytest.mark.asyncio
@@ -94,17 +92,11 @@ async def test_wait_for_port_timeout(
     new_callable=AsyncMock,
 )
 @patch("coreason_ecosystem.orchestration.up.write_registry_lock")
-@patch("asyncio.create_subprocess_exec")
 @patch("coreason_ecosystem.orchestration.up.NATSCapabilityRegistry")
 async def test_execute_up_success(
-    mock_registry_cls: Any, mock_exec: Any, mock_write_lock: Any, mock_calc_root: Any
+    mock_registry_cls: Any, mock_write_lock: Any, mock_calc_root: Any
 ) -> None:
     mock_calc_root.return_value = "hash"
-
-    proc = MagicMock()
-    proc.communicate = AsyncMock(return_value=(b"out", b"err"))
-    proc.returncode = 0
-    mock_exec.return_value = proc
 
     registry = MagicMock()
     registry.initialize = AsyncMock()
@@ -113,38 +105,7 @@ async def test_execute_up_success(
 
     await execute_up()
 
-    mock_exec.assert_called_once_with(
-        "nemoclaw",
-        "sandbox",
-        "start",
-        "--empty",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
     registry.initialize.assert_called_once()
-
-
-@pytest.mark.asyncio
-@patch(
-    "coreason_ecosystem.orchestration.up.calculate_epistemic_root",
-    new_callable=AsyncMock,
-)
-@patch("coreason_ecosystem.orchestration.up.write_registry_lock")
-@patch("asyncio.create_subprocess_exec")
-async def test_execute_up_failure(
-    mock_exec: Any, mock_write_lock: Any, mock_calc_root: Any
-) -> None:
-    mock_calc_root.return_value = "hash"
-
-    proc = MagicMock()
-    proc.communicate = AsyncMock(return_value=(b"out", b"err"))
-    proc.returncode = 1
-    mock_exec.return_value = proc
-
-    with pytest.raises(typer.Exit) as exc_info:
-        await execute_up()
-
-    assert exc_info.value.exit_code == 1
 
 
 @pytest.mark.asyncio
