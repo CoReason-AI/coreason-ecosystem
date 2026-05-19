@@ -104,7 +104,7 @@ async def wait_for_port(port: int, timeout: float = 30.0) -> None:
 
 
 async def execute_up() -> None:
-    """Implement Just-in-Time Cognition Flow via NemoClaw."""
+    """Implement Just-in-Time Cognition Flow via Master Gateway."""
     project_path = Path.cwd()
     root_hash = await calculate_epistemic_root(project_path)
     write_registry_lock(project_path, root_hash)
@@ -119,7 +119,7 @@ async def execute_up() -> None:
             "[cyan]Injecting Sovereign MCP Gateway...[/cyan]", total=None
         )
         logger.info(
-            "[Gateway] Connecting to NemoClaw via mTLS and registering MCP tools..."
+            "[Gateway] Connecting to Master Gateway via mTLS and registering MCP tools..."
         )
         registry = NATSCapabilityRegistry()
         await registry.initialize()

@@ -72,19 +72,6 @@ spec:
               urn: "urn:coreason:actionspace:substrate:skypilot:v1"
 
     # ---------------------------------------------------------------
-    # Capability Provider: NemoClaw DLP Scanner (external)
-    # ---------------------------------------------------------------
-    - name: nemoclaw-dlp
-      type: capability
-      properties:
-        image: ghcr.io/coreason-ai/nemoclaw:0.1.0
-        config:
-          - name: nemoclaw-config
-            properties:
-              urn: "urn:coreason:actionspace:solver:dlp_scanner:v1"
-              endpoint: "https://nemoclaw:8443"
-
-    # ---------------------------------------------------------------
     # Registered Capabilities (URN Routing Table)
     # ---------------------------------------------------------------
     # These replace the static capabilities.matrix.yaml entries.

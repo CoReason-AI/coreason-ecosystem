@@ -27,10 +27,6 @@ Architecture:
     - **Air Gap Control:** NATS account imports/exports natively enforce
       which subjects (capabilities) are accessible between instances.
 
-    - **DLP Scanning:** NemoClaw DLP scanning is implemented as a NATS
-      service (request-reply) that payloads pass through before crossing
-      the air gap.
-
     - **Audit Trail:** ``FederatedExecutionReceipt`` events are published
       to a JetStream stream for durable, append-only audit.
 """
@@ -127,10 +123,7 @@ class NATSFederationProxy:
        of custom ``AirGapPolicy`` enforcement. The NATS server config
        defines which subjects each account can access.
 
-    3. **DLP Scanning:** Invokes NemoClaw as a NATS service (request-reply)
-       instead of a custom httpx bridge.
-
-    4. **Audit:** Publishes ``FederatedExecutionReceipt`` to a JetStream
+    3. **Audit:** Publishes ``FederatedExecutionReceipt`` to a JetStream
        stream instead of in-memory accumulation.
     """
 
@@ -139,7 +132,6 @@ class NATSFederationProxy:
         local_instance_id: str,
         local_nats_url: str = "nats://localhost:4222",
         public_nats_url: str | None = None,
-        require_dlp: bool = True,
     ) -> None:
         """Initialize the federation proxy.
 
@@ -147,14 +139,12 @@ class NATSFederationProxy:
             local_instance_id: This instance's identity (e.g., 'alpha.internal').
             local_nats_url: URL of this instance's NATS server.
             public_nats_url: URL of the Public mesh NATS (for leaf node connection).
-            require_dlp: Whether DLP scanning is mandatory for cross-instance traffic.
         """
         self._instance_id = local_instance_id
         self._local_nats_url = local_nats_url
         self._public_nats_url = public_nats_url or os.environ.get(
             "COREASON_PUBLIC_NATS_URL", DEFAULT_PUBLIC_NATS_URL
         )
-        self._require_dlp = require_dlp
         self._nc: NATSClient | None = None
         self._js: Any = None
 
@@ -232,11 +222,7 @@ class NATSFederationProxy:
         if not self._nc or not self._nc.is_connected:
             raise RuntimeError("Federation proxy not connected. Call connect() first.")
 
-        # Step 1: DLP scanning (if required)
-        if self._require_dlp:
-            await self._dlp_scan(urn, arguments)
-
-        # Step 2: Build the federated request envelope
+        # Step 1: Build the federated request envelope
         request = {
             "jsonrpc": "2.0",
             "method": "tools/call",
@@ -262,7 +248,7 @@ class NATSFederationProxy:
                 f"Federated payload exceeds 10MB limit ({len(payload_bytes)} bytes)"
             )
 
-        # Step 3: Publish to the federation subject
+        # Step 2: Publish to the federation subject
         subject = SUBJECT_FEDERATION_INVOKE.format(
             peer_id=target_instance_id.replace(".", "_")
         )
@@ -285,7 +271,7 @@ class NATSFederationProxy:
                 ) from e
             raise RuntimeError(f"Federation request failed: {e}") from e
 
-        # Step 4: Emit success receipt
+        # Step 3: Emit success receipt
         await self._emit_receipt(
             agreement_id=agreement_id,
             destination=target_instance_id,
@@ -303,39 +289,6 @@ class NATSFederationProxy:
             ) from e
 
         return result
-
-    async def _dlp_scan(self, urn: str, arguments: dict[str, Any]) -> None:
-        """Submit payload to NemoClaw DLP scanning via NATS.
-
-        NemoClaw runs as a NATS service (request-reply pattern).
-        """
-        if not self._nc:
-            raise RuntimeError("Not connected")
-
-        scan_request = json.dumps(
-            {
-                "urn": urn,
-                "payload": arguments,
-                "scan_type": "FEDERATION_EGRESS",
-            }
-        ).encode("utf-8")
-
-        try:
-            response = await self._nc.request(
-                SUBJECT_DLP_SCAN, scan_request, timeout=10.0
-            )
-            result = json.loads(response.data.decode("utf-8"))
-            if not result.get("passed", False):
-                raise PermissionError(
-                    f"DLP scan BLOCKED federation egress for URN '{urn}': "
-                    f"{result.get('reason', 'Unknown violation')}"
-                )
-            logger.debug("DLP scan passed for URN: %s", urn)
-        except TimeoutError:
-            raise RuntimeError(
-                "NemoClaw DLP scanner did not respond within 10s. "
-                "Blocking federation egress per security policy."
-            )
 
     async def _emit_receipt(
         self,
