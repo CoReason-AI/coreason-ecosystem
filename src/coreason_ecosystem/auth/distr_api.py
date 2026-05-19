@@ -81,6 +81,7 @@ def issue_new_license(request: IssueLicenseRequest) -> dict[str, Any]:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/v1/forge/intent")
 async def proxy_forge_intent(intent: dict[str, Any]) -> dict[str, Any]:
     """
@@ -88,25 +89,23 @@ async def proxy_forge_intent(intent: dict[str, Any]) -> dict[str, Any]:
     Enforces Zero-Trust MCP routing through the Governance Plane.
     """
     server_params = StdioServerParameters(
-        command="uv",
-        args=["run", "mcp_server.py"],
-        env=None
+        command="uv", args=["run", "mcp_server.py"], env=None
     )
-    
+
     try:
         async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                
+
                 # Assuming the MCP tool is called scaffold_manifest_state or similar
                 # We dynamically pass the intent payload
                 result = await session.call_tool(
-                    "scaffold_manifest_state",
-                    arguments={"intent": intent}
+                    "scaffold_manifest_state", arguments={"intent": intent}
                 )
                 return {"status": "success", "result": result.content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Forge MCP routing failed: {e}")
+
 
 @app.get("/.well-known/jwks.json")
 def get_jwks() -> dict[str, Any]:
@@ -117,7 +116,7 @@ def get_jwks() -> dict[str, Any]:
         public_bytes = private_key.public_key().public_bytes(
             encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
         )
-        x_b64 = base64.urlsafe_b64encode(public_bytes).decode('ascii').rstrip('=')
+        x_b64 = base64.urlsafe_b64encode(public_bytes).decode("ascii").rstrip("=")
         return {
             "keys": [
                 {
@@ -125,14 +124,17 @@ def get_jwks() -> dict[str, Any]:
                     "crv": "Ed25519",
                     "x": x_b64,
                     "use": "sig",
-                    "kid": "master-key"
+                    "kid": "master-key",
                 }
             ]
         }
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Vault not initialized. Run key generation.")
+        raise HTTPException(
+            status_code=404, detail="Vault not initialized. Run key generation."
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/v1/capabilities/schema")
 def get_capabilities_schema() -> dict[str, Any]:
