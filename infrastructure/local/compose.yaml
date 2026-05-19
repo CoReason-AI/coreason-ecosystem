@@ -266,7 +266,7 @@ services:
         condition: service_healthy
 
   openshell-server:
-    image: ghcr.io/coreason-ai/openshell:0.1.0
+    image: ghcr.io/coreason-ai/openshell-server:0.1.0
     restart: on-failure
     deploy:
       resources:
