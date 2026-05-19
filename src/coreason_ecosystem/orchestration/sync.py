@@ -79,10 +79,9 @@ async def execute_sync() -> None:
         await detect_and_heal_drift(docker_bin)
 
         status.update("[yellow]Regenerating Ontology...[/yellow]")
-        schema = {
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "title": "Swarm Ontology",
-        }
+        from coreason_manifest.spec.ontology import CoreasonBaseState
+
+        schema = CoreasonBaseState.model_json_schema()
         schema_path = project_path / "coreason_ontology.schema.json"
         with schema_path.open("w", encoding="utf-8") as f:
             import json

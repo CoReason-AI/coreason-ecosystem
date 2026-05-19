@@ -20,7 +20,6 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-import random
 from typing import Any
 
 from loguru import logger
@@ -47,10 +46,24 @@ async def execute_infrastructure_chaos(
 
     # Simulate infrastructure chaos
     logger.warning(f"[Chaos:{experiment_id}] Injecting {vector} into {target}...")
-    await asyncio.sleep(0.5)
 
-    # In actual production, this would poll Docker or Kubernetes states
-    success = random.choice([True, False])  # nosec B311 - Simulating varying robustness
+    success = False
+    if vector == "container_crash":
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "docker",
+                "kill",
+                target,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await proc.communicate()
+            success = proc.returncode == 0
+        except Exception as e:
+            logger.error(f"[Chaos:{experiment_id}] Failed to execute docker kill: {e}")
+    else:
+        await asyncio.sleep(0.5)
+        success = True
 
     elapsed_ms = (time.time_ns() - started_at_ns) / 1_000_000
 
