@@ -24,8 +24,9 @@ COPY coreason-manifest* /coreason-manifest/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev --frozen
 
-# Build the execution plane wheel
-RUN uv build --wheel --out-dir /wheels
+# Build the manifest wheel and the execution plane wheel
+RUN cd /coreason-manifest && uv build --wheel --out-dir /wheels && \
+    cd /app && uv build --wheel --out-dir /wheels
 
 
 # Stage 2: Runtime
