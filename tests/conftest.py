@@ -12,7 +12,7 @@ import sys
 import sysconfig
 
 # Under free-threaded Python (3.13t/3.14t), skip importing bcrypt as it triggers
-# segmentation faults (exit code 139) due to C-extension incompatibilities.
+# segmentation faults (exit code 139) due C-extension incompatibilities.
 _is_free_threaded = (
     "free-threading" in sys.version.lower()
     or "freethreaded" in sys.version.lower()
