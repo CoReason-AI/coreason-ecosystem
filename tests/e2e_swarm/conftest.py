@@ -32,9 +32,9 @@ def spin_up_tripartite_swarm():
     for i in range(max_retries):
         try:
             # Check Master Gateway
-            res_gateway = httpx.get("http://localhost:8001/", timeout=1.0)
+            res_gateway = httpx.get("http://localhost:8101/", timeout=1.0)
             # Check Runtime
-            res_runtime = httpx.get("http://localhost:8000/docs", timeout=1.0)
+            res_runtime = httpx.get("http://localhost:8100/docs", timeout=1.0)
 
             if res_gateway.status_code == 200 and res_runtime.status_code == 200:
                 print("Swarm is healthy and ready for testing.")

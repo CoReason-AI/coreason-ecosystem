@@ -24,7 +24,7 @@ async def test_tripartite_happy_path():
         # Step 1: Gateway Ingress (simulated against standard gateway intent endpoint)
         try:
             response = await client.post(
-                "http://localhost:8001/api/v1/intent", json=payload
+                "http://localhost:8101/api/v1/intent", json=payload
             )
             # In a completely healthy environment, this would return a 200/202.
             # If the endpoint doesn't exist in our minimal compose test, we catch the 404
@@ -34,13 +34,13 @@ async def test_tripartite_happy_path():
             pass  # Handle gracefully if gateway isn't fully up in CI
 
         # Step 2: Validate health of dependent nodes in the Tripartite Swarm
-        response_runtime = await client.get("http://localhost:8000/docs")
+        response_runtime = await client.get("http://localhost:8100/docs")
         assert response_runtime.status_code in [200, 404]
 
-        response_urn = await client.get("http://localhost:8002/")
+        response_urn = await client.get("http://localhost:8102/")
         assert response_urn.status_code == 200
 
-        response_meta = await client.get("http://localhost:8003/")
+        response_meta = await client.get("http://localhost:8103/")
         assert response_meta.status_code == 200
 
 
@@ -61,7 +61,7 @@ async def test_hollow_plane_manifest_validation():
 
         try:
             response = await client.post(
-                "http://localhost:8001/api/v1/intent", json=malformed_payload
+                "http://localhost:8101/api/v1/intent", json=malformed_payload
             )
             # Gateway must act as a Guillotine and reject this structurally
             assert response.status_code in [400, 422, 404]
@@ -90,7 +90,7 @@ async def test_asset_forge_deficit_remediation():
         try:
             # Send to gateway
             response = await client.post(
-                "http://localhost:8001/api/v1/intent", json=deficit_payload
+                "http://localhost:8101/api/v1/intent", json=deficit_payload
             )
 
             # If the Gateway supports dynamic forge routing, it might return 202 Accepted
@@ -98,7 +98,7 @@ async def test_asset_forge_deficit_remediation():
             assert response.status_code in [202, 404, 501]
 
             # Check Meta-Engineering health directly to prove the forge is available
-            forge_health = await client.get("http://localhost:8003/")
+            forge_health = await client.get("http://localhost:8103/")
             assert forge_health.status_code == 200
         except httpx.RequestError:
             pass
@@ -122,7 +122,7 @@ async def test_wasm_sandbox_guillotine():
 
         try:
             response = await client.post(
-                "http://localhost:8000/api/v1/execute", json=trap_payload
+                "http://localhost:8100/api/v1/execute", json=trap_payload
             )
             # The WASM sandbox should trap this and return a structured error
             # without crashing the Python host daemon.
@@ -153,7 +153,7 @@ async def test_temporal_rehydration_chaos():
 
         try:
             response = await client.post(
-                "http://localhost:8001/api/v1/intent", json=dag_payload
+                "http://localhost:8101/api/v1/intent", json=dag_payload
             )
             assert response.status_code in [200, 202, 404]
 
@@ -162,7 +162,7 @@ async def test_temporal_rehydration_chaos():
             await asyncio.sleep(1)
 
             # Gateway must still be responsive
-            gateway_health = await client.get("http://localhost:8001/")
+            gateway_health = await client.get("http://localhost:8101/")
             assert gateway_health.status_code in [200, 404]
         except httpx.RequestError:
             pass
@@ -178,7 +178,7 @@ async def test_sse_telemetry_streaming():
         try:
             # We connect to the SSE endpoint
             async with client.stream(
-                "GET", "http://localhost:8001/api/v1/telemetry/stream"
+                "GET", "http://localhost:8101/api/v1/telemetry/stream"
             ) as response:
                 assert response.status_code in [200, 404]
                 if response.status_code == 200:

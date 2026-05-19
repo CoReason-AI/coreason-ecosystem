@@ -4,28 +4,28 @@ services:
   coreason-runtime:
     image: ghcr.io/coreason-ai/coreason-runtime:0.39.0
     restart: on-failure
-    command: ["start", "api", "--port", "8000"]
+    command: ["start", "api", "--port", "8100"]
     healthcheck:
-      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')\" || exit 1" ]
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8100/docs')\" || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
     ports:
-      - "8000:8000"
+      - "8100:8100"
     networks:
       - e2e-mesh
 
   coreason-master-gateway:
     image: ghcr.io/coreason-ai/coreason-ecosystem:0.32.0
     restart: on-failure
-    command: ["python", "-m", "http.server", "8000"]
+    command: ["python", "-m", "http.server", "8101"]
     healthcheck:
-      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/')\" || exit 1" ]
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8101/')\" || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
     ports:
-      - "8001:8000"
+      - "8101:8101"
     networks:
       - e2e-mesh
     depends_on:
@@ -35,28 +35,28 @@ services:
   coreason-urn-authority:
     image: ghcr.io/coreason-ai/coreason-ecosystem:0.32.0
     restart: on-failure
-    command: ["python", "-m", "http.server", "8002"]
+    command: ["python", "-m", "http.server", "8102"]
     healthcheck:
-      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/')\" || exit 1" ]
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8102/')\" || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
     ports:
-      - "8002:8002"
+      - "8102:8102"
     networks:
       - e2e-mesh
 
   coreason-meta-engineering:
     image: ghcr.io/coreason-ai/coreason-ecosystem:0.32.0
     restart: on-failure
-    command: ["python", "-m", "http.server", "8003"]
+    command: ["python", "-m", "http.server", "8103"]
     healthcheck:
-      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8003/')\" || exit 1" ]
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8103/')\" || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
     ports:
-      - "8003:8003"
+      - "8103:8103"
     networks:
       - e2e-mesh
 
