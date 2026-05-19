@@ -4,6 +4,7 @@ global:
   networkMode: public       # 'public' = CoReason-managed network | 'private' = client-operated network
   licenseType: prosperity-3.0  # 'prosperity-3.0' = assets forged by coreason-meta-engineering are licensed to CoReason | 'commercial' = client retains ownership of forged assets
   federationEnabled: false  # When true, enables bridge from client's private network to CoReason public network
+  epistemicMerkleRoot: ""
 
 # OCI Registry Credentials — injected by the client for private GHCR access
 imagePullSecrets:
@@ -13,7 +14,7 @@ gateway:
   replicaCount: 1
   terminationGracePeriodSeconds: 30
   image:
-    repository: ghcr.io/coreason/coreason-master-gateway
+    repository: ghcr.io/coreason-ai/coreason-master-gateway
     tag: latest
     # Digest pin (SHA-256): When set, takes precedence over tag.
     # Production deployments MUST use digest for SOC2/ISO compliance.
@@ -57,7 +58,7 @@ runtime:
     maxReplicas: 10
     targetCPUUtilizationPercentage: 80
   image:
-    repository: ghcr.io/coreason/coreason-runtime
+    repository: ghcr.io/coreason-ai/coreason-runtime
     tag: latest
     # Digest pin (SHA-256): When set, takes precedence over tag.
     digest: ""

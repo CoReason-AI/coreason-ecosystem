@@ -69,4 +69,6 @@ spec:
               value: {{ .Values.global.licenseType | default "prosperity-3.0" }}
             - name: COREASON_FEDERATION_ENABLED
               value: {{ .Values.global.federationEnabled | default "false" | quote }}
+            - name: EPISTEMIC_MERKLE_ROOT
+              value: {{ .Values.global.epistemicMerkleRoot | quote }}
 
