@@ -33,7 +33,7 @@ RUN cd /coreason-manifest && uv build --wheel --out-dir /wheels && \
 FROM python:3.14-slim AS runtime
 
 # MCP Registry OCI ownership verification
-LABEL io.modelcontextprotocol.server.name="io.github.coreason-ai/coreason-ecosystem"
+LABEL io.modelcontextprotocol.server.name="io.github.CoReason-AI/coreason-ecosystem"
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
