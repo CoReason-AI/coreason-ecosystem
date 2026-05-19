@@ -10,7 +10,6 @@
 
 import base64
 import json
-import sys
 from typing import Any
 
 
