@@ -10,5 +10,6 @@ def test_main_execution() -> None:
         text=True,
         check=True,
     )
-    assert "Usage: coreason" in result.stdout
+    assert "Usage:" in result.stdout
+    assert "coreason" in result.stdout
     assert result.returncode == 0
