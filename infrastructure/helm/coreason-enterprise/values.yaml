@@ -98,3 +98,74 @@ milvus:
   enabled: true
 dex:
   enabled: true
+
+# Added Components
+urnAuthority:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/coreason-ai/coreason-urn-authority
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 50m
+      memory: 256Mi
+
+metaEngineering:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/coreason-ai/coreason-meta-engineering
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 50m
+      memory: 512Mi
+
+sensoryApp:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/coreason-ai/coreason-sensory-app
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+sensoryEmbed:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/coreason-ai/coreason-sensory-embed
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+manifest:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/coreason-ai/coreason-manifest
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi

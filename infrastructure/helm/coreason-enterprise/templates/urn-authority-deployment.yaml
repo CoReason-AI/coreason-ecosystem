@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-urn-authority
+  labels:
+    app: urn-authority
+spec:
+  replicas: {{ .Values.urnAuthority.replicaCount }}
+  selector:
+    matchLabels:
+      app: urn-authority
+  template:
+    metadata:
+      labels:
+        app: urn-authority
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: urn-authority
+          image: "{{ .Values.urnAuthority.image.repository }}:{{ .Values.urnAuthority.image.tag }}"
+          imagePullPolicy: {{ .Values.urnAuthority.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.urnAuthority.resources | nindent 12 }}
+          env:
+            - name: COREASON_ENVIRONMENT
+              value: {{ .Values.global.environment }}
+            - name: COREASON_NETWORK_MODE
+              value: {{ .Values.global.networkMode | default "public" }}

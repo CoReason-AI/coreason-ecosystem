@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-sensory-embed
+  labels:
+    app: sensory-embed
+spec:
+  replicas: {{ .Values.sensoryEmbed.replicaCount }}
+  selector:
+    matchLabels:
+      app: sensory-embed
+  template:
+    metadata:
+      labels:
+        app: sensory-embed
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: sensory-embed
+          image: "{{ .Values.sensoryEmbed.image.repository }}:{{ .Values.sensoryEmbed.image.tag }}"
+          imagePullPolicy: {{ .Values.sensoryEmbed.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.sensoryEmbed.resources | nindent 12 }}
+          env:
+            - name: COREASON_ENVIRONMENT
+              value: {{ .Values.global.environment }}
+            - name: COREASON_NETWORK_MODE
+              value: {{ .Values.global.networkMode | default "public" }}

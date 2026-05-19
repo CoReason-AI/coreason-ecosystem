@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-meta-engineering
+  labels:
+    app: meta-engineering
+spec:
+  replicas: {{ .Values.metaEngineering.replicaCount }}
+  selector:
+    matchLabels:
+      app: meta-engineering
+  template:
+    metadata:
+      labels:
+        app: meta-engineering
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: meta-engineering
+          image: "{{ .Values.metaEngineering.image.repository }}:{{ .Values.metaEngineering.image.tag }}"
+          imagePullPolicy: {{ .Values.metaEngineering.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.metaEngineering.resources | nindent 12 }}
+          env:
+            - name: COREASON_ENVIRONMENT
+              value: {{ .Values.global.environment }}
+            - name: COREASON_NETWORK_MODE
+              value: {{ .Values.global.networkMode | default "public" }}
