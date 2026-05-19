@@ -49,18 +49,22 @@ def install_license(jwt_string: str) -> None:
     try:
         client = hvac.Client(url=vault_url, token=vault_token)
         # Attempt to read existing token to check supersession
-        existing_response = client.secrets.kv.v2.read_secret_version(
-            path="coreason/license", raise_on_deleted_version=False
-        )
-        if (
-            existing_response
-            and "data" in existing_response
-            and "data" in existing_response["data"]
-        ):
-            existing = existing_response["data"]["data"]
-            # Enforce that iat must be newer
-            if existing.get("iat", 0) > payload.get("iat", 0):
-                raise ValueError("Cannot install an older token over a newer token.")
+        try:
+            existing_response = client.secrets.kv.v2.read_secret_version(
+                path="coreason/license", raise_on_deleted_version=False
+            )
+            if (
+                existing_response
+                and "data" in existing_response
+                and "data" in existing_response["data"]
+            ):
+                existing = existing_response["data"]["data"]
+                # Enforce that iat must be newer
+                if existing.get("iat", 0) > payload.get("iat", 0):
+                    raise ValueError("Cannot install an older token over a newer token.")
+        except hvac.exceptions.InvalidPath:
+            # Secret does not exist yet. Proceed to create.
+            pass
 
         # Atomic swap into HashiCorp Vault
         client.secrets.kv.v2.create_or_update_secret(

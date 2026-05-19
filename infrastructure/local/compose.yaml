@@ -78,7 +78,7 @@ services:
       - swarm-mesh
       - sensory-gateway
   coreason-worker:
-    image: ${COREASON_RUNTIME_IMAGE:-ghcr.io/coreason-ai/coreason-runtime:latest-cpu}
+    image: ${COREASON_RUNTIME_IMAGE:-ghcr.io/coreason-ai/coreason-runtime:latest}
     restart: on-failure
     # 👉 This boots the Temporal Worker instead of the API
     command: ["start", "node"]
@@ -87,7 +87,9 @@ services:
       - TEMPORAL_HOST=temporal:7233
       - NEO4J_URI=bolt://neo4j:7687
       - OPENAI_BASE_URL=https://api.deepinfra.com/v1/openai
+      - OPENAI_API_KEY=lqef2h4s9Oqx2fheJWWhVJo8WrhJBshu
       - EPISTEMIC_MERKLE_ROOT=${EPISTEMIC_MERKLE_ROOT}
+      - CLOUD_ORACLE_API_KEY=lqef2h4s9Oqx2fheJWWhVJo8WrhJBshu
       - CLOUD_ORACLE_BASE_URL=https://api.deepinfra.com/v1/openai
       - CLOUD_ORACLE_MODEL=meta-llama/Meta-Llama-3-70B-Instruct
       - CLOUD_ORACLE_EMBEDDING_MODEL=text-embedding-3-small
@@ -251,6 +253,7 @@ services:
       - COREASON_NEO4J_URI=${COREASON_NEO4J_URI:-bolt://neo4j:7687}
       - COREASON_MILVUS_URI=${COREASON_MILVUS_URI:-http://milvus:19530}
       - COREASON_TREASURY_CONTRACT=${COREASON_TREASURY_CONTRACT}
+      - OPENAI_API_KEY=lqef2h4s9Oqx2fheJWWhVJo8WrhJBshu
       - COREASON_OTLP_ENDPOINT=http://otel-collector:4318/v1/logs
       - VAULT_ADDR=http://vault:8200
       - VAULT_TOKEN=root-token
@@ -323,7 +326,7 @@ services:
           cpus: '1.0'
           memory: '2G'
     healthcheck:
-      test: [ "CMD", "neo4j", "status" ]
+      test: [ "CMD-SHELL", "wget --spider http://localhost:7474/ || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
