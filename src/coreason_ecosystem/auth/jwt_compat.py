@@ -8,14 +8,10 @@
 #
 # Source Code: <https://github.com/CoReason-AI/coreason-ecosystem>
 
+import base64
+import json
 import sys
 from typing import Any
-
-_is_free_threaded = (
-    "free-threading" in sys.version.lower()
-    or hasattr(sys.flags, "nogil")
-    or sys.exec_prefix.endswith("t")
-)
 
 
 # Exception classes matching PyJWT's API
@@ -27,18 +23,13 @@ class ExpiredSignatureError(InvalidTokenError):
     pass
 
 
-# We conditionally try to import jwt if not in free-threaded mode to keep
-# with the "Borrow vs. Build" philosophy for the standard platform runtime.
-if not _is_free_threaded:
-    try:
-        import jwt as _jwt
+try:
+    import jwt as _jwt
 
-        _decode = _jwt.decode
-        ExpiredSignatureError = _jwt.ExpiredSignatureError  # type: ignore
-        InvalidTokenError = _jwt.InvalidTokenError  # type: ignore
-    except ImportError:
-        _jwt = None  # type: ignore
-else:
+    _decode = _jwt.decode
+    ExpiredSignatureError = _jwt.ExpiredSignatureError  # type: ignore
+    InvalidTokenError = _jwt.InvalidTokenError  # type: ignore
+except ImportError:
     _jwt = None  # type: ignore
 
 
@@ -49,6 +40,26 @@ def decode(jwt_string: str, *args: Any, **kwargs: Any) -> dict[str, Any]:
     """
     if _jwt is not None:
         return _decode(jwt_string, *args, **kwargs)
+
+    options = kwargs.get("options", {})
+    if options.get("verify_signature") is False:
+        # Pure Python zero-dependency fallback.
+        # Only allowed when explicitly bypassing verification for passthrough.
+        parts = jwt_string.split(".")
+        if len(parts) != 3:
+            raise InvalidTokenError("Malformed or invalid token: Expected 3 parts")
+
+        payload_b64 = parts[1]
+        rem = len(payload_b64) % 4
+        if rem > 0:
+            payload_b64 += "=" * (4 - rem)
+
+        try:
+            payload_bytes = base64.urlsafe_b64decode(payload_b64.encode("utf-8"))
+            payload = json.loads(payload_bytes.decode("utf-8"))
+            return payload
+        except Exception as e:
+            raise InvalidTokenError(f"Malformed or invalid token: Failed to decode: {e}")
 
     raise NotImplementedError(
         "Signature verification requires PyJWT; install cryptography dependencies."
