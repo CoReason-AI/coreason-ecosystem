@@ -1,0 +1,65 @@
+version: '3.9'
+
+services:
+  coreason-runtime:
+    image: ghcr.io/coreason-ai/coreason-runtime:latest
+    restart: on-failure
+    command: ["start", "api", "--port", "8000"]
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')\" || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8000:8000"
+    networks:
+      - e2e-mesh
+
+  coreason-master-gateway:
+    image: ghcr.io/coreason-ai/coreason-ecosystem:latest
+    restart: on-failure
+    command: ["python", "-m", "http.server", "8000"]
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/')\" || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8001:8000"
+    networks:
+      - e2e-mesh
+    depends_on:
+      coreason-runtime:
+        condition: service_healthy
+
+  coreason-urn-authority:
+    image: ghcr.io/coreason-ai/coreason-urn-authority:latest
+    restart: on-failure
+    command: ["start", "server", "--port", "8002"]
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/docs')\" || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8002:8002"
+    networks:
+      - e2e-mesh
+
+  coreason-meta-engineering:
+    image: ghcr.io/coreason-ai/coreason-meta-engineering:latest
+    restart: on-failure
+    command: ["start", "server", "--port", "8003"]
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8003/docs')\" || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8003:8003"
+    networks:
+      - e2e-mesh
+
+networks:
+  e2e-mesh:
+    internal: false
