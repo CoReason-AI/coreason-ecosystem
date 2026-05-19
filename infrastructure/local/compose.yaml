@@ -251,7 +251,6 @@ services:
       - COREASON_NEO4J_URI=${COREASON_NEO4J_URI:-bolt://neo4j:7687}
       - COREASON_MILVUS_URI=${COREASON_MILVUS_URI:-http://milvus:19530}
       - COREASON_TREASURY_CONTRACT=${COREASON_TREASURY_CONTRACT}
-      - OPENAI_API_KEY=lqef2h4s9Oqx2fheJWWhVJo8WrhJBshu
       - COREASON_OTLP_ENDPOINT=http://otel-collector:4318/v1/logs
       - VAULT_ADDR=http://vault:8200
       - VAULT_TOKEN=root-token
