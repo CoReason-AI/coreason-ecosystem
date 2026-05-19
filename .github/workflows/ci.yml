@@ -41,11 +41,16 @@ jobs:
       - name: Substrate Purity Verification
         run: git clean -xfd -e .venv -e .uv_cache
 
+      - name: Extract coreason-manifest version
+        run: |
+          python -c "import re; m = re.search(r'coreason-manifest==([0-9]+\.[0-9]+\.[0-9]+)', open('pyproject.toml').read()); print('MANIFEST_VERSION=v' + m.group(1)) if m else exit(1)" >> "$GITHUB_ENV"
+        shell: bash
+
       - name: Checkout coreason-manifest
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: CoReason-AI/coreason-manifest
-          ref: v0.84.1
+          ref: ${{ env.MANIFEST_VERSION }}
           path: coreason-manifest
           token: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
@@ -111,11 +116,16 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Extract coreason-manifest version
+        run: |
+          python -c "import re; m = re.search(r'coreason-manifest==([0-9]+\.[0-9]+\.[0-9]+)', open('pyproject.toml').read()); print('MANIFEST_VERSION=v' + m.group(1)) if m else exit(1)" >> "$GITHUB_ENV"
+        shell: bash
+
       - name: Checkout coreason-manifest
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: CoReason-AI/coreason-manifest
-          ref: v0.84.1
+          ref: ${{ env.MANIFEST_VERSION }}
           path: coreason-manifest
           token: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
@@ -227,11 +237,16 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Extract coreason-manifest version
+        run: |
+          python -c "import re; m = re.search(r'coreason-manifest==([0-9]+\.[0-9]+\.[0-9]+)', open('pyproject.toml').read()); print('MANIFEST_VERSION=v' + m.group(1)) if m else exit(1)" >> "$GITHUB_ENV"
+        shell: bash
+
       - name: Checkout coreason-manifest
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: CoReason-AI/coreason-manifest
-          ref: v0.84.1
+          ref: ${{ env.MANIFEST_VERSION }}
           path: coreason-manifest
           token: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
@@ -276,11 +291,16 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Extract coreason-manifest version
+        run: |
+          python -c "import re; m = re.search(r'coreason-manifest==([0-9]+\.[0-9]+\.[0-9]+)', open('pyproject.toml').read()); print('MANIFEST_VERSION=v' + m.group(1)) if m else exit(1)" >> "$GITHUB_ENV"
+        shell: bash
+
       - name: Checkout coreason-manifest
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: CoReason-AI/coreason-manifest
-          ref: v0.84.1
+          ref: ${{ env.MANIFEST_VERSION }}
           path: coreason-manifest
           token: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
