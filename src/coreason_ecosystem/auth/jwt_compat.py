@@ -58,7 +58,9 @@ def decode(jwt_string: str, *args: Any, **kwargs: Any) -> dict[str, Any]:
             payload = json.loads(payload_bytes.decode("utf-8"))
             return payload
         except Exception as e:
-            raise InvalidTokenError(f"Malformed or invalid token: Failed to decode: {e}")
+            raise InvalidTokenError(
+                f"Malformed or invalid token: Failed to decode: {e}"
+            )
 
     raise NotImplementedError(
         "Signature verification requires PyJWT; install cryptography dependencies."
