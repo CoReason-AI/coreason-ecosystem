@@ -151,6 +151,8 @@ services:
   vault:
     image: hashicorp/vault:latest
     restart: on-failure
+    cap_add:
+      - IPC_LOCK
     deploy:
       resources:
         limits:
@@ -159,6 +161,7 @@ services:
     environment:
       - VAULT_DEV_ROOT_TOKEN_ID=root-token
       - VAULT_ADDR=http://127.0.0.1:8200
+      - SKIP_SETCAP=true
     command: >
       /bin/sh -c "
         vault server -dev -dev-listen-address=0.0.0.0:8200 &
