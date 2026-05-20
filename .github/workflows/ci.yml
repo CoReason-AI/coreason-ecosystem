@@ -150,8 +150,8 @@ jobs:
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ghcr.io
-          username: gowthamrao
-          password: ${{ secrets.GHCR_PAT }}
+          username: ${{ secrets.GHCR_PAT && 'gowthamrao' || github.actor }}
+          password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Compose
         run: |
