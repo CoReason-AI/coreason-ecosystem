@@ -13,8 +13,10 @@
 2ec4d03f3a31fb93c7bd88ec69763e404de16cb5:tests/unit/fleet/test_expansion_loop.py:generic-api-key:89
 
 # bandit-tests.json artifacts
-e6d9421a63179844185a28b4146b444dbf5e30ab:bandit-tests.json:private-key:1442
-e6d9421a63179844185a28b4146b444dbf5e30ab:bandit-tests.json:private-key:4941
+e6d9421a63179844185a28b4146b444dbf5e30ab:bandit-tests.json:asymmetric-private-key:1442
+e6d9421a63179844185a28b4146b444dbf5e30ab:bandit-tests.json:asymmetric-private-key:1462
+e6d9421a63179844185a28b4146b444dbf5e30ab:bandit-tests.json:asymmetric-private-key:4941
+e6d9421a63179844185a28b4146b444dbf5e30ab:bandit-tests.json:asymmetric-private-key:4961
 
 # mock public did key used in distr_provisioning.py
 cff5e0479384d70a3a7076abbc8807c000f77708:src/coreason_ecosystem/auth/distr_provisioning.py:generic-api-key:109
