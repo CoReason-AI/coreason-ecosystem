@@ -151,6 +151,8 @@ services:
   vault:
     image: hashicorp/vault:latest
     restart: on-failure
+    cap_add:
+      - IPC_LOCK
     deploy:
       resources:
         limits:
