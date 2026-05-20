@@ -29,12 +29,9 @@ jobs:
           fetch-depth: 0
 
       - name: Gitleaks Scan
-        run: |
-          VERSION="8.18.2"
-          wget -q https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz
-          tar -zxvf gitleaks_${VERSION}_linux_x64.tar.gz gitleaks
-          ./gitleaks detect --verbose --redact
-        shell: bash
+        uses: gitleaks/gitleaks-action@v1.6.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   malware-scan:
     name: Repository-Wide Malware Scan (ClamAV)
