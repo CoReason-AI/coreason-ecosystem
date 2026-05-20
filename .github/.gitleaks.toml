@@ -1,0 +1,12 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignore local dev configs, test fixtures, and mock files"
+paths = [
+    '''infrastructure/local/dex-config\.yaml''',
+    '''tests/unit/fleet/test_expansion_loop\.py''',
+    '''bandit-tests\.json''',
+    '''src/coreason_ecosystem/auth/distr_provisioning\.py''',
+    '''infrastructure/local/compose\.yaml'''
+]
